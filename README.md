@@ -10,15 +10,15 @@ Synchrotron, Paris (France)
 
 REQUIREMENTS
 ------------
-Python >= 3
-sys
-os
-importlib
-numpy
-scipy
-pandas
-matplotlib
-easygui
+- Python3
+- sys
+- os
+- importlib
+- numpy
+- scipy
+- pandas
+- matplotlib
+- easygui
 
 USAGE
 -----

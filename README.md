@@ -9,18 +9,6 @@ Currently pyDichroX analyse only data from:
 - Deimos beamline @ Soleil Synchrotron, Paris (France)
 - Boreas beamline @ Alba Synchrotron, Barcellona (Spain)
 
-REQUIREMENTS
-------------
-- Python3
-- sys
-- os
-- importlib
-- numpy
-- scipy
-- pandas
-- matplotlib
-- easygui
-
 USAGE
 -----
 Just run pyDichroX.py.

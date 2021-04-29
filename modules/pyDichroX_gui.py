@@ -13,7 +13,7 @@ Methods
 ask_continue()
     GUI dialogue to ask for continuing with other analysis.
 
-ask_quit(title, mes):
+ask_quit(title, mes)
     GUI dialogue to ask if quit or not the program.
 
 no_config():
@@ -73,44 +73,57 @@ class GUI:
     chs_analysis()
         GUI dialogue to choose the data analysis to perform.
 
-    ipt_fls()
+    sel_edg_fls()
+        GUI dialogue to select or create edge-list file.
+
+    chs_edge()
+        Provides a GUI to set the edge and pre-edge energies for energy scan
+        analysis.
+
+    set_edges(sel_edg, exper_edge, x, y1, y2, y2int)
+        Allows user set the edge and pre-edge energies from experimental data
+        in order to perform energy calibration and normalizations.
+
+    ask_angle()
+        Provides a GUI to ask for experimental angle of the sample respect the 
+        beam.
+
+    sel_ifls_fls(confobj)
         GUI dialogue to select data input files.
 
     add_set()
         GUI dialogue to add further sets of XMCD/XNCD/XNLD scans.
 
-    not_enough_fls(a_case, pol)
-        GUI warning that not enough files for a given polarization have been
-        supplied.    
+    in_dtst(confobj)
+        GUI dialogue to select input files data sets.
 
-    def chs_scns(choices)
+    not_enough_fls(pol)
+        GUI warning that not enough files for a given polarization have been
+        supplied.
+
+    ask_logfn(self)
+        Gui dialogue to ask for datalog filename.
+
+    no_log(fname, action='')
+        Message box indicating a missing logfile.
+
+    e_num_pnts(e_num)
+        GUI dialogue to set the number of points used for energy scan
+        interpolations.
+
+    chs_scns(choices)
         GUI dialogue to select the scans to be averaged from a list of labels.
 
     confirm_choice()
         Provides a GUI to let user confirms his choice and continue or make
         a different choice.
 
-    int_pnts(e_num)
-        Provides a GUI to let the user set the number of points used for
-        energy scan interpolations.
-
-    ask_temp_field()
-        GUI dialogue to ask for experimental temperature and magnetic field.
-
-    ask_angle()
-        Provides a GUI to ask for experimental angle of the sample respect the 
-        beam.
-
-    chs_edge()
-        Provides a GUI to set the edge and pre-edge energies for energy scan
-        analysis.
-
-    edge(sel_edg)
-        Allows user set the edge and pre-edge energies from experimental data
-        in order to perform energy calibration and normalizations.
-
-    outfile_name(self, default_nm):
+    outfile_name(default_nm)
         GUI dialogue to choose output file name
+
+    wrongpol(scn_num, polarisation)
+        GUI dialogue to warn that a file with wrong polarisation has been
+        passed.
     '''
 
     def __init__(self, confobj):
@@ -131,8 +144,8 @@ class GUI:
         self.title = 'pyDichroX'
 
         self.interactive = confobj.interactive
-        self.log = confobj.log
         self.sense = confobj.sense
+        self.list_analysis = confobj.list_analysis
 
     def chs_analysis(self):
         '''
@@ -153,8 +166,7 @@ class GUI:
         self.title = 'pyDichroX'
 
         msg = 'Select the analysis you want to perform.'
-        #choices = ['XMCD', 'XNCD', 'XNLD', 'XNXD', 'Hysteresis']
-        choices = ['XMCD', 'XNCD', 'XNLD', 'XNXD']
+        choices = self.list_analysis
 
         self.title += ' {} analysis'.format(self.sense)
 
@@ -396,7 +408,7 @@ class GUI:
                 errmsg = ''
                 if new_vals is None:
                     ask_quit(self.title)
-                else:                    
+                else:
                     for i in range(len(field_nms)):
                         if not new_vals[i].strip():
                             errmsg += ('{} is a required field\n\n'.format(
@@ -424,7 +436,7 @@ class GUI:
                         if (i == len(field_nms) - 1) and (new_vals[i].lower()
                                                           not in accepted):
                             errmsg += ('Please insert only \'Y\', \'y\', ' +
-                                        '\'N\' or \'n\' in Recalbrate field.')
+                                       '\'N\' or \'n\' in Recalbrate field.')
                     if not errmsg:
                         break
                 new_vals = eg.multenterbox(msg + errmsg, self.title,
@@ -480,7 +492,7 @@ class GUI:
             ax1.axvspan(lpe_e, rpe_e, color='mistyrose')
             ax1.axvline(x=new_vals[2], color='coral', label='Pre-edge energy')
             ax1.axvline(x=new_vals[3], color='plum', label='Post-edge energy')
-            
+
             ax1.axhline(y=0, color='black')
             ax1.legend()
             # Plot averaged xas spectrum in a second y-axis
@@ -506,29 +518,7 @@ class GUI:
         else:
             new_vals[5] = False
 
-        #return [new_vals[1], new_vals[2], new_vals[4], pe_int, new_vals[5]]
         return [new_vals[1], new_vals[2], new_vals[3], new_vals[4], new_vals[5]]
-
-    def ask_temp_field(self):
-        '''
-        GUI dialogue to ask for experimental temperature and magnetic field.
-
-        Returns
-        -------
-        str, sample temperature, for log purpose
-        str, magnetic field, for log purpose.
-        '''
-        msg = 'Enter the sample temperature (K).'
-        temp = eg.enterbox(msg, self.title)
-        if temp is None:
-            temp = ' '
-
-        msg = 'Enter the magnetic field value (T).'
-        field = temp = eg.enterbox(msg, self.title)
-        if field is None:
-            field = ' '
-
-        return temp, field
 
     def ask_angle(self):
         '''
@@ -570,9 +560,13 @@ class GUI:
         # radians for XNLD computations
         return new_angle, np.deg2rad(90 - float(new_angle))
 
-    def sel_ifls(self):
+    def sel_ifls(self, confobj):
         '''
         GUI dialogue to select input files.
+
+        Parameters
+        ----------
+        confobj : configuration object
 
         Returns
         -------
@@ -581,23 +575,26 @@ class GUI:
         element being a list with edge scans filenames and the second one a
         list with pre-edge scans filenames.
         '''
+        # default file extension
+        default = confobj.default_ext
+
         # Current directory and txt files are setted as default.
 
         # Non hysteresis scans.
         if self.case not in self.type['hyst']:
             msg = ("Choose data files")
             f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
-                                   default='*.txt')
+                                   default=default)
             return f_nms
 
         # Hysteresis scans.
         else:
             msg = ("Choose edge scans")
             f_edg_nms = eg.fileopenbox(msg=msg, title=self.title,
-                                       multiple=True, default='*.txt')
+                                       multiple=True, default=default)
             msg = ("Choose pre-edge scans")
             f_pedg_nms = eg.fileopenbox(msg=msg, title=self.title,
-                                        multiple=True, default='*.txt')
+                                        multiple=True, default=default)
 
             # Pre-edge scans are not mandatory, if Cancel is pressed of windows
             # is closed an empty list is passed
@@ -625,9 +622,13 @@ class GUI:
         else:
             return add
 
-    def in_dtst(self):
+    def in_dtst(self, confobj):
         '''
         GUI dialogue to select input files data sets.
+    
+        Parameters
+        ----------
+        confobj : configuration object
 
         Returns
         -------
@@ -644,7 +645,7 @@ class GUI:
         dataset = []
         # File selection
         while True:
-            dataset.append(self.sel_ifls())
+            dataset.append(self.sel_ifls(confobj))
             if self.case not in self.type['hyst']:
                 if None in dataset:
                     dataset.pop()
@@ -657,10 +658,13 @@ class GUI:
                     ask_quit(self.title, 2)
                 else:
                     break
+        # Ask for datalogfile
+        confobj.scanlog_fname(self)
+
         # Additional data selection
         while True:
             if self.add_set():
-                add = self.sel_ifls()
+                add = self.sel_ifls(confobj)
 
                 if self.case not in self.type['hyst']:
                     if add is None:
@@ -673,6 +677,9 @@ class GUI:
                     if not(add[0] or add[1]):
                         break
                     dataset.append(add)
+                
+                # Ask for datalogfile
+                confobj.scanlog_fname(self)
             else:
                 break
 
@@ -714,17 +721,38 @@ class GUI:
                "Do you want to choose files again or do you want to quit?")
 
         return eg.ccbox(msg=msg, title=self.title, choices=('Choose again',
-                                                'Quit'), cancel_choice='Quit')
+                        'Quit'), cancel_choice='Quit')
 
-    def no_log(self, fname):
+    def ask_logfn(self):
+        '''
+        Gui dialogue to ask for datalog filename.
+
+        Used in case a single datalog file is present for an entire dataset.
+
+        Return
+        ------
+        str, datalog filename
+        '''
+        msg = 'Choose datalog file associated with your set of data.'
+
+        logfn = eg.fileopenbox(msg=msg, title=self.title, multiple=False)
+
+        return logfn
+        
+
+    def no_log(self, fname, action=''):
         '''
         Message box indicating a missing logfile.
 
         Parameters
         ----------
-        fname : filename related to the missing logfile
+        fname : str
+            filename related to the missing logfile
+
+        action : str
+            describe what will happen due to logfile missing
         '''
-        msg = "Logfile {} not found".format(fname)
+        msg = "Logfile {} not found.\n{}".format(fname, action)
 
         eg.msgbox(msg, self.title)
 
@@ -823,10 +851,30 @@ class GUI:
                                filetypes='*.dat')
 
         return fname
-        #if fname is None:
+        # if fname is None:
         #    return default_nm
-        #else:
+        # else:
         #    return fname
+
+    def wrongpol(self, scn_num, polarisation):
+        '''
+        GUI dialogue to warn that a file with wrong polarisation has been
+        passed.
+
+        Parameters
+        ----------
+        scn_num : str
+            scan number
+
+        polarisation : str
+            polarisation type
+        '''
+        msg = ('Polarisation of scan number {} is not {}'.format(scn_num,
+               polarisation) + '\n\nScan number {}'.format(scn_num) +
+               ' will not be considered')
+
+        eg.msgbox(msg=msg, title=self.title)
+
 
 def ask_continue():
     '''
@@ -836,6 +884,7 @@ def ask_continue():
     msg = 'Do you want continue doing other analysis?'
 
     return eg.ynbox(msg=msg, title=title)
+
 
 def ask_quit(title, mes=0):
     '''
@@ -861,6 +910,7 @@ def ask_quit(title, mes=0):
     else:
         pass
 
+
 def no_config():
     '''
     GUI dialogue for no presence of configuration file.
@@ -871,6 +921,7 @@ def no_config():
     eg.msgbox(msg=msg, title=title)
 
     sys.exit(0)
+
 
 def set_config(cfg_list):
     '''

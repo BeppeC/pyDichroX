@@ -6,18 +6,14 @@ data analysis.
 
 Methods
 --------
-log_scavenger(dataflnm, guiobj)
-    Search in logfile for energies, field values, temperatures and sample
-    position.
-
 open_import_escan(guiobj, confobj)
     Open input files and import data for energy scan experiments.
 
-logfl_creator(confobj, log_dt):
-    Create string with log data to be saved in logfile
-
-output_fls_escan(guiobj, pos, neg, scanobj)
+output_fls_escan(confobj, guiobj, pos, neg, scanobj)
     Save data and graphs for energy scan experiments.
+
+set_scn_num(confobj, f_name, pos, neg)
+    Associate an identifier for each scan.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -34,88 +30,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 import modules.pyDichroX_datatreat as dt
-
-
-def log_scavenger(dataflnm, guiobj):
-    '''
-    Search for energies, field values, temperatures and sample position of a
-    given datafile in related logfile.
-
-    Parameters
-    ----------
-    dataflnm : datafile's name.
-        The name of logfile is retrieved just changing in .log the extension of
-        datafile, following SOLEIL convention.
-
-    guiobj : GUI object
-        Provides GUI dialogs.
-
-    Returns
-    -------
-    dict:
-     . mon_en : monocromator energy
-     . field : magnetic field value
-     . tb1 : sample temperature 1
-     . tb2 : sample temperature 2
-     . rz : sample rotation angle
-     . tx : sample x position
-     . tz : sample z position
-
-    If a problem with opening logfile is encountered a message is printed on
-    terminal and NaN values are returned.
-
-    Notes
-    -----
-    Currently works only with Deimos @ Soleil logfiles
-    '''
-    # data log filename
-    logfl = dataflnm.rstrip('txt') + 'log'
-
-    try:
-        with open(logfl, 'r', encoding='ISO-8859-1') as fl:
-            logtx = fl.read()
-            # separate paragraphs in logfile
-            parlst = logtx.split('\n\n')
-            # search in paragraphs the sections of interest
-            for par in parlst:
-                if 'Monochromator' in par:
-                    # find line with energy and extract energy value
-                    for ln in par.split('\n'):
-                        if 'energy' in ln:
-                            mon_en = float(ln.split(':')[1].strip(' eV'))
-                if 'Sample magnetic field' in par:
-                    # find line with field and extract field value
-                    for ln in par.split('\n'):
-                        if 'field ' in ln:
-                            # field is logged only for energy scan, field
-                            # absolute is recorded
-                            field = abs(float(ln.split(':')[1].strip(
-                                        ' TESLA')))
-                if 'Sample temperature' in par:
-                    # find line with sample temperature and extract TB values
-                    for ln in par.split('\n'):
-                        if '1_#1' in ln:
-                            tb1 = float(ln.split('=')[1].strip(' K;'))
-                        if '1_#2' in ln:
-                            tb2 = float(ln.split('=')[1].strip(' K;'))
-                if 'Position' in par:
-                    # find lines with sample positions and extract
-                    # positions values
-                    for ln in par.split('\n'):
-                        if 'exp1-mt_rz_#1' in ln:
-                            rz = float(ln.split('=')[1].strip(' °;'))
-                        if 'exp1-mt_tx_#1' in ln:
-                            tx = float(ln.split('=')[1].strip(' mm;'))
-                        if 'exp1-mt_tz.2_#1' in ln:
-                            tz = float(ln.split('=')[1].strip(' mm;'))
-        return {'mon_en': mon_en, 'field': field, 'tb1': tb1, 'tb2': tb2,
-                'rz': rz, 'tx': tx, 'tz': tz}
-    except:
-        f_name = os.path.basename(logfl)
-        guiobj.no_log(f_name)
-
-        return {'mon_en': np.nan, 'field': np.nan, 'tb1': np.nan, 'tb2': np.nan,
-                'rz': np.nan, 'tx': np.nan, 'tz': np.nan}
 
 
 def open_import_escan(guiobj, confobj):
@@ -145,15 +59,14 @@ def open_import_escan(guiobj, confobj):
 
     dict, contains log information
      . log_tbl : pd.Dataframes, columns are:
-         ...... Only if scan log files are present
          . mon_en : float, monocromator energy
+         . pol : int, polarisation identifier
          . field : float, magnetic field value
          . tb1 : float, sample temperature 1
          . tb2 : float, sample temperature 2
          . rz : float, sample rotation angle
          . tx : float, sample x position
          . tz : float, sample z position
-         ...........................................
          . scan_num : str, scan number (dummies scan are highlighted)
          . type : str, scan polarization
      . Edge_name : edge name
@@ -162,10 +75,6 @@ def open_import_escan(guiobj, confobj):
      . PostEdge_en : post-edge energy
      . angle : rotation angle of the sample
      . bm_angle : incidence beam angle
-     ...... Only if the are no scan log files
-     . temp : sample temperature
-     . field : magnetic field
-
      . escale : list with energy scale info [e_min, e_max, num_points]
      . exper_edge : experimental edge energy
      . setted_pedg : setted pre-edge energy
@@ -189,12 +98,6 @@ def open_import_escan(guiobj, confobj):
     # dictionary collecting log data
     log_dt = {}
 
-    # If no logfile search in configuaration ask for temperature and field
-    if not confobj.log:
-        temp, field = guiobj.ask_temp_field()
-        log_dt['temp'] = temp
-        log_dt['field'] = field
-
     # Insert experimental rotation angle of the sample
     angle, bm_angle = guiobj.ask_angle()
 
@@ -209,31 +112,45 @@ def open_import_escan(guiobj, confobj):
         lgrws = {}
         log_tbl = pd.DataFrame()
 
-        in_sets = guiobj.in_dtst()  # Import data sets
+        in_sets = guiobj.in_dtst(confobj)  # Import data sets
 
         for dtset in in_sets:
             chk_sgn_h = 1.  # To check a field change
 
             for file in dtset:
-                data = pd.read_csv(file, delim_whitespace=True)
+                data = pd.read_csv(file, sep=confobj.sep,
+                                   usecols=confobj.e_scn_cols)
+                f_name = os.path.basename(file)
+                try:
+                    lgrws.update(confobj.log_scavenger(file))
+                except:
+                    logfn = confobj.single_lognm(f_name)
+                    guiobj.no_log(logfn, confobj.nologmess)
+                    continue
 
                 e_raw = data[confobj.energy]
 
                 # Select data based on sensing in configuration file
-                if confobj.sense == 'TEY':
-                    dt_raw = data[confobj.iti0_escn]
+                # Normalize data if it/i0 is not directly provided
+                if confobj.norm_curr:
+                    if confobj.sense == 'TEY':
+                        dt_raw = data[confobj.it_escn]/data[confobj.i0_escn]
+                    else:
+                        dt_raw = data[confobj.if_escn]/data[confobj.if0_escn]
                 else:
-                    dt_raw = data[confobj.ifi0_escn]
+                    if confobj.sense == 'TEY':
+                        dt_raw = data[confobj.iti0_escn]
+                    else:
+                        dt_raw = data[confobj.ifi0_escn]
 
                 # Mean and sign of magnetic field
-                h_mean = data[confobj.field_escn].mean()
-                h_sgn = np.sign(h_mean)
-                # Mean of light phase
-                phi_mean = data[confobj.phase_escn].mean()
+                field = lgrws['field']
+                h_sgn = np.sign(field)
+                # Light polarisation
+                pol = lgrws['pol']
 
-                # Extract scan number from filename
-                f_name = os.path.basename(file)
-                scn_num = confobj.extract_num(f_name)
+                # Set scan number from filename                
+                scn_num = set_scn_num(confobj, f_name, pos, neg)
 
                 # Create label to tag scans.
 
@@ -251,11 +168,17 @@ def open_import_escan(guiobj, confobj):
                 # For XMCD, data are divided and different labels assigned
                 # based on sigma sign.
                 if guiobj.case in guiobj.type['xmcd']:
-                    if confobj.cr_cond(phi_mean):
-                        scn_lbl += ' CR, H = {:.2f} T'.format(h_mean)
+                    try:
+                        iscr = confobj.cr_cond(pol)
+                    except:
+                        guiobj.wrongpol(scn_num, 'circular')
+                        continue  # continue if wrong file is found
+
+                    if iscr:
+                        scn_lbl += ' CR, H = {:.2f} T'.format(field)
                         lgrws['type'] = 'CR'
                     else:
-                        scn_lbl += ' CL, H = {:.2f} T'.format(h_mean)
+                        scn_lbl += ' CL, H = {:.2f} T'.format(field)
                         lgrws['type'] = 'CL'
 
                     sigma_sgn = h_sgn * confobj.phi_sgn
@@ -272,12 +195,21 @@ def open_import_escan(guiobj, confobj):
                         neg.label.append(scn_lbl)
                         neg.idx.append(scn_num)
                         neg.dtype = 'sigma^-'
+
+                    log_tbl = log_tbl.append(lgrws, ignore_index=True)
+
                 # For XNCD, data are divided and different labels assigned
                 # based on polarizaion sign.
                 elif guiobj.case in guiobj.type['xncd']:
-                    scn_lbl += ' H = {:.2f} T'.format(h_mean)
+                    try:
+                        iscr = confobj.cr_cond(pol)
+                    except:
+                        guiobj.wrongpol(scn_num, 'circular')
+                        continue  # continue if wrong file is found
 
-                    if confobj.cr_cond(phi_mean):  # CR data
+                    scn_lbl += ' H = {:.2f} T'.format(field)
+
+                    if iscr:  # CR data
                         pos.raw_imp['E' + scn_num] = e_raw
                         pos.raw_imp[scn_num] = dt_raw
                         pos.label.append(scn_lbl)
@@ -291,14 +223,23 @@ def open_import_escan(guiobj, confobj):
                         neg.idx.append(scn_num)
                         neg.dtype = 'CL'
                         lgrws['type'] = 'CL'
+
+                    log_tbl = log_tbl.append(lgrws, ignore_index=True)
+
                 # For XNXD, data are divided and different labels assigned
                 # based on magnetic field sign.
                 elif guiobj.case in guiobj.type['xnxd']:
-                    if confobj.cr_cond(phi_mean):
-                        scn_lbl += ' CR, H = {:.2f} T'.format(h_mean)
+                    try:
+                        iscr = confobj.cr_cond(pol)
+                    except:
+                        guiobj.wrongpol(scn_num, 'circular')
+                        continue  # continue if wrong file is found
+
+                    if iscr:
+                        scn_lbl += ' CR, H = {:.2f} T'.format(field)
                         lgrws['type'] = 'CR'
                     else:
-                        scn_lbl += ' CL, H = {:.2f} T'.format(h_mean)
+                        scn_lbl += ' CL, H = {:.2f} T'.format(field)
                         lgrws['type'] = 'CL'
 
                     if h_sgn < 0:  # H- data
@@ -313,12 +254,21 @@ def open_import_escan(guiobj, confobj):
                         neg.label.append(scn_lbl)
                         neg.idx.append(scn_num)
                         neg.dtype = 'H +'
+
+                    log_tbl = log_tbl.append(lgrws, ignore_index=True)
+
                 # For XNLD, data are divided and different labels assigned
                 # based on polarization sign.
                 elif guiobj.case in guiobj.type['xnld']:
-                    scn_lbl += ' H = {:.2f} T'.format(h_mean)
+                    try:
+                        islv = confobj.lv_cond(pol)
+                    except:
+                        guiobj.wrongpol(scn_num, 'linear')
+                        continue  # continue if wrong file is found
 
-                    if confobj.lv_cond(np.around(phi_mean, 1)):  # LV data
+                    scn_lbl += ' H = {:.2f} T'.format(field)
+
+                    if islv:  # LV data
                         neg.raw_imp['E' + scn_num] = e_raw
                         neg.raw_imp[scn_num] = dt_raw
                         neg.label.append(scn_lbl)
@@ -333,9 +283,10 @@ def open_import_escan(guiobj, confobj):
                         pos.dtype = 'LH'
                         lgrws['type'] = 'LH'
 
-                if confobj.log:
-                    lgrws.update(log_scavenger(file, guiobj))
-                log_tbl = log_tbl.append(lgrws, ignore_index=True)
+                    log_tbl = log_tbl.append(lgrws, ignore_index=True)
+
+            # increase counter for cumulative scanlogs if present
+            confobj.scanlog_cnt += 1
 
         # At least one scan file per polarization is needed
         if len(pos.idx) < 1:
@@ -355,10 +306,8 @@ def open_import_escan(guiobj, confobj):
 
     # dictionary collecting log data
     log_dt['log_tbl'] = log_tbl
-    if confobj.log:
-        log_dt['temp'] = np.round(
-            ((log_tbl['tb1'].mean() + log_tbl['tb2'].mean()) / 2), 1)
-        log_dt['field'] = np.round(log_tbl['field'].mean(), 1)
+    log_dt['temp'] = np.round(log_tbl['t'].mean(), 1)
+    log_dt['field'] = np.round(log_tbl['field'].abs().mean(), 1)
     log_dt['Edge_name'] = edge[0]
     log_dt['Edge_en'] = float(edge[1])
     log_dt['PreEdge_en'] = float(edge[2])
@@ -368,78 +317,6 @@ def open_import_escan(guiobj, confobj):
 
     return pos, neg, log_dt
 
-def logfl_creator(confobj, log_dt):
-    '''
-    Create string with log data to be saved in logfile
-
-    Parameters
-    ----------
-    confobj : Configurations object
-
-    log_dt : dictionary with log data
-
-    Returns
-    -------
-    str, data formatted to be saved in logfile
-    '''
-    logtxt = ''
-    log_tbl = log_dt['log_tbl']
-
-    if confobj.log:
-        logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
-        logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
-                                log_tbl['field'].mean(), log_tbl['field'].std())
-        logtxt += 'Sample position\n'
-        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
-                                              log_tbl['rz'].std())
-        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
-                                               log_tbl['tx'].std())
-        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
-                                                 log_tbl['tz'].std())
-    else:
-        logtxt += 'Temperature : {} K\n'.format(log_dt['temp'])
-        logtxt += 'Magnetic field {} T\n\n'.format(log_dt['field'])
-
-    logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
-
-    logtxt += 'Input scans\n'
-    for i in range(len(log_tbl)):
-        logtxt += '{} ({}), '.format(log_tbl['scan_num'].iloc[i],
-                                     log_tbl['type'].iloc[i])
-    logtxt += '\n\n'
-    logtxt += 'Positive selected scans\n'
-    for i in log_dt['pos_chs']:
-        logtxt += '{}, '.format(i)
-    logtxt += '\n\n'
-    logtxt += 'Negative selected scans\n'
-    for i in log_dt['neg_chs']:
-        logtxt += '{}, '.format(i)
-    logtxt += '\n\n'
-    logtxt += 'Edge used : {}\n'.format(log_dt['Edge_name'])
-    logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
-        log_dt['exper_edge'], log_dt['Edge_en'])
-    logtxt += 'Pre-edge energy : {} eV\n'.format(log_dt['setted_pedg'])
-    logtxt += 'Post-edge energy : {} eV\n'.format(log_dt['setted_postedg'])
-    logtxt += 'Recalibration : {}\n'.format(log_dt['recal'])
-    logtxt += 'Offset : {} eV'.format(log_dt['offset'])
-
-    logtxt += '\n\n'
-    logtxt += 'Edge jump for positive scans : {}\n'.format(log_dt['pos_ej'])
-    logtxt += 'Edge jump for positive scans - int.d pre-edge: {}\n'.format(
-        log_dt['pos_ej_int'])
-    logtxt += 'Edge jump for negative scans : {}\n'.format(log_dt['neg_ej'])
-    logtxt += 'Edge jump for negative scans - int.d pre-edge: {}\n'.format(
-        log_dt['neg_ej_int'])
-    logtxt += 'Edge jump for Avgd XAS spectrum : {}\n'.format(
-        log_dt['xas_aver_ej'])
-    logtxt += 'Edge jump for Avgd XAS sptectrum - int.d pre-edge: {}\n'.format(
-        log_dt['xas_aver_ej_int'])
-
-    return logtxt
 
 def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
     '''
@@ -460,11 +337,11 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
     '''
     # Collect data
     out_data = np.stack((scanobj.energy, scanobj.energycal, pos.aver,
-                        neg.aver, scanobj.xd, scanobj.xd_aver, pos.norm,
-                        neg.norm, scanobj.xd_pc, scanobj.pos_corr,
-                        scanobj.neg_corr, scanobj.xd_pc_av_ej, pos.norm_int,
-                        neg.norm_int, scanobj.xd_pc_int,
-                        scanobj.xd_pc_av_ej_int), axis=1)
+                         neg.aver, scanobj.xd, scanobj.xd_aver, pos.norm,
+                         neg.norm, scanobj.xd_pc, scanobj.pos_corr,
+                         scanobj.neg_corr, scanobj.xd_pc_av_ej, pos.norm_int,
+                         neg.norm_int, scanobj.xd_pc_int,
+                         scanobj.xd_pc_av_ej_int), axis=1)
     # Output file column names
     col_nms = 'E_int (eV),'
     col_nms += 'E (eV),'
@@ -523,9 +400,9 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
     f1, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     if guiobj.case in guiobj.type['xnld']:
         ax1.plot(scanobj.energycal, neg.aver, color='darkorange',
-            label=neg.dtype)
+                 label=neg.dtype)
         ax1.plot(scanobj.energycal, pos.aver, color='darkviolet',
-            label=pos.dtype)
+                 label=pos.dtype)
     elif guiobj.case in guiobj.type['xmcd']:
         ax1.plot(scanobj.energycal, neg.aver,
                  color='blue', label=r'$\sigma^-$')
@@ -537,11 +414,11 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
     ax1.legend()
     if guiobj.case in guiobj.type['xnld']:
         ax2.plot(scanobj.energycal, scanobj.xd_pc, color='black',
-            label=guiobj.analysis)
+                 label=guiobj.analysis)
         ax2.axhline(y=0, color='darkgray')
     else:
         ax2.plot(scanobj.energycal, scanobj.xd_pc, color='green',
-            label=guiobj.analysis)
+                 label=guiobj.analysis)
         ax2.axhline(y=0, color='black')
     ax2.set_ylabel('{} (%)'.format(guiobj.analysis))
     ax2.set_xlabel('E (eV)')
@@ -551,12 +428,12 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
         r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
         log_dt['field'], log_dt['angle']))
 
-    f2, (ax3, ax4)=plt.subplots(2, 1, sharex=True)
+    f2, (ax3, ax4) = plt.subplots(2, 1, sharex=True)
     if guiobj.case in guiobj.type['xnld']:
         ax3.plot(scanobj.energycal, neg.aver, color='darkorange',
-            label=neg.dtype)
+                 label=neg.dtype)
         ax3.plot(scanobj.energycal, pos.aver, color='darkviolet',
-            label=pos.dtype)
+                 label=pos.dtype)
     elif guiobj.case in guiobj.type['xmcd']:
         ax3.plot(scanobj.energycal, neg.aver,
                  color='blue', label=r'$\sigma^-$')
@@ -568,11 +445,11 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
     ax3.legend()
     if guiobj.case in guiobj.type['xnld']:
         ax4.plot(scanobj.energycal, scanobj.xd_pc_int, color='black',
-            label=guiobj.analysis)
+                 label=guiobj.analysis)
         ax4.axhline(y=0, color='darkgray')
     else:
         ax4.plot(scanobj.energycal, scanobj.xd_pc_int, color='green',
-            label=guiobj.analysis)
+                 label=guiobj.analysis)
         ax4.axhline(y=0, color='black')
     ax4.set_ylabel('{}_int (%)'.format(guiobj.analysis))
     ax4.set_xlabel('E (eV)')
@@ -580,13 +457,14 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
     f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(log_dt['exper_edge'],
         log_dt['setted_pedg']) + ' PostEdge : {:.2f},'.format(
         log_dt['setted_postedg']) + ' Edge-jump : {:.4f}\n'.format(
-        log_dt['xas_aver_ej_int']) + 
+        log_dt['xas_aver_ej_int']) +
         r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
-            log_dt['field'], log_dt['angle']))
+        log_dt['field'], log_dt['angle']))
     plt.show()
 
-    default_nm=('{}_{}_scan_{}-{}_{}K_{}T_{}_{}.dat'.format(log_dt['Edge_name'],
-        guiobj.analysis, log_dt['log_tbl']['scan_num'].iloc[0].rstrip('(D)'),
+    default_nm = ('{}_{}_scan_{}-{}_{}K_{}T_{}_{}.dat'.format(
+        log_dt['Edge_name'], guiobj.analysis,
+        log_dt['log_tbl']['scan_num'].iloc[0].rstrip('(D)'),
         log_dt['log_tbl']['scan_num'].iloc[-1], log_dt['temp'],
         log_dt['field'], log_dt['angle'], guiobj.sense))
 
@@ -609,8 +487,56 @@ def output_fls_escan(confobj, guiobj, pos, neg, scanobj, log_dt):
 
         logfl_nm = out_nm.rstrip('dat') + 'log'
 
-        logtxt = logfl_creator(confobj, log_dt)
+        logtxt = confobj.logfl_creator(log_dt)
 
         with open(logfl_nm, 'w') as fl:
             fl.write(logfl_nm + '\n\n')
             fl.write(logtxt)
+
+
+def set_scn_num(confobj, f_name, pos, neg):
+    '''
+    Associate an identifier for each scan.
+    This identifier is usually the scan number associated to datafile.
+    If the input consists of more than one dataset and different scans coming
+    from different set have the same number identifier is modified in order to
+    avoid overwiritng data problems during data import.
+
+    Parameters
+    ----------
+    confobj : configuration obj
+
+    f_name : str
+        scan name, used to exctract scan identifier
+
+    pos : ScanData obj
+        contains positive scan data
+
+    neg : ScanData obj
+        contains negative scan data
+
+    Returns
+    -------
+    str, identifier for the scan
+    '''
+    scn_num = confobj.extract_num(f_name)
+    scn_num_chk = scn_num
+
+    suffx = 1  # suffix to be added if scan_id already used is found
+
+    # if scan id is already used add suffix and check until no free id is found
+    while True:
+        if scn_num_chk in pos.raw_imp.columns:
+            scn_num_chk = scan_num + '_{}'.format(suffx)
+            suffx += 1
+        else:
+            break
+
+    while True:
+        if scn_num_chk in neg.raw_imp.columns:
+            scn_num_chk = scan_num + '_{}'.format(suffx)
+            suffx += 1
+        else:
+            break
+
+    return scn_num_chk

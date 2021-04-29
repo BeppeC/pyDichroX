@@ -6,8 +6,8 @@ pyDichroX is a program written in Pyhton to analyse XAS data.
 Starting with XAS scan pyDichroX computes XMCD, XNXD, XNCD, XNLD.
 
 Currently pyDichroX analyse only data from:
-. Deimos beamline @ Soleil Synchrotron, Paris (France)
-. Boreas beamline @ Alba Synchrotron, Barcellona (Spain)
+- Deimos beamline @ Soleil Synchrotron, Paris (France)
+- Boreas beamline @ Alba Synchrotron, Barcellona (Spain)
 
 REQUIREMENTS
 ------------

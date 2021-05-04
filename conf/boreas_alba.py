@@ -1,7 +1,8 @@
 # Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
-import numpy as np
-import modules.pyDichroX_gui as pdxgui
 import os
+import numpy as np
+import pandas as pd
+import modules.pyDichroX_gui as pdxgui
 
 class Configuration():
     '''
@@ -266,29 +267,27 @@ class Configuration():
                 parlst = logtx.split('\n\n')
                 # search in paragraphs the section related to current scan
                 for par in parlst:
-                    if ('#S ' + scannum) in par:                 
-                        for ln in par.split('\n'):                            
-                            if '#P0' in ln:
-                                # find line with temperature - channela 1st 
-                                # value - and extract its value
-                                t1 = float(ln.split(' ')[2])
-                                # find line with polarisation and extract
-                                # its value
-                                pol = float(ln.split(' ')[3])
-                            if '#P8' in ln:
-                                # find line with monocromathor corrected energy
-                                # and extract its value
-                                mon_en = float(ln.split(' ')[6])
-                            if '#P14' in ln:
-                                # find line with magnetic field - magnet_y is
-                                # the one used here - and extract its value
-                                field = float(ln.split(' ')[1])
-                            if '#P17' in ln:
-                                # find line with temperature - channela 2nd 
-                                # value - and extract its value
-                                t2 = float(ln.split(' ')[8])
-                t = (t1 + t2) / 2
-            return {'mon_en': mon_en, 'pol': pol, 'field': field, 't': t}
+                    if ('#S ' + scannum) in par:
+                        # Collects fieldnames preceeded by #O and values
+                        # preceeded by #P
+                        headnms = []
+                        vals = []          
+                        for ln in par.split('\n'):
+                            if '#O' in ln:
+                                line_nm = ln.split('  ')
+                                line_nm[0] = line_nm[0].split(' ')[1]
+                                headnms.extend(line_nm)
+                            if '#P' in ln:
+                                vals.extend(ln.split(' ')[1:])          
+
+                        mon_en = float(vals[headnms.index(
+                            'ideu71_motor_energy')])
+                        pol = float(vals[headnms.index(
+                            'ideu71_motor_polarization')])
+                        t = float(vals[headnms.index('xmcd_temp_1K')])
+                        field = float(vals[headnms.index('magnet_y')])
+
+            return {'mon_en': mon_en, 'pol': pol, 'field': field, 't':t}
         except:            
             raise Exception()
 

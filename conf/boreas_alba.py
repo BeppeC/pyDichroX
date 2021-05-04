@@ -1,7 +1,6 @@
 # Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
 import os
 import numpy as np
-import pandas as pd
 import modules.pyDichroX_gui as pdxgui
 
 class Configuration():

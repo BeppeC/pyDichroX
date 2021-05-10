@@ -13,8 +13,11 @@ EngyScan : Allow computation on energy scan data extracting XNLD, XMCD or XNCD
 
 Methods
 -------
+e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref)
+    Create the energy scale used for data analysis.
+
 lin_interpolate(x, y, x0):
-        Linear interpolation of the value at x0
+    Linear interpolation of the value at x0
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -47,7 +50,9 @@ class ScanData:
         Collect imported raw data
 
     aver : array
-        Data average of selected scans from raw_imp
+        Data average of selected scans from raw_imp.
+        If ScanData is a reference one, aver contain normalized data by
+        reference.
 
     dtype : str
         Identifies the data collected, used for graph labelling:
@@ -91,7 +96,7 @@ class ScanData:
         Manage the choice of scans to be averaged and return the average of
         selected scans.
 
-    aver_e_scans(enrg, chsd, interactive)
+    aver_e_scans(enrg, chsd, guiobj)
         Performe the average of data scans.
 
     edge_norm(enrg, e_edge, e_pe, pe_rng, pe_int)
@@ -136,20 +141,22 @@ class ScanData:
             while not isok:
                 # Plot all raw data
                 plt.figure(1)
+                if guiobj.infile_ref:
+                    plt.title('Reference sample scans')
                 for i in self.idx:
                     e_col = 'E' + i
                     plt.plot(self.raw_imp[e_col], self.raw_imp[i],
                              label=self.label[self.idx.index(i)])
                 plt.xlabel('E (eV)')
                 plt.ylabel(self.dtype)
-                plt.legend()
+                plt.legend()                
                 plt.show()
 
                 # Dialogue to choose data to be averaged
                 chsd = guiobj.chs_scns(self.label)
 
                 # Compute average of choosed scans
-                avgd = self.aver_e_scans(enrg, chsd, guiobj.interactive)
+                avgd = self.aver_e_scans(enrg, chsd, guiobj)
 
                 # Ask for confirmation
                 isok = guiobj.confirm_choice()
@@ -164,12 +171,12 @@ class ScanData:
                 if not ('Dummy' in lbl):
                     chsd.append(self.idx[self.label.index(lbl)])
 
-            avgd = self.aver_e_scans(enrg, chsd, guiobj.interactive)
+            avgd = self.aver_e_scans(enrg, chsd, guiobj)
 
         self.aver = avgd
         self.chsd_scns = chsd  # Collect choosed scans for log purpose
 
-    def aver_e_scans(self, enrg, chsd, interactive):
+    def aver_e_scans(self, enrg, chsd, guiobj):
         '''
         Perform the average of data scans. 
         If interactive mode, data scans and their average are shown together
@@ -183,8 +190,8 @@ class ScanData:
         chsd : list (str)
             Scan-numbers of scan to be averaged.
 
-        interactive: bool
-            If True chsd scans are plotted together with their average.
+        guiobj: GUI object
+            Provides GUI dialogs.
 
         Returns
         -------
@@ -199,15 +206,17 @@ class ScanData:
         '''
         intrp = []
 
-        if interactive:
+        if guiobj.interactive:
             plt.figure(1)
+            if guiobj.infile_ref:
+                plt.title('Reference sample scans')
 
         for scn in chsd:
             # Chosed data
             x = self.raw_imp['E' + scn][1:]
             y = self.raw_imp[scn][1:]
 
-            if interactive:
+            if guiobj.interactive:
                 # Plot data
                 plt.plot(x, y, color='black')
 
@@ -220,7 +229,7 @@ class ScanData:
         # Average all inteprolated scans
         avgd = np.average(intrp, axis=0)
 
-        if interactive:
+        if guiobj.interactive:
             plt.plot(enrg, avgd, color='r', label='Average')
             plt.xlabel('E (eV)')
             plt.ylabel(self.dtype)
@@ -229,7 +238,6 @@ class ScanData:
 
         return avgd
 
-    #def edge_norm(self, enrg, e_edge, e_pe, pe_rng, pe_int):
     def edge_norm(self, enrg, e_edge, e_pe, e_poste, pe_rng):
         '''
         Normalize energy scan data by the value at pre-edge energy.
@@ -339,6 +347,9 @@ class EngyScan:
     e_pe : float
         Pre-edge energy value
 
+    e_poste : float
+        Post-edge energy value
+
     pe_wdt : float
         Half-width of energy range for pre-edge average computation
 
@@ -353,6 +364,12 @@ class EngyScan:
     energycal : array
         Common energy scale calibrated considering the offset
 
+    ang_w_n : float
+        Angle weight for XNLD computation
+
+    ang_w_d : float
+        Angle weight for XNLD computation
+
     xd : array
         X-Ray dichroism data
 
@@ -361,10 +378,11 @@ class EngyScan:
         weighted average is considered
 
     xd_pc : array
-        X-Ray dichroism normalized by the average of positve and negative scans
-        edge jumps respectively. Obtained from positive and negative scans
-        normalized by their values at pre-edge energy. The value is returned in
-        percentage
+        Percentage of X-Ray dichroism normalized by the average of positve and
+        negative scans edge jumps respectively. 
+
+    xd_pc_int :array
+        Same as xd_pc using data normalized with inerpolated edge-jump.
 
     pos_corr : array
         Normalized positive XAS spectrum weighted by the average of values at
@@ -376,110 +394,290 @@ class EngyScan:
         pre-edge energy of positive and negative spectra. For XNLD spectra the
         weight consider also the X-Ray beam incidence angle.
 
+    pos_corr_int : array
+        Same as pos_corr but using for the avereage of pre-edge values the
+        ineterpolated values. For XNLD spectra the weight consider also the
+        X-Ray beam incidence angle.
+
+    neg_corr_int : array
+        Same as neg_corr but using for the avereage of pre-edge values the
+        ineterpolated values. For XNLD spectra the weight consider also the
+        X-Ray beam incidence angle.
+
     xd_pc_av_ej : array
-        X-Ray dichroism normalized by edge jump of xd_aver scan.
-        Obtained from positive and negative scans normalized by the weighted
-        average of values at pre-edge energy. The value is returned in
-        percentage.
+        Percentage  ofX-Ray dichroism normalized by edge jump of xd_aver scan.        
+
+    xd_pc_av_ej_int : array
+        Same as xd_pc_av_ej but using for the edge-jump computation the 
+        interpolated values of pre-edges.
 
     Methods
     -------
-    e_scale(pos, neg, guiobj, log_dt)
-        Creates the energy scale used for data analysis.
+    scan_average(guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm)
+        Copmute averages of positive and negative scans.
 
-    edges(guiobj, log_dt)
+    compt_mxd(guiobj, pos, neg, log_dt)
+        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
+        XNCD spctra.
+
+    compt_xd(self, guiobj, pos, neg, log_dt)
+        Compute not normalized X-Ray Dichroism.
+
+    edges(guiobj, confobj, log_dt)
         Set values of edge and pre-edge energies.
 
-    compt_xd(pos, neg, guiobj, log_dt)
+    compt_xd_pc(guiobj, pos, neg)
+        Compute the percentage of X-Ray Dichroism normalized for edge-jump.
 
+    compt_pe_corr(guiobj, pos, neg)
+        Calculate xd percentage normalizing with edge-jump obtained from
+        weighted average of positive and negative spectra.
+
+    comp_xd_pc_av_ej(self, log_dt)
+        Compute percentage of X-Ray Dichroism normalized for edge-jump of
+        xd_aver spectrum.
     '''
 
-    def __init__(self, pos, neg, guiobj, log_dt):
+    def __init__(self, guiobj, confobj, e_scale, pos, neg, log_dt,
+        pos_to_norm=ScanData(), neg_to_norm=ScanData()):
         '''
-        At instantiation e_scale and compt_xd method are called, so upon its
-        creation an EngyScan object collects all the informations about X-Ray
-        dichroism.
+        At instantiation scan_average and compt_xd method are called and energy
+        attribute is settee, so upon its creation an EngyScan object collects
+        all the informations about X-Ray dichroism.
 
         Parameters
         ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
+        confobj : Configuration object
+
+        e_scale : array
+            Common energy scale for data analysis
+
+        pos : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+
+        neg : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+
+        log_dt : dict
+            Collect data for logfile
+
+        pos_to_norm : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to be
+            normalized by reference if present. If no reference data are present
+            pass empty ScanData object.
+
+        neg_to_norm : ScanData obj
+            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to be
+            normalized by reference if present. If no reference data are present
+            pass empty ScanData object.
+        '''
+        self.energy = e_scale
+
+        self.scan_average(guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm)
+        
+        self.compt_mxd(guiobj, pos, neg, log_dt)
+
+    def scan_average(self, guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm):
+        '''
+        Copmute averages of positive and negative scans.
+        If reference data are considered compute also the averages of reference
+        scans.
+
+        Parameters
+        ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
         pos_scan : ScanData obj
             Positive scans (CR for XMCD and XNCD, LH for XNLD)
 
         neg_scan : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)
-
-        guiobj : GUI obj
-            Provides GUI dialogs.
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
 
         log_dt : dict
             Collect data for logfile
+
+        pos_to_norm : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to be
+            normalized by reference if present
+
+        neg_to_norm : ScanData obj
+            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to be
+            normalized by reference if present
+
+        Return
+        ------
+        Instantiate aver attribute of positive and negative ScanData objects.
+        In case referecnce data are passed aver attribute is the normalization
+        ***_to_norm by reference data.
+
+        Add keys to log_dt
+
+        pos_chs : list (str) with positive chosed scan
+        neg_chs : list (str) with negative chosed scan
+
         '''
+        # If no reference data pos_to_norm and neg_to_norm are empty ScanData
+        # object
+        if pos_to_norm.raw_imp.empty or neg_to_norm.raw_imp.empty:
+            # Computes averages of positive and negative polarization scans.
+            guiobj.infile_ref = False
 
-        self.e_scale(pos, neg, guiobj, log_dt)
-        self.compt_xd(pos, neg, guiobj, log_dt)
+            pos.man_aver_e_scans(guiobj, self.energy)
+            neg.man_aver_e_scans(guiobj, self.energy)            
+        else:
+            # If present computes averages of positive and negative polarization
+            # of reference scans and normalize data for them.
+            # In this case pos and neg contains reference data and pos_to_norm
+            # neg_to_norm are data to be normalized. They are supposed to be
+            # already analyzed so aver attribute is already setted
+            guiobj.infile_ref = True
+            pos.man_aver_e_scans(guiobj, self.energy)
+            neg.man_aver_e_scans(guiobj, self.energy)
 
-    def e_scale(self, pos, neg, guiobj, log_dt):
+            # Just substitute pos.aver and neg.aver with normalized data
+            pos.aver = pos_to_norm.aver / pos.aver
+            neg.aver = neg_to_norm.aver / neg.aver
+
+            guiobj.infile_ref = False
+
+        # Add keys with chosed scans to log_dt
+        log_dt['pos_chs'] = pos.chsd_scns
+        log_dt['neg_chs'] = neg.chsd_scns
+
+    def compt_mxd(self, guiobj, pos, neg, log_dt):
         '''
-        Create the energy scale used for data analysis.
-        Range is selected considering the intersection of the energy ranges of
-        all the provided scans: the low-end is the highest minimum value and 
-        the high-end is the lowest maximum value of all the energy arrays.
-
-        The number of points of the returned energy scale by default is the 
-        average of the number of points of the energy scales of data scans.
-        If in interactive mode GUI dialogues are provided to set the 
-        number of points.
+        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
+        XNCD spctra.
+        Given two ScanData object (one for positive and one for negative scans):
+        - compute X-Ray Dichroism as negative - positive;
+        - compute the arithmetical mean of positive and negative spectra for
+          XMCD, XNCD, XNXD data and the weighted average for the angle for XNLD
+          data (see Notes);
+        - compute percentage of X-Ray Dichroism normalized by the average
+          edge-jump for XMCD, XNCD, XNXD data while for XNLD an angle-weighted
+          average is considered (see Notes);
+        - compute percentage of X-Ray Dichroism normalized by edge-jump of the
+          weighted average of positive and negative spectra.
 
         Parameters
         ----------
-        pos : ScanData object
-            Positive scans data (CR for XMCD and XNCD, LH for XNLD).
-
-        neg : ScanData object
-            Negative scans data (CL for XMCD and XNCD, LV for XNLD).
-
-        guiobj : GUI object
+        guiobj : GUI obj
             Provides GUI dialogs.
+
+        pos : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+
+        neg : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
 
         log_dt : dict
             Collect data for logfile
 
         Returns
         -------
-        Set class attribute:
+        Add keys to log_dt
 
-        energy : array
-            Common energy scale for positive and negative XAS scans data
-            treatement
+        pos_ej : float, edge-jump value for postitive scans
+        pos_ej_int : float, edge-jump value for postitive scans, interpolated
+            value of pre-edge energy is used
+        neg_ej : float, edge-jump value for postitive scans
+        neg_ej_int : float, edge-jump value for postitive scans, interpolated
+            value of pre-edge energy is used
+        Notes
+        -----
+        In XNLD analsysis LH and LV spectra are weighted by the angle t between
+        the sample surface and the X-Ray incident beam direction.
 
-        Add e_scale key to log_dt with min, max and number of points of energy
-        scale. 
+        - XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
+
+        - XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
+                     (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
+
+        - XNLD norm by XNLD_aver edge-jump (%) = 
+                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
+                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
+                         (XNLD_aver_edge - XNLD_aver_pe))
         '''
-        e_lists = []
-        e_len = []
+        # Computes not normalized X-Ray Dichroism.
+        self.compt_xd(guiobj, pos, neg, log_dt)
 
-        # Sort energy data arrays and count their elements
-        for i in pos.idx:
-            e_lists.append(np.sort(pos.raw_imp['E' + i]))
-            e_len.append(pos.raw_imp['E' + i].size)
-        for i in neg.idx:
-            e_lists.append(np.sort(neg.raw_imp['E' + i]))
-            e_len.append(neg.raw_imp['E' + i].size)
+        self.edges(guiobj, log_dt)
 
-        # Compute min, max and default langth of energy range
-        e_min = np.around(np.amax(e_lists, axis=0)[0], 1)
-        e_max = np.around(np.amin(e_lists, axis=0)[-1], 1)
-        e_av_len = np.around(np.average(e_len), 0)
+        # Normalize spectra
+        pos.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
+                      self.pe_wdt)
+        neg.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
+                      self.pe_wdt)
 
-        # Set number of points of energy scale
-        if guiobj.interactive:
-            n_points = guiobj.e_num_pnts(e_av_len)
+        log_dt['pos_ej'] = pos.ej
+        log_dt['pos_ej_int'] = pos.ej_int
+        log_dt['neg_ej'] = neg.ej
+        log_dt['neg_ej_int'] = neg.ej_int
+
+        # Compute percentage X-Ray Dichroism normalized for edge-jump
+        self.compt_xd_pc(guiobj, pos, neg)
+        self.compt_pe_corr(guiobj, pos, neg)
+        self.comp_xd_pc_av_ej(log_dt)
+
+    def compt_xd(self, guiobj, pos, neg, log_dt):
+        '''
+        Compute not normalized X-Ray Dichroism.
+
+        Parameters
+        ----------
+        guiobj : GUI obj
+            Provides GUI dialogs
+
+        pos_scan : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+
+        neg_scan : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+
+        log_dt : dict
+            Collect data for logfile
+        
+        Return
+        ------
+        Set attributes:
+        
+        xd : array
+            X-Ray Dichroism as negative - positive scans
+
+        xd_aver : array
+            Average of XAS spectra. Arithmetical mean of positive and
+            negative scans for XMCD and XNCD analysis. Weigthed average by angle
+            for XNLD analysis (see Notes)
+        
+        ang_w_n : float
+            Angle weight for XNLD computation
+
+        ang_w_d : float
+            Angle weight for XNLD computation
+
+        Notes
+        -----
+        In XNLD analsysis LH and LV spectra are weighted by the angle t between
+        the sample surface and the X-Ray incident beam direction.
+
+        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
+        '''
+        self.xd = neg.aver - pos.aver
+        if guiobj.analysis in guiobj.type['xnld']:
+            # If XNLD the angle must be considered for weighted mean computation
+            theta = log_dt['bm_angle']  # retrive angle from log table
+
+            # Numerator and denominator terms of angle weight
+            self.ang_w_n = 2 * (np.cos(theta))**2 - (np.sin(theta))**2
+            self.ang_w_d = 3 * (np.cos(theta))**2
+
+            self.xd_aver = (pos.aver + (self.ang_w_n * neg.aver)) / self.ang_w_d
         else:
-            n_points = int(e_av_len)
-
-        self.energy = np.linspace(e_min, e_max, n_points)
-
-        log_dt['e_scale'] = [e_min, e_max, n_points]
+            self.xd_aver = (pos.aver + neg.aver) / 2
 
     def edges(self, guiobj, log_dt):
         '''
@@ -518,10 +716,6 @@ class EngyScan:
         pe_wdt : float
             Half-width of energy range for pre-edge average computation
 
-        pe_int : float
-            Interpolated value of pre-edge considering pre- and post-edge
-            energies using a linear approximation
-
         offset : float
             Offset given by the difference between expected and experimental
             edge energy
@@ -535,7 +729,6 @@ class EngyScan:
         exper_edge : experimental edge energy
         setted_pedg : setted pre-edge energy
         setted_postedg : setted post-edge energy
-        pe_int : interpolated pre-edge
         recal : bool, if True energy recalibration has been done
         offset : energy offset adopted for energy recalibration
 
@@ -570,22 +763,24 @@ class EngyScan:
 
         sel_edg = [log_dt['Edge_en'], pe_e, pste_e]
 
+        y = self.xd
+        y_aver = self.xd_aver
+
         # Order 3 interpolation of data
         # opt.minimize_scalar serch for function minimum so negative absolute
         # value of interpolated data is considered.
-        y_int_for_edge = itp.UnivariateSpline(self.energy, -abs(self.xd), k=3,
-            s=0)
+        y_int_for_edge = itp.UnivariateSpline(self.energy, -abs(y), k=3, s=0)
         # Bounds for  minimum search - 5 eV window is considered
         u_bnd = log_dt['Edge_en'] + 2.5
         l_bnd = log_dt['Edge_en'] - 2.5
         min_y = opt.minimize_scalar(y_int_for_edge, bounds=(l_bnd, u_bnd),
                                     method='bounded')
-        y_int = itp.UnivariateSpline(self.energy, self.xd_aver, k=3, s=0)
+        y_int = itp.UnivariateSpline(self.energy, y_aver, k=3, s=0)
 
         if guiobj.interactive:
             # x value which minimize y is passed as experimental edge energy
-            edgs = guiobj.set_edges(sel_edg, min_y.x, self.energy, self.xd,
-                                    self.xd_aver, y_int)
+            edgs = guiobj.set_edges(sel_edg, min_y.x, self.energy, y, y_aver,
+                y_int)
            
             self.exper_edge = edgs[0]
             self.e_pe = edgs[1]
@@ -618,55 +813,82 @@ class EngyScan:
         log_dt['recal'] = recal
         log_dt['offset'] = self.offset
 
-    def compt_xd(self, pos, neg, guiobj, log_dt):
+    def compt_xd_pc(self, guiobj, pos, neg):
         '''
-        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
-        XNCD spctra.
-        Given two ScanData object (one for positive and one for negative
-        scans):
-        - compute X-Ray Dichroism as negative - positive;
-        - compute the arithmetical mean of positive and negative spectra for
-          XMCD, XNCD, XNXD data and the weighted average for the angle for XNLD
-          data (see Notes);
-        - compute percentage of X-Ray Dichroism normalized by the average
-          edge-jump for XMCD, XNCD, XNXD data while for XNLD an angle-weighted
-          average is considered (see Notes);
-        - compute percentage of X-Ray Dichroism normalized by edge-jump of the
-          weighted average of positive and negative spectra.
+        Compute the percentage of X-Ray Dichroism normalized for edge-jump.
+        For XMCD and XNCD it is obtained as the difference between
+        normalized by pre-edge negative and positve scans normalized by the
+        arithmetical mean of the two respective edge jumps. For XNLD the
+        average weighted by angle of incidence X-Ray beam considered
+        (see Notes)
 
         Parameters
         ----------
-        pos : ScanData obj
-            Positive scans data (CR for XMCD and XNCD, LH for XNLD).
-
-        neg : ScanData obj
-            Negative scans data (CL for XMCD and XNCD, LV for XNLD).
-
-        guiobj : GUI object
+        guiobj : GUI obj
             Provides GUI dialogs.
 
-        log_dt : dict
-            Collect data for logfile
+        pos : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD)
 
-        Returns
-        -------
-        Set class attributes:
-
-        xd : array
-            X-Ray Dichroism obtianed as negative - positive scans
-
-        xd_aver : array
-            average of XAS spectra. Arithmetical mean of positive and negative
-            scans for XMCD and XNCD analysis. Weigthed average by angle for
-            XNLD analysis (see Notes)
-
-        xd_pc :array
+        neg : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+        
+        Return
+        ------
+        Set attributes
+        xd_pc : array
             Percentage of X-Ray Dichroism normalized for edge-jump.
             For XMCD and XNCD it is obtained as the difference between
             normalized by pre-edge negative and positve scans normalized by the
             arithmetical mean of the two respective edge jumps. For XNLD the
             average weighted by angle of incidence X-Ray beam considered
             (see Notes)
+
+        xd_pc_int : array
+            Same as xd_pc using data normalized with inerpolated edge-jump.
+
+        Notes
+        -----
+        In XNLD analsysis LH and LV spectra are weighted by the angle t between
+        the sample surface and the X-Ray incident beam direction.
+
+         XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
+                     (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
+        '''
+        # Compute mean
+        if guiobj.analysis in guiobj.type['xnld']:
+            # Percentage X-Ray dichroism normalized for edge jump
+            self.xd_pc = (100 * self.ang_w_d * (neg.norm - pos.norm) /
+                (pos.ej_norm + self.ang_w_n * neg.ej_norm))
+            self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int - 
+                pos.norm_int) / (pos.ej_norm_int + self.ang_w_n * 
+                neg.ej_norm_int))
+        else:
+            # Percentage X-Ray dichroism normalized for edge jump
+            self.xd_pc = 200 * (neg.norm - pos.norm) / (neg.ej_norm + 
+                pos.ej_norm)
+            self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int) /
+                (neg.ej_norm_int + pos.ej_norm_int))
+
+    def compt_pe_corr(self, guiobj, pos, neg):
+        '''
+        Calculate xd percentage normalizing with edge-jump obtained from
+        weighted average of positive and negative spectra
+
+        Parameters
+        ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
+        pos : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+
+        neg : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+        
+        Return
+        ------
+        Set attributes:
 
         pos_corr : array
             Average of positive spectra weighted by the ratio between the mean
@@ -675,6 +897,9 @@ class EngyScan:
             arithmetical while for XNLD the average weighted by angle of
             incidence X-Ray beam considered (see Notes)
 
+        pos_corr_int : array
+            Same as pos_corr using interpolated pre-edge values
+
         neg_corr : array
             Average of negative spectra weighted by the ratio between the mean
             of positive pre-edge values and the mean of all pre-edge values.
@@ -682,100 +907,83 @@ class EngyScan:
             arithmetical while for XNLD the average weighted by angle of
             incidence X-Ray beam considered (see Notes)
 
-        xd_pc_av_ej : array
-            Percentage of X-Ray Dichroism normalized for edge-jump of xd_aver
-            spectrum. It is computed employing the weighted averages pos_corr
-            and neg_corr data. Edge-jump is calculated interpolating the values
-            at edge and pre-edge energy of xd_aver spectrum with linear spline
-            method.
-
-        Add keys to log_dt
-
-        pos_chs : list (str) with positive chosed scan
-        neg_chs : list (str) with negative chosed scan
+        neg_corr_int : array
+            Same as neg_corr using interpolated pre-edge values
+        
+        pos_corr_int : array
+            Positive scan normalized by weighted average of interpolated
+            edge-jump
+        
+        neg_corr_int : array
+            Negative scan normalized by weighted average of interpolated
+            edge-jump
 
         Notes
         -----
         In XNLD analsysis LH and LV spectra are weighted by the angle t between
         the sample surface and the X-Ray incident beam direction.
 
-        - XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
-
-        - XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
-                     (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
-
-        - XNLD norm by XNLD_aver edge-jump (%) = 
-                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
-                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
-                         (XNLD_aver_edge - XNLD_aver_pe))
+        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
         '''
-        # Computes averages of positive and negative polarization scans.
-        pos.man_aver_e_scans(guiobj, self.energy)
-        neg.man_aver_e_scans(guiobj, self.energy)
-
-        # Add keys with chosed scans to log_dt
-        log_dt['pos_chs'] = pos.chsd_scns
-        log_dt['neg_chs'] = neg.chsd_scns
-
-        # Computes not normalized X-Ray Dichroism.
-        self.xd = neg.aver - pos.aver
-
-        if guiobj.case in guiobj.type['xnld']:
-            # If XNLD the angle must be considered for weighted mean computation
-            theta = log_dt['bm_angle']  # retrive angle from log table
-
-            # Numerator and denominator terms of angle weight
-            ang_w_n = 2 * (np.cos(theta))**2 - (np.sin(theta))**2
-            ang_w_d = 3 * (np.cos(theta))**2
-
-            self.xd_aver = (pos.aver + (ang_w_n * neg.aver)) / ang_w_d
-        else:
-            self.xd_aver = (pos.aver + neg.aver) / 2
-
-        self.edges(guiobj, log_dt)
-
-        # Normalize spectra
-        pos.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
-                      self.pe_wdt)
-        neg.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
-                      self.pe_wdt)
-
-
-        log_dt['pos_ej'] = pos.ej
-        log_dt['pos_ej_int'] = pos.ej_int
-        log_dt['neg_ej'] = neg.ej
-        log_dt['neg_ej_int'] = neg.ej_int
-
         # Compute mean
-        if guiobj.case in guiobj.type['xnld']:
-            # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = (100 * ang_w_d * (neg.norm - pos.norm) /
-                          (pos.ej_norm + ang_w_n * neg.ej_norm))
-            self.xd_pc_int = (100 * ang_w_d * (neg.norm_int - pos.norm_int) /
-                              (pos.ej_norm_int + ang_w_n * neg.ej_norm_int))
-
+        if guiobj.analysis in guiobj.type['xnld']:
             # Angle weighted average of pre-edges values
-            av_pe_av = (pos.pe_av + ang_w_n * neg.pe_av) / ang_w_d
-            av_pe_int = (pos.pe_av_int + ang_w_n * neg.pe_av_int) / ang_w_d
+            av_pe_av = (pos.pe_av + self.ang_w_n * neg.pe_av) / self.ang_w_d
+            av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int) / 
+                self.ang_w_d)
         else:
-            # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = 200 * ((neg.norm - pos.norm) /
-                                (neg.ej_norm + pos.ej_norm))
-            self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int) /
-                                    (neg.ej_norm_int + pos.ej_norm_int))
-
             # Average of pre-edges values
             av_pe_av = (pos.pe_av + neg.pe_av) / 2
             av_pe_int = (pos.pe_av_int + neg.pe_av_int) /2
 
-        # Calculate xd percentage normalizing with edge-jump obtained from
-        # weighted average of positive and negative spectra self.xd_aver
         self.pos_corr = pos.aver * av_pe_av / pos.pe_av
         self.neg_corr = neg.aver * av_pe_av / neg.pe_av
 
         self.pos_corr_int = pos.aver * av_pe_int / pos.pe_av_int
         self.neg_corr_int = neg.aver * av_pe_int / neg.pe_av_int
 
+    def comp_xd_pc_av_ej(self, log_dt):
+        '''
+        Compute percentage of X-Ray Dichroism normalized for edge-jump of
+        xd_aver spectrum. It is computed employing the weighted averages
+        pos_corr and neg_corr data. Edge-jump is calculated interpolating the
+        values at edge and pre-edge energy of xd_aver spectrum with linear
+        spline method.
+        For XNLD the average weighted by angle of incidence X-Ray beam is
+        considered (see Notes).
+
+        Parameters
+        ----------
+        log_dt : dict
+            Collect data for logfile
+
+        Returns
+        -------
+        Set class attributes:
+
+        xd_pc_av_ej : array
+            Percentage of X-Ray Dichroism normalized for edge-jump of xd_aver
+            spectrum.
+
+        xd_pc_av_ej_int : array
+            Same as xd_pc_av_ej but using for the edge-jump computation the 
+            interpolated values of pre-edges.
+
+        Add keys to log_dt
+        xas_aver_ej : float, edge_jump value of xd average
+        xas_aver_ej_int : float, edge jump value of xd average considering
+            interpolated value of pre-edge
+
+        Notes
+        -----
+        In XNLD analsysis LH and LV spectra are weighted by the angle t between
+        the sample surface and the X-Ray incident beam direction.
+
+        XNLD norm by XNLD_aver edge-jump (%) = 
+                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
+                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
+                         (XNLD_aver_edge - XNLD_aver_pe))
+        '''
         # Linear spline interpolation of xd_aver spectrum in order to determine
         # edge jump
         xd_aver_inter = itp.UnivariateSpline(self.energycal, self.xd_aver, k=1,
@@ -799,6 +1007,90 @@ class EngyScan:
 
         log_dt['xas_aver_ej'] = edg_val_xd_aver - pedg_val_xd_aver
         log_dt['xas_aver_ej_int'] = edg_val_xd_aver - pedg_val_xd_aver_int
+
+
+def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
+    '''
+    Create the energy scale used for data analysis.
+    Range is selected considering the intersection of the energy ranges of
+    all the provided scans: the low-end is the highest minimum value and 
+    the high-end is the lowest maximum value of all the energy arrays.
+
+    The number of points of the returned energy scale by default is the 
+    average of the number of points of the energy scales of data scans.
+    If in interactive mode GUI dialogues are provided to set the 
+    number of points.
+
+    Parameters
+    ----------
+    guiobj : GUI obj
+        Provides GUI dialogs.
+
+    pos_scan : ScanData obj
+        Positive scans (CR for XMCD and XNCD, LH for XNLD)
+
+    neg_scan : ScanData obj
+        Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+
+    log_dt : dict
+        Collect data for logfile
+
+    pos_ref : ScanData obj
+        Positive scans (CR for XMCD and XNCD, LH for XNLD) from reference
+
+    neg_ref : ScanData obj
+        Negative scans (CR for XMCD and XNCD, LH for XNLD) from reference
+
+    Return
+    ------
+    array
+        Common energy scale for positive and negative XAS scans data
+        treatement (if reference scans are considered in confobj also their
+        energy scale will be considered)
+
+    Add e_scale key to log_dt with min, max and number of points of energy
+    scale. 
+    '''
+    efirst_list = []
+    elast_list = []
+    e_len = []
+    
+    # Sort energy data arrays and count their elements
+    for i in pos.idx:
+        efirst_list.append(np.sort(pos.raw_imp['E' + i])[0])
+        elast_list.append(np.sort(pos.raw_imp['E' + i])[-1])
+        e_len.append(pos.raw_imp['E' + i].size)
+    for i in neg.idx:
+        efirst_list.append(np.sort(neg.raw_imp['E' + i])[0])
+        elast_list.append(np.sort(neg.raw_imp['E' + i])[-1])
+        e_len.append(neg.raw_imp['E' + i].size)
+    # If reference data are present computes common energy scale for all
+    # data
+    if not (pos_ref.raw_imp.empty or neg_ref.raw_imp.empty):
+        for i in pos_ref.idx:
+            efirst_list.append(np.sort(pos_ref.raw_imp['E' + i])[0])
+            elast_list.append(np.sort(pos_ref.raw_imp['E' + i])[-1])
+            e_len.append(pos_ref.raw_imp['E' + i].size)
+        for i in neg_ref.idx:
+            efirst_list.append(np.sort(neg_ref.raw_imp['E' + i])[0])
+            elast_list.append(np.sort(neg_ref.raw_imp['E' + i])[-1])
+            e_len.append(neg_ref.raw_imp['E' + i].size)            
+
+    # Compute min, max and default langth of energy range
+    e_min = np.around(np.amax(efirst_list), 1)
+    e_max = np.around(np.amin(elast_list), 1)
+    e_av_len = np.around(np.average(e_len), 0)
+
+    # Set number of points of energy scale
+    if guiobj.interactive:
+        n_points = guiobj.e_num_pnts(e_av_len)
+    else:
+        n_points = int(e_av_len)
+
+    log_dt['e_scale'] = [e_min, e_max, n_points]
+
+    return np.linspace(e_min, e_max, n_points)
+
 
 def lin_interpolate(x, y, x0):
         '''

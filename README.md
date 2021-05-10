@@ -8,6 +8,16 @@ Starting with XAS scan pyDichroX computes XMCD, XNXD, XNCD, XNLD.
 Currently pyDichroX analyse only data from:
 - Deimos beamline @ Soleil Synchrotron, Paris (France)
 - Boreas beamline @ Alba Synchrotron, Barcellona (Spain)
+- APE beamline @ Elettra Synchrotron, Trieste (Italy)
+
+REQUIREMENTS
+------------
+- Python 3
+- numpy
+- scipy
+- pandas
+- matplotlib
+- easygui
 
 USAGE
 -----
@@ -43,6 +53,9 @@ inserted. By default the number of points in the scans is setted.
 - Chose XAS spectra to average
 The graphs of the scans are shown and then a dialogue ask which scans select
 to be averaged and used for the analysis.
+
+- If configuration file is setted in order to accept scans from a reference 
+sample, repeat the same passages before for reference scans
 
 - Energies
 A graph with analyzed data is shown togheter with the position of edge energy

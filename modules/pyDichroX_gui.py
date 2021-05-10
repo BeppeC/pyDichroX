@@ -45,11 +45,12 @@ class GUI:
     Attributes
     ----------
     type : dict
-        Links each type of measurements (keys) to corresponding a_case (values)
+        Links each type of measurements (keys) to corresponding analysis type
+        (values)
 
     sense : dict
         Links the type of detection (TEY or Fluorescence) to corresponding 
-        a_cases
+        analysis
 
     title : str
         Title of windows GUI
@@ -57,16 +58,12 @@ class GUI:
     analysis : str
         Name of analysis type.
 
-    case : int
-        Identifier for data analysis.
-        . 0 : XMCD
-        . 1 : XNCD
-        . 2 : XNLD
-        . 3 : XNXD
-        . 4 : Hysteresis
-
     interactive : bool
         True for interactive mode false otherwise
+
+    infile_ref : bool
+        To select GUI message. True if input files are related to reference
+        sample, False otherwise
 
     Methods
     -------    
@@ -87,6 +84,12 @@ class GUI:
     ask_angle()
         Provides a GUI to ask for experimental angle of the sample respect the 
         beam.
+
+    ask_T()
+        GUI dialogue to ask for sample temperature.
+    
+    ask_H()
+        GUI dialogue to ask for magnetic field.
 
     sel_ifls_fls(confobj)
         GUI dialogue to select data input files.
@@ -135,11 +138,11 @@ class GUI:
         ----------
         confobj : configuration object
         '''
-        self.type = {'hyst': [4],  # case values for hysteresis
-                     'xmcd': [0],  # case values for XMCD
-                     'xncd': [1],  # case values for XNCD
-                     'xnld': [2],  # case values for XNLD
-                     'xnxd': [3]}  # case values for XNXD
+        self.type = {'hyst': ['Hysteresis'],  # analysis values for hysteresis
+                     'xmcd': ['XMCD'],  # analysis values for XMCD
+                     'xncd': ['XNCD'],  # analysis values for XNCD
+                     'xnld': ['XNLD'],  # analysis values for XNLD
+                     'xnxd': ['XNXD']}  # analysis values for XNXD
 
         self.title = 'pyDichroX'
 
@@ -150,18 +153,11 @@ class GUI:
     def chs_analysis(self):
         '''
         GUI dialogue to choose the data analysis to perform. It also set window
-        title and case attributes.
+        title and analysis attributes.
 
         Returns
         -------
-        set title attribure (str) 
-        and case attribute (int):
-
-        . 0 : XMCD
-        . 1 : XNCD
-        . 2 : XNLD
-        . 3 : XNXD
-        . 4 : Hysteresis
+        set title attribure (str) and analysis attribute (str)
         '''
         self.title = 'pyDichroX'
 
@@ -179,8 +175,6 @@ class GUI:
                 break
 
         self.analysis = a_choice
-        a_case = choices.index(a_choice)
-        self.case = a_case
 
         self.title = '{} {} analysis'.format(self.analysis, self.sense)
 
@@ -242,7 +236,7 @@ class GUI:
         contains the headers of the columns, namely 'Name', 'Edge Energy',
         'Pre-edge Energy' and 'Post-edge Energy'.
         '''
-        if self.case in self.type['hyst']:
+        if self.analysis in self.type['hyst']:
             # hysteresis analysis does not require edge file
             return ['not provided', 'not provided', 'not provided',
                     'not provided']
@@ -368,13 +362,7 @@ class GUI:
         - [2] e_poste : post-edge energy
         - [3] pe_wdt : number of points representing the half-width energy
                 range used for pre-edge average
-        #- [2] pe_wdt : number of points representing the half-width energy
-        #        range used for pre-edge average
-        #- [3] pe_int : interpolated value of pre-edge
         - [4] cal : bool
-
-        Notes
-        -----
 
         '''
         # Initializes number of points for half-width averaging interval
@@ -505,7 +493,11 @@ class GUI:
             ax2.tick_params(axis='y', labelcolor='pink')
             ax2.legend()
 
-            fig.suptitle(self.title)
+            if self.infile_ref:
+                add_title = "Normalized by reference data."
+            else:
+                add_title = "" 
+            fig.suptitle(self.title + add_title)
 
             fig.tight_layout()
             plt.show()
@@ -560,6 +552,74 @@ class GUI:
         # radians for XNLD computations
         return new_angle, np.deg2rad(90 - float(new_angle))
 
+    def ask_T(self):
+        '''
+        GUI dialogue to ask for sample temperature.
+
+        Returns
+        -------
+        float, the inserted sample temperature, for log purpose.
+        '''
+        msg = 'Enter the sample temperature.'
+
+        new_T = eg.enterbox(msg, self.title)
+
+        # Error messages for wrong inputs
+        err_empty = '\nPlease provide a temperature.\n'
+        err_num = '\nOnly numbers are accepted.\n'
+
+        while True:
+            errmsg = ''
+            if new_T is None:  # If Cancel is pressed exit program
+                ask_quit(self.title)
+                errmsg = ' '
+            if not new_T:
+                errmsg += err_empty
+            else:
+                try:
+                    float(new_T)
+                except:
+                    errmsg += err_num
+            if not errmsg:
+                break
+            new_T = eg.enterbox(msg + errmsg, self.title)
+
+        return float(new_T)
+
+    def ask_H(self):
+        '''
+        GUI dialogue to ask for magnetic field.
+
+        Returns
+        -------
+        float, the inserted magnetic, for log purpose.
+        '''
+        msg = 'Enter the magnetic field value.'
+
+        new_H = eg.enterbox(msg, self.title)
+
+        # Error messages for wrong inputs
+        err_empty = '\nPlease provide a field value.\n'
+        err_num = '\nOnly numbers are accepted.\n'
+
+        while True:
+            errmsg = ''
+            if new_H is None:  # If Cancel is pressed exit program
+                ask_quit(self.title)
+                errmsg = ' '
+            if not new_H:
+                errmsg += err_empty
+            else:
+                try:
+                    float(new_H)
+                except:
+                    errmsg += err_num
+            if not errmsg:
+                break
+            new_H = eg.enterbox(msg + errmsg, self.title)
+
+        return float(new_H)
+
     def sel_ifls(self, confobj):
         '''
         GUI dialogue to select input files.
@@ -581,8 +641,13 @@ class GUI:
         # Current directory and txt files are setted as default.
 
         # Non hysteresis scans.
-        if self.case not in self.type['hyst']:
+        # Select message
+        if self.infile_ref:
+            msg = ("Choose reference data files")
+        else:
             msg = ("Choose data files")
+
+        if self.analysis not in self.type['hyst']:            
             f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
                                    default=default)
             return f_nms
@@ -646,7 +711,7 @@ class GUI:
         # File selection
         while True:
             dataset.append(self.sel_ifls(confobj))
-            if self.case not in self.type['hyst']:
+            if self.analysis not in self.type['hyst']:
                 if None in dataset:
                     dataset.pop()
                     ask_quit(self.title, 1)
@@ -666,7 +731,7 @@ class GUI:
             if self.add_set():
                 add = self.sel_ifls(confobj)
 
-                if self.case not in self.type['hyst']:
+                if self.analysis not in self.type['hyst']:  
                     if add is None:
                         break
                     else:
@@ -700,12 +765,12 @@ class GUI:
         -------
         bool, True to choose again input files, False to quit program.
         '''
-        if self.case in self.type['xmcd']:
+        if self.analysis in self.type['xmcd']:  
             if pol:
                 data_type = 'sigma +'
             else:
                 data_type = 'sigma -'
-        elif a_case in self.type['xnld']:
+        elif self.analysis in self.type['xnld']:
             if pol:
                 data_type = 'LH'
             else:
@@ -737,8 +802,7 @@ class GUI:
 
         logfn = eg.fileopenbox(msg=msg, title=self.title, multiple=False)
 
-        return logfn
-        
+        return logfn        
 
     def no_log(self, fname, action=''):
         '''
@@ -797,7 +861,11 @@ class GUI:
         -------
         list (str), the scan numbers of choiced scans.
         '''
-        msg = "Select the scans you want to average."
+        if self.infile_ref:
+            msg = "Select the reference scans you want to average."
+        else:
+            msg = "Select the reference scans you want to average."
+
         poss_chs = choices
         choiced = eg.multchoicebox(msg, self.title, poss_chs)
 
@@ -851,10 +919,6 @@ class GUI:
                                filetypes='*.dat')
 
         return fname
-        # if fname is None:
-        #    return default_nm
-        # else:
-        #    return fname
 
     def wrongpol(self, scn_num, polarisation):
         '''

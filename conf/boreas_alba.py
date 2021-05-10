@@ -9,8 +9,11 @@ class Configuration():
 
     Attributes
     ----------
+    default_only_ext : str
+        default datafile exension
+
     default_ext : str
-        default file extension
+        default datafile extension (mask)
 
     interactive : bool
         if True interactive mode is setted, if False not interactive mode is
@@ -31,13 +34,21 @@ class Configuration():
     scanlog_cnt : int
         counter to run through scanlog_nms
 
-    singlescan : bool
-        True if each datafile contains a single scan data
-        False if more than one scan is prensent in a single datafile
-
     norm_curr : bool
         True if it/i0 is not provided by data
         False if it/i0 is provided by data
+    
+    ask_for_T : bool
+        True if no information on sample temperature is provided by datalog file
+        False if sample temperature is provided in datalog file
+
+    ask_for_H : bool
+        True if no information on magnetic field is provided by datalog file
+        False if mangetic field is provided in datalog file
+
+    ref_norm : bool
+        True if spectra must be normalized by a reference spectrum
+        False otherwise
 
     energy : str
         datafile column name for energy data
@@ -54,6 +65,9 @@ class Configuration():
 
     Methods
     -------
+    e_scn_cols(f_name='')
+        Assing column names for energy scans based on beamline settings.
+
     cr_cond(x)
         Set condition to discriminate for right and left circular polarizations.
 
@@ -83,8 +97,9 @@ class Configuration():
         '''
         Instatiate object setting all the attributes
         '''
-        # Default file extension
-        self.default_ext = '*.dat'
+        # Default datafile extensions
+        self.default_only_ext = '.dat'
+        self.default_ext = '*.dat'  # mask
 
         # True for interactive mode program execution
         self.interactive = True
@@ -104,20 +119,38 @@ class Configuration():
         self.scanlog_nms = []
         self.scanlog_cnt = 0
 
-        # One scan per datafile
-        self.singlescan = True
-
         # no it/i0 is provided
         self.norm_curr = True
 
-        # Columns assignemt
-        # Columns for energy scans
+        # Boreas provide log information for sample T
+        self.ask_for_T = False
+
+        # Boreas provide log information for magnetic field
+        self.ask_for_H = False
+
+        # Normalizaion by reference scans
+        self.ref_norm = False
+
+    def e_scn_cols(self, f_name):
+        '''
+        Assing column names for energy scans based on beamline settings.
+
+        Parameters
+        ----------
+        f_name : str
+            data filename, some beamline have filename in column names,
+            NOT Boreas case.
+
+        Return
+        ------
+        list of column names to be imprted
+        '''
         self.energy = 'energy_mono_corrected'  # column with energy data
         self.it_escn = 'adc2_i3'  # it data - TEY
-        self.i0_escn = 'adc2_i2'  # i0 data - TEY
+        self.i0_escn = 'adc2_i1'  # i0 data - TEY
 
         # Energy scan colums list to be imported
-        self.e_scn_cols = [self.energy, self.it_escn, self.i0_escn]
+        return [self.energy, self.it_escn, self.i0_escn]
 
     def cr_cond(self, x):
         '''
@@ -158,7 +191,6 @@ class Configuration():
         -------
         bool, True if LV, False if LH
         '''
-        x_trunc = np.trunc(x)
         if np.trunc(x) == 0 :
             return False
         elif np.trunc(x * 100) == 157:
@@ -179,7 +211,7 @@ class Configuration():
         -------
         str, scan-number
         '''
-        scn_num = f_name.rstrip('.dat')
+        scn_num = f_name.rstrip(self.default_only_ext)
 
         return scn_num
 
@@ -243,12 +275,7 @@ class Configuration():
          . mon_en : monocromator energy
          . pol : polarisation identifier
          . field : magnetic field value
-         . polarization : id code for different polarisations ()
-         . tb1 : sample temperature 1
-         . tb2 : sample temperature 2
-         . rz : sample rotation angle
-         . tx : sample x position
-         . tz : sample z position
+         . t : sample temperature 
         '''
         # retrive data log filename
         logfl = self.scanlog_nms[self.scanlog_cnt]
@@ -316,7 +343,7 @@ class Configuration():
 
         logtxt += 'Input scans\n'
         for i in range(len(log_tbl)):
-            logtxt += '{} ({}), '.format(log_tbl['scan_num'].iloc[i],
+            logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],
                                          log_tbl['type'].iloc[i])
         logtxt += '\n\n'
         logtxt += 'Positive selected scans\n'

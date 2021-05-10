@@ -1,4 +1,7 @@
-# Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
+# Configurations for APE beamline at Elettra Synchrotron, Trieste (Italy)
+import os
+import numpy as np
+import modules.pyDichroX_gui as pdxgui
 
 class Configuration():
     '''
@@ -15,7 +18,7 @@ class Configuration():
     interactive : bool
         if True interactive mode is setted, if False not interactive mode is
         setted
-
+    
     sep : str
         column separator in datafiles
 
@@ -25,9 +28,11 @@ class Configuration():
     list_analysis : list
         list of supported analysis for the beamline
 
+    scanlog_nms : list
+        list of scanlog filenames associated at different dataset
+
     scanlog_cnt : int
         counter to run through scanlog_nms
-        Not used for Deimos
 
     norm_curr : bool
         True if it/i0 is not provided by data
@@ -40,28 +45,19 @@ class Configuration():
     ask_for_H : bool
         True if no information on magnetic field is provided by datalog file
         False if mangetic field is provided in datalog file
-
+    
     ref_norm : bool
         True if spectra must be normalized by a reference spectrum
         False otherwise
-
+        
     energy : str
         datafile column name for energy data
 
-    iti0_escn : str
-        datafile column name for it/i0 data in energy scan experiments
+    it_escn : str
+        datafile column name for it data in energy scan experiments
 
-    ifi0_escn : str
-        datafile column name for if/f0 data in energy scan experiments
-
-    field_hyst : str
-        datafile column name for magnetic field data in field scan experiments
-
-    iti0_hyst : str
-        datafile column name for it/i0 data in field scan experiments
-
-    ifi0_hyst : str
-        datafile column name for if/f0 data in field scan experiments
+    i0_escn : str
+        datafile column name for i0 data in energy scan experiments
 
     phi_sgn : int
         sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
@@ -69,11 +65,8 @@ class Configuration():
 
     Methods
     -------
-    e_scn_cols(f_name='')
+    e_scn_cols(self, f_name):
         Assing column names for energy scans based on beamline settings.
-
-    hyst_scn_cols(f_name='')
-        Assing column names for hysteresis scans based on beamline settings.
 
     cr_cond(x)
         Set condition to discriminate for right and left circular polarizations.
@@ -83,13 +76,14 @@ class Configuration():
         polarizations.
 
     exctract_num(f_name)
-            Exctract scan number from file name.
+        Exctract scan number from file name.
 
     scanlog_fname():
-        Collect logfile associated to scandata. Not needed for Deimos.
+        Collect logfile associated to scandata.
 
-    single_lognm(dataflnm):
+    def single_lognm(self, dataflnm):
         Reconstruct name of datalog file.
+        Not used for Boreas @ Alba.
 
     log_scavenger(dataflnm, guiobj)
         Search in logfile for energies, field values, temperatures and sample
@@ -103,35 +97,39 @@ class Configuration():
         '''
         Instatiate object setting all the attributes
         '''
+        # Default file extension
         self.default_only_ext = '.txt'
         self.default_ext = '*.txt'  # mask
 
         # True for interactive mode program execution
         self.interactive = True
 
-        self.sep = '\s+'
+        self.sep = '\t'
 
         # Set 'TEY' for total electron yeld experiments
-        # Set 'Fluo' for total fluorescence experiments
+
+        # Currently only TEY is computed for APE @ Elettra
+        #-------------------------------------------------
         self.sense = 'TEY'
 
         # List of of performed analysis
-        self.list_analysis = ['XMCD', 'XNCD', 'XNLD', 'XNXD']
+        self.list_analysis = ['XNCD', 'XNLD']
 
-        # Attributes for logfiles - present but not used
+        # Attributes for logfiles
+        self.scanlog_nms = []
         self.scanlog_cnt = 0
 
         # it/i0 is provided
         self.norm_curr = False
 
-        # Deimos provide log information for sample T
-        self.ask_for_T = False
+        # APE does NOT provide log information for sample T
+        self.ask_for_T = True
 
-        # Deimos provide log information for magnetic field
-        self.ask_for_H = False
+        # APE does NOT provide log information for magnetic field
+        self.ask_for_H = True
 
         # Normalizaion by reference scans
-        self.ref_norm = False
+        self.ref_norm = True
 
     def e_scn_cols(self, f_name):
         '''
@@ -141,43 +139,18 @@ class Configuration():
         ----------
         f_name : str
             data filename, some beamline have filename in column names,
-            NOT Deimos case.
+            APE case.
 
         Return
         ------
         list of column names to be imprted
         '''
-        self.energy = 'data_01'  # column with energy data
-        self.iti0_escn = 'data_07'  # it/i0 data - TEY
-
-        self.ifi0_escn = 'data_12'  # if/if0 data - Fluorescence
+        f_nm = f_name.rstrip(self.default_only_ext)
+        self.energy = 'Energy_{}'.format(f_nm)  # column with energy data
+        self.iti0_escn = 'Is/Im (#)_1_{}'.format(f_nm)  # it/i0 data - TEY
 
         # Energy scan colums list to be imported
-        return [self.energy, self.iti0_escn, self.ifi0_escn]
-
-    def hyst_scn_cols(self, f_name):
-        '''
-        Assing column names for hysteresis scans based on beamline settings.
-
-        Parameters
-        ----------
-        f_name : str
-            data filename, some beamline have filename in column names,
-            NOT Deimos case.
-
-        Return
-        ------
-        list of column names to be imprted
-        '''
-        self.field_hyst = 'data_02'  # magnetic field data
-        self.iti0_hyst = 'data_08'  # it/i0 data - TEY
-
-        # self.phase_hyst = 'data_09'  # phase data
-
-        self.ifi0_hyst = 'data_12'  # if/if0 data - Fluorescence
-
-        # Hysteresis scan colums list to be imported
-        return [self.field_hyst, self.iti0_hyst, self.ifi0_hyst]
+        return [self.energy, self.iti0_escn]
 
     def cr_cond(self, x):
         '''
@@ -185,18 +158,19 @@ class Configuration():
 
         Parameters
         ----------
-        x : int polarisation identifier
-            CR id = 4
-            CL id = 3
+        x : float polarisation identifier
+            CR = -21...
+            CL = 21...
 
         Returns
         -------
         bool, True if CR, False if CL
         '''
-        if x == 4:
+        x_trunc = np.trunc(x)
+        if x_trunc == -21:
             self.phi_sgn = 1
             return True
-        elif x == 3:
+        elif x_trunc == 21:
             self.phi_sgn = -1
             return False
         else:
@@ -209,18 +183,19 @@ class Configuration():
 
         Parameters
         ----------
-        x : int polarisation identifier
-            LV id = 2
-            LH id = 1
+        x : float polarisation identifier
+            LV = -30...
+            LH = 0
 
         Returns
         -------
         bool, True if LV, False if LH
         '''
-        if x == 2:
-            return True
-        elif x == 1:
+        x_trunc = np.trunc(x)
+        if x_trunc == 0 :
             return False
+        elif x_trunc == -30:
+            return True
         else:
             raise Exception()
 
@@ -237,14 +212,14 @@ class Configuration():
         -------
         str, scan-number
         '''
-        scn_num = f_name.lstrip('scan_').rstrip(self.default_only_ext)
+        scn_num = f_name.rstrip(self.default_only_ext)
 
         return scn_num
 
     def scanlog_fname(self, guiobj):
         '''
         Collect logfile associated to scandata.
-        Not needed at Deimos, simply pass
+        Not needed at APE, simply pass
 
         Parameters
         ----------
@@ -268,7 +243,7 @@ class Configuration():
         ------
         str, name of logfile associated to dataflnm
         '''
-        return dataflnm.rstrip(self.default_only_ext) + '.log'
+        return dataflnm.rstrip(self.default_only_ext) + '.meta'
 
     def log_scavenger(self, dataflnm):
         '''
@@ -281,20 +256,13 @@ class Configuration():
             The name of logfile is retrieved just changing in .log the extension
             of datafile, following SOLEIL convention.
 
-        guiobj : GUI object
-            Provides GUI dialogs.
-
         Returns
         -------
         dict:
-         . mon_en : monocromator energy
          . pol : polarisation identifier
-         . field : magnetic field value
-         . tb1 : sample temperature 1
-         . tb2 : sample temperature 2
-         . rz : sample rotation angle
-         . tx : sample x position
-         . tz : sample z position
+         . x : sample x position
+         . y : sample y position
+         . z : sample z position
         '''
         # data log filename
         logfl = self.single_lognm(dataflnm)
@@ -303,47 +271,18 @@ class Configuration():
         self.nologmess = 'Related datascan will be ignored.'
 
         try:
-            with open(logfl, 'r', encoding='ISO-8859-1') as fl:
-                logtx = fl.read()
-                # separate paragraphs in logfile
-                parlst = logtx.split('\n\n')
-                # search in paragraphs the sections of interest
-                for par in parlst:
-                    if 'Monochromator' in par:
-                        # find line with energy and extract energy value
-                        for ln in par.split('\n'):
-                            if 'energy' in ln:
-                                mon_en = float(ln.split(':')[1].strip(' eV'))
-                    if 'Ondulator HU52' in par:
-                        # find polarisation id
-                        for ln in par.split('\n'):
-                            if 'polarisation' in ln:
-                                pol = int(ln.split(':')[1])
-                    if 'Sample magnetic field' in par:
-                        # find line with field and extract field value
-                        for ln in par.split('\n'):
-                            if 'field ' in ln:
-                                field = float(ln.split(':')[1].strip(' TESLA'))
-                    if 'Sample temperature' in par:
-                        # find line with sample temperature and take TB values
-                        for ln in par.split('\n'):
-                            if '1_#1' in ln:
-                                tb1 = float(ln.split('=')[1].strip(' K;'))
-                            if '1_#2' in ln:
-                                tb2 = float(ln.split('=')[1].strip(' K;'))
-                    if 'Position' in par:
-                        # find lines with sample positions and extract
-                        # positions values
-                        for ln in par.split('\n'):
-                            if 'exp1-mt_rz_#1' in ln:
-                                rz = float(ln.split('=')[1].strip(' °;'))
-                            if 'exp1-mt_tx_#1' in ln:
-                                tx = float(ln.split('=')[1].strip(' mm;'))
-                            if 'exp1-mt_tz.2_#1' in ln:
-                                tz = float(ln.split('=')[1].strip(' mm;'))
-            t = (tb1 + tb2) / 2
-            return {'mon_en': mon_en, 'pol': pol, 'field': field, 'tb1': tb1,
-                    'tb2': tb2, 't': t, 'rz': rz, 'tx': tx, 'tz': tz}
+            with open(logfl, 'r') as fl:
+                for ln in fl:
+                    if 'FRONTEND/MACHINE/MACHINE_1/PHA092' in ln:
+                        pol = float(ln.split('=')[1].rstrip(' mm\n'))
+                    if 'x' in ln:
+                        x = float(ln.split('=')[1])
+                    if 'y' in ln:
+                        y = float(ln.split('=')[1])
+                    if 'z' in ln:
+                        z = float(ln.split('=')[1])
+
+            return {'pol': pol, 'x': x, 'y': y, 'z':z}
         except:            
             raise Exception()
 
@@ -363,20 +302,17 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
-        logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
-            log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
+        logtxt += 'T : {} K\n'.format(log_tbl['t'].mean())
+        logtxt += 'Magnetic field {} T\n\n'.format(
+            log_tbl['field'].abs().mean())
+        
         logtxt += 'Sample position\n'
-        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
-                                              log_tbl['rz'].std())
-        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
-                                               log_tbl['tx'].std())
-        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
-                                                 log_tbl['tz'].std())
-
+        logtxt += 'x : {} +/- {}\n'.format(log_tbl['x'].mean(),
+            log_tbl['x'].std())
+        logtxt += 'y : {} +/- {}\n'.format(log_tbl['y'].mean(),
+            log_tbl['y'].std())
+        logtxt += 'z : {} +/- {}\n\n'.format(log_tbl['z'].mean(),
+            log_tbl['z'].std())
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
 
         logtxt += 'Input scans\n'

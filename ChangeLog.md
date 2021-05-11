@@ -1,3 +1,7 @@
+v 0.3.1
+-------
+- Fixed a bug in dialogue for setting the edges energies.
+
 v 0.3.0
 -------
 - Added configuration file for APE beamline at Elettra Synchrotron (Trieste,

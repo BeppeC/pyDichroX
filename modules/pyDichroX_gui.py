@@ -413,12 +413,12 @@ class GUI:
                         # energy range
                         if (i < (len(field_nms) - 2)) and (float(new_vals[i])
                                                            <= x[0]):
-                            errmsg = + ('Please choose for {}'.format(
+                            errmsg += ('Please choose for {}'.format(
                                 field_nms[i]) + ' a value included' +
                                 ' in the considered energy range')
                         if (i < (len(field_nms) - 2)) and (float(new_vals[i])
                                                            >= x[-1]):
-                            errmsg = + ('Please choose for {}'.format(
+                            errmsg += ('Please choose for {}'.format(
                                 field_nms[i]) + ' a value included' +
                                 ' in the considered energy range')
                         if (i == len(field_nms) - 1) and (new_vals[i].lower()

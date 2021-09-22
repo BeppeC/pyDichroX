@@ -1,7 +1,5 @@
 # Configurations for APE beamline at Elettra Synchrotron, Trieste (Italy)
-import os
 import numpy as np
-import modules.pyDichroX_gui as pdxgui
 
 class Configuration():
     '''
@@ -51,13 +49,10 @@ class Configuration():
         False otherwise
         
     energy : str
-        datafile column name for energy data
+        datafile's column name for energy data
 
-    it_escn : str
-        datafile column name for it data in energy scan experiments
-
-    i0_escn : str
-        datafile column name for i0 data in energy scan experiments
+    iti0 : str
+        datafile's column name for normalized it/i0 - TEY data
 
     phi_sgn : int
         sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
@@ -65,8 +60,9 @@ class Configuration():
 
     Methods
     -------
-    e_scn_cols(self, f_name):
-        Assing column names for energy scans based on beamline settings.
+    scn_cols(guiobj, f_name):
+         Assign column names for columns to be imported based on beamline
+         settings.
 
     cr_cond(x)
         Set condition to discriminate for right and left circular polarizations.
@@ -131,12 +127,15 @@ class Configuration():
         # Normalizaion by reference scans
         self.ref_norm = True
 
-    def e_scn_cols(self, f_name):
+    def scn_cols(self, guiobj, f_name):
         '''
         Assing column names for energy scans based on beamline settings.
 
         Parameters
         ----------
+        guiobj : GUI object
+            Provides GUI dialogs.
+
         f_name : str
             data filename, some beamline have filename in column names,
             APE case.
@@ -145,12 +144,16 @@ class Configuration():
         ------
         list of column names to be imprted
         '''
-        f_nm = f_name.rstrip(self.default_only_ext)
-        self.energy = 'Energy_{}'.format(f_nm)  # column with energy data
-        self.iti0_escn = 'Is/Im (#)_1_{}'.format(f_nm)  # it/i0 data - TEY
+        if guiobj.analysis in guiobj.type['hyst']:
+            # Yet not considered hysteresis analysis for this beamline
+            pass
+        else:
+            f_nm = f_name.rstrip(self.default_only_ext)
+            self.energy = 'Energy_{}'.format(f_nm)  # column with energy data
+            self.iti0 = 'Is/Im (#)_1_{}'.format(f_nm)  # it/i0 data - TEY
 
-        # Energy scan colums list to be imported
-        return [self.energy, self.iti0_escn]
+            # Energy scan colums list to be imported
+            return [self.energy, self.iti0]
 
     def cr_cond(self, x):
         '''

@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-import modules.pyDichroX_datatreat as dt
+import modules.pyDichroX_escan_datatreat as esdt
 
 
 class GUI:
@@ -138,7 +138,8 @@ class GUI:
         ----------
         confobj : configuration object
         '''
-        self.type = {'hyst': ['Hysteresis'],  # analysis values for hysteresis
+        self.type = {'hyst': ['XMCD Hysteresis on the fly',
+                              'XMCD Hysteresis point by point'],  # for hysts
                      'xmcd': ['XMCD'],  # analysis values for XMCD
                      'xncd': ['XNCD'],  # analysis values for XNCD
                      'xnld': ['XNLD'],  # analysis values for XNLD
@@ -236,92 +237,87 @@ class GUI:
         contains the headers of the columns, namely 'Name', 'Edge Energy',
         'Pre-edge Energy' and 'Post-edge Energy'.
         '''
-        if self.analysis in self.type['hyst']:
-            # hysteresis analysis does not require edge file
-            return ['not provided', 'not provided', 'not provided',
-                    'not provided']
-        else:
-            # File lisitng edge and pre-edge energies
-            edg_filename = self.sel_edg_fls()
-            try:
-                edg_lst = pd.read_csv(edg_filename, sep=',')
-            except:  # if the file is empty
-                with open(edg_filename, 'w') as f:
-                    # Write file headers with column names
-                    f.write('Name,Edge Energy,Pre-edge Energy,Post-edge Energy')
-                edg_lst = pd.read_csv(edg_filename, sep=',')
+        # File lisitng edge and pre-edge energies
+        edg_filename = self.sel_edg_fls()
+        try:
+            edg_lst = pd.read_csv(edg_filename, sep=',')
+        except:  # if the file is empty
+            with open(edg_filename, 'w') as f:
+                # Write file headers with column names
+                f.write('Name,Edge Energy,Pre-edge Energy,Post-edge Energy')
+            edg_lst = pd.read_csv(edg_filename, sep=',')
 
-            msg = 'Choose the edge you want to use.'
-            # Create list of edges shown to user
-            edges = []
-            for i in edg_lst['Name']:
-                edges.append(i)
-            edges.append('Add')
+        msg = 'Choose the edge you want to use.'
+        # Create list of edges shown to user
+        edges = []
+        for i in edg_lst['Name']:
+            edges.append(i)
+        edges.append('Add')
 
-            chsd_edge = eg.choicebox(msg, self.title, edges)
+        chsd_edge = eg.choicebox(msg, self.title, edges)
 
-            # Check that a choice has been made
+        # Check that a choice has been made
+        while True:
+            errmsg = ''
+            if chsd_edge is None:
+                errmsg = '\nPlease choose an edge or add a new one.'
+            if not errmsg:
+                break
+            chsd_edge = eg.choicebox(msg + errmsg, self.title, edges)
+
+        # If user select Add, a new edge is added to the edge list
+        if chsd_edge == 'Add':
+            msg = 'Add a new edge.'
+            field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
+                         'Post-edge Energy']
+            field_vals = eg.multenterbox(msg, self.title, field_nms)
+
+            # Check that enetered values are valid
             while True:
                 errmsg = ''
-                if chsd_edge is None:
-                    errmsg = '\nPlease choose an edge or add a new one.'
+                for val in field_vals:
+                    if not val.strip():
+                        errmsg += '\n"{}" is a required field.\n\n'.format(
+                            val)
+                try:
+                    float(field_vals[1])
+                except:
+                    errmsg += ('\nOnly numerical values are accepted for' +
+                               ' Edge energy.\n\n')
+                try:
+                    float(field_vals[2])
+                except:
+                    errmsg += ('\nOnly numerical values are accepted for' +
+                               ' Pre-Edge energy.\n\n')
+                try:
+                    float(field_vals[3])
+                except:
+                    errmsg += ('\nOnly numerical values are accepted for' +
+                               ' Post-Edge energy.\n\n')
+
+                if field_vals[0] in edg_lst['Name']:
+                    errmsg += ('\nThere\'s already an Edge named ' +
+                               '{}.\n'.format(field_vals[0]) +
+                               'Please choose another name.')
+
                 if not errmsg:
                     break
-                chsd_edge = eg.choicebox(msg + errmsg, self.title, edges)
 
-            # If user select Add, a new edge is added to the edge list
-            if chsd_edge == 'Add':
-                msg = 'Add a new edge.'
-                field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
-                             'Post-edge Energy']
-                field_vals = eg.multenterbox(msg, self.title, field_nms)
+                field_vals = eg.multenterbox(msg + errmsg, self.title,
+                                             field_nms)
 
-                # Check that enetered values are valid
-                while True:
-                    errmsg = ''
-                    for val in field_vals:
-                        if not val.strip():
-                            errmsg += '\n"{}" is a required field.\n\n'.format(
-                                val)
-                    try:
-                        float(field_vals[1])
-                    except:
-                        errmsg += ('\nOnly numerical values are accepted for' +
-                                   ' Edge energy.\n\n')
-                    try:
-                        float(field_vals[2])
-                    except:
-                        errmsg += ('\nOnly numerical values are accepted for' +
-                                   ' Pre-Edge energy.\n\n')
-                    try:
-                        float(field_vals[3])
-                    except:
-                        errmsg += ('\nOnly numerical values are accepted for' +
-                                   ' Post-Edge energy.\n\n')
+            # Add the new edge to the list
+            edg_lst.loc[len(edg_lst)] = field_vals
+            edg_lst.to_csv(edg_filename, index=False, mode='w+')
 
-                    if field_vals[0] in edg_lst['Name']:
-                        errmsg += ('\nThere\'s already an Edge named ' +
-                                   '{}.\n'.format(field_vals[0]) +
-                                   'Please choose another name.')
-
-                    if not errmsg:
-                        break
-
-                    field_vals = eg.multenterbox(msg + errmsg, self.title,
-                                                 field_nms)
-
-                # Add the new edge to the list
-                edg_lst.loc[len(edg_lst)] = field_vals
-                edg_lst.to_csv(edg_filename, index=False, mode='w+')
-
-                return field_vals
-            else:
-                # Select row in DataFrame
-                # values.tolist() returns a list of selected rows, each of them
-                # is on turn a list of the values in the rows.
-                sel_edg = edg_lst[edg_lst['Name'] == chsd_edge]
-                sel_edg = sel_edg.values.tolist()[0]
-                return sel_edg
+            return field_vals
+        else:
+            # Select row in DataFrame
+            # values.tolist() returns a list of selected rows, each of them
+            # is on turn a list of the values in the rows.
+            sel_edg = edg_lst[edg_lst['Name'] == chsd_edge]
+            sel_edg = sel_edg.values.tolist()[0]
+            return sel_edg
 
     def set_edges(self, sel_edg, exper_edge, x, y1, y2, y2int):
         '''
@@ -465,7 +461,7 @@ class GUI:
             x_int = [init_vals[2], init_vals[3]]
             y_int = [y2int(init_vals[2]), y2int(init_vals[3])]
 
-            pe_int = dt.lin_interpolate(x_int, y_int, new_vals[1])
+            pe_int = esdt.lin_interpolate(x_int, y_int, new_vals[1])
 
             # Plot spectrum with position of edge expected and measured
             # together with pre-edges range selected for average
@@ -647,26 +643,12 @@ class GUI:
         else:
             msg = ("Choose data files")
 
-        if self.analysis not in self.type['hyst']:            
-            f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
-                                   default=default)
-            return f_nms
-
-        # Hysteresis scans.
-        else:
-            msg = ("Choose edge scans")
-            f_edg_nms = eg.fileopenbox(msg=msg, title=self.title,
-                                       multiple=True, default=default)
-            msg = ("Choose pre-edge scans")
-            f_pedg_nms = eg.fileopenbox(msg=msg, title=self.title,
-                                        multiple=True, default=default)
-
-            # Pre-edge scans are not mandatory, if Cancel is pressed of windows
-            # is closed an empty list is passed
-            if f_pedg_nms is None:
-                f_pedg_nms = []
-
-            return f_edg_nms, f_pedg_nms
+        if self.analysis in self.type['hyst']:
+            msg += "\nInclude both Edge and Pre-edge scans."
+         
+        f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
+                               default=default)
+        return f_nms
 
     def add_set(self):
         '''
@@ -711,18 +693,11 @@ class GUI:
         # File selection
         while True:
             dataset.append(self.sel_ifls(confobj))
-            if self.analysis not in self.type['hyst']:
-                if None in dataset:
-                    dataset.pop()
-                    ask_quit(self.title, 1)
-                else:
-                    break
+            if None in dataset:
+                dataset.pop()
+                ask_quit(self.title, 1)
             else:
-                if None in dataset[0][0]:
-                    dataset[0][0].pop()
-                    ask_quit(self.title, 2)
-                else:
-                    break
+                break
         # Ask for datalogfile
         confobj.scanlog_fname(self)
 
@@ -730,19 +705,11 @@ class GUI:
         while True:
             if self.add_set():
                 add = self.sel_ifls(confobj)
-
-                if self.analysis not in self.type['hyst']:  
-                    if add is None:
-                        break
-                    else:
-                        dataset.append(add)
+ 
+                if add is None:
+                    break
                 else:
-                    if add[0] is None:
-                        add = ([], add[1])
-                    if not(add[0] or add[1]):
-                        break
-                    dataset.append(add)
-                
+                    dataset.append(add)                
                 # Ask for datalogfile
                 confobj.scanlog_fname(self)
             else:

@@ -46,22 +46,31 @@ class Configuration():
         False otherwise
 
     energy : str
-        datafile column name for energy data
+        datafile's column name for energy data
 
-    iti0_escn : str
-        datafile column name for it/i0 data in energy scan experiments
+    iti0 : str
+        datafile's column name for normalized it/i0 - TEY data
 
-    ifi0_escn : str
-        datafile column name for if/f0 data in energy scan experiments
+    ifi0 : str
+        datafile's column name for normalized if/f0 - fluorescence data
 
-    field_hyst : str
-        datafile column name for magnetic field data in field scan experiments
+    field : str
+        datafile's column name for magnetic field data
 
-    iti0_hyst : str
-        datafile column name for it/i0 data in field scan experiments
+    time : str
+        datafile's column name for acquisition timestamps
 
-    ifi0_hyst : str
-        datafile column name for if/f0 data in field scan experiments
+    i0 : str
+        datafile's column name for i0 data
+
+    it : str
+        datafile's column name for not normalized it - TEY data
+    
+    if1 : str
+        datafile's column name for not normalized if - fluorescence data
+    
+    if0 : str
+        datafile's column name for if0 - fluorescence data
 
     phi_sgn : int
         sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
@@ -69,8 +78,9 @@ class Configuration():
 
     Methods
     -------
-    e_scn_cols(f_name='')
-        Assing column names for energy scans based on beamline settings.
+    scn_cols(f_name='')
+         Assign column names for columns to be imported based on beamline
+         settings.
 
     hyst_scn_cols(f_name='')
         Assing column names for hysteresis scans based on beamline settings.
@@ -116,7 +126,8 @@ class Configuration():
         self.sense = 'TEY'
 
         # List of of performed analysis
-        self.list_analysis = ['XMCD', 'XNCD', 'XNLD', 'XNXD']
+        self.list_analysis = ['XMCD', 'XNCD', 'XNLD', 'XNXD',
+            'XMCD Hysteresis on the fly']
 
         # Attributes for logfiles - present but not used
         self.scanlog_cnt = 0
@@ -133,12 +144,16 @@ class Configuration():
         # Normalizaion by reference scans
         self.ref_norm = False
 
-    def e_scn_cols(self, f_name):
+    def scn_cols(self, guiobj, f_name):
         '''
-        Assing column names for energy scans based on beamline settings.
+        Assign column names for columns to be imported based on beamline 
+        settings.
 
         Parameters
         ----------
+        guiobj : GUI object
+            Provides GUI dialogs.
+
         f_name : str
             data filename, some beamline have filename in column names,
             NOT Deimos case.
@@ -147,37 +162,62 @@ class Configuration():
         ------
         list of column names to be imprted
         '''
-        self.energy = 'data_01'  # column with energy data
-        self.iti0_escn = 'data_07'  # it/i0 data - TEY
+        if guiobj.analysis in guiobj.type['hyst']:
+            # Columns for hysteresis on fly collected with TurboHyst
+            if guiobj.analysis == 'XMCD Hysteresis on the fly':
+                self.field = 'data_02'  # magnetic field data
+                self.iti0 = 'data_08'  # it/i0 data - TEY
 
-        self.ifi0_escn = 'data_12'  # if/if0 data - Fluorescence
+                # self.phase_hyst = 'data_09'  # phase data
 
-        # Energy scan colums list to be imported
-        return [self.energy, self.iti0_escn, self.ifi0_escn]
+                self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
 
-    def hyst_scn_cols(self, f_name):
-        '''
-        Assing column names for hysteresis scans based on beamline settings.
+                self.time = 'abs_time'  # timestamps
 
-        Parameters
-        ----------
-        f_name : str
-            data filename, some beamline have filename in column names,
-            NOT Deimos case.
+                # They should not be used
+                self.i0 = 'data_06'  # i0 data - TEY
+                self.it = 'data_07'  # it data - TEY
+                self.if1 = 'data_11'  # if data - Fluorescence
+                self.if0 = 'data_06'  # if0 data - Fluorescence
 
-        Return
-        ------
-        list of column names to be imprted
-        '''
-        self.field_hyst = 'data_02'  # magnetic field data
-        self.iti0_hyst = 'data_08'  # it/i0 data - TEY
+                # Hysteresis scan colums list to be imported
+                return [self.field, self.iti0, self.ifi0, self.time]
 
-        # self.phase_hyst = 'data_09'  # phase data
+            elif guiobj.analysis == 'XMCD Hysteresis point by point':
+                # Columns for hysteresis point by point collected with
+                # TurboTimeScan
+                self.field = 'data_09'  # magnetic field data
+                self.iti0 = 'data_07'  # it/i0 data - TEY
 
-        self.ifi0_hyst = 'data_12'  # if/if0 data - Fluorescence
+                # self.phase_hyst = 'data_09'  # phase data
 
-        # Hysteresis scan colums list to be imported
-        return [self.field_hyst, self.iti0_hyst, self.ifi0_hyst]
+                self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
+
+                self.time = 'abs_time'  # timestamps
+
+                # They should not be used
+                self.i0 = 'data_05'  # i0 data - TEY
+                self.it = 'data_06'  # it data - TEY
+                self.if1 = 'data_11'  # if data - Fluorescence
+                self.if0 = 'data_05'  # if0 data - Fluorescence
+
+                # Hysteresis scan colums list to be imported
+                return [self.field, self.iti0, self.ifi0, self.time]
+        else:
+            # columns for energy scan experiments
+            self.energy = 'data_01'  # column with energy data
+            self.iti0 = 'data_07'  # it/i0 data - TEY
+
+            self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
+
+            # They should not be used
+            self.i0 = 'data_05'  # i0 data - TEY
+            self.it = 'data_06'  # it data - TEY
+            self.if1 = 'data_11'  # if data - Fluorescence
+            self.if0 = 'data_05'  # if0 data - Fluorescence
+
+            # Energy scan colums list to be imported
+            return [self.energy, self.iti0, self.ifi0]
 
     def cr_cond(self, x):
         '''

@@ -6,7 +6,7 @@ data analysis.
 
 Methods
 --------
-open_import_escan(guiobj, confobj)
+open_import_scan(guiobj, confobj)
     Open input files and import data for energy scan experiments.
 
 scan_importer(guiobj, confobj, pos, neg)
@@ -19,12 +19,21 @@ dt_raw_import(confobj, data)
 escan_split(confobj, data):
     Split energy scan containing multiple scans into single scans.
 
+hscan_imp(confobj, data):
+    Select data columns from imported data for hysteresis analysis.
+
 set_scn_num(confobj, f_name, pos, neg)
     Associate an identifier for each scan.
 
-separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol, lgrws, pos, neg)
+separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol, lgrws, 
+    pos, neg)
     Separate scans and fill positive and negative ScanData objects with raw data
     and labels depending on analysis type
+
+separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_lbl, scn_num,
+    ispol, lgrws, pos, neg):
+    Separate magnetic field scans and fill positive and negative ScanData
+    objects with raw data and labels depending on polarisation.
 
 output_fls_escan(guiobj, pos, neg, scanobj)
     Organize output data and columns names.
@@ -53,10 +62,11 @@ import matplotlib.cm as cm
 import scipy.interpolate as itp
 from scipy import stats
 
-import modules.pyDichroX_datatreat as dt
+import modules.pyDichroX_escan_datatreat as esdt
+import modules.pyDichroX_hscan_datatreat as hsdt
 
 
-def open_import_escan(guiobj, confobj):
+def open_import_scan(guiobj, confobj):
     '''
     Open input files for energy scan experiments (XMCD, XNCD, XNXD, XNLD),
     import data and groups them based on absorption coefficient for circularly
@@ -134,16 +144,26 @@ def open_import_escan(guiobj, confobj):
     # neg will contain sigma-, CL, LV, H+ polarization data
     # ref are referred to reference data. They will be filled only if
     # confobj.ref_norm is True
-    pos = dt.ScanData()
-    neg = dt.ScanData()
+    #
+    # If field scan data use hsdt data object, if energy scan data use esdt
+    # data object
+    if guiobj.analysis in guiobj.type['hyst']:
+        pos = hsdt.ScanData()
+        neg = hsdt.ScanData()
 
-    pos_ref = dt.ScanData()
-    neg_ref = dt.ScanData()
+        pos_ref = hsdt.ScanData()
+        neg_ref = hsdt.ScanData()
+    else:
+        pos = esdt.ScanData()
+        neg = esdt.ScanData()
+
+        pos_ref = esdt.ScanData()
+        neg_ref = esdt.ScanData()
 
     # Attribute to select message for GUI
     guiobj.infile_ref = False
 
-    log_tbl = scan_importer(guiobj, confobj, pos, neg, T, H)
+    log_tbl = scan_importer(guiobj, confobj, pos, neg, T, H, log_dt)
 
     # dictionary collecting log data
     log_dt['log_tbl'] = log_tbl
@@ -160,7 +180,7 @@ def open_import_escan(guiobj, confobj):
         # Attribute to select message for GUI
         guiobj.infile_ref = True
 
-        log_ref_tbl = scan_importer(guiobj, confobj, pos_ref, neg_ref, T, H)
+        log_ref_tbl = scan_importer(guiobj, confobj, pos_ref, neg_ref, T, H, log_dt)
 
         log_dt['log_ref_tbl'] = log_ref_tbl
 
@@ -168,14 +188,13 @@ def open_import_escan(guiobj, confobj):
 
     return pos, neg, log_dt, pos_ref, neg_ref
 
-def scan_importer(guiobj, confobj, pos, neg, T, H):
+def scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
     '''
     Manage scan importing.
 
-    Open input files for energy scan experiments (XMCD, XNCD, XNXD, XNLD),
-    import data and groups them based on absorption coefficient for circularly
-    polirized light or based on value of linear polarization for linearly
-    polarized light.
+    Open input files and import data and groups them based on absorption
+    coefficient for circularly polirized light or based on value of linear
+    polarization for linearly polarized light.
 
     Collect experimental data for compiling output logfile.
 
@@ -195,14 +214,17 @@ def scan_importer(guiobj, confobj, pos, neg, T, H):
     T : float
         temperature value manually inserted if not provided by data logfiles
 
-    h : float
+    H : float
         field value manually inserted if not provided by data logfiles
+
+    log_dt : dict
+        dictionary collecting log data
 
     Returns
     -------
     Update and fill attributes of pos and neg ScanData objects
 
-    Pandas DataFrame contains log information (depending on beamline)
+    Update log_dt with log information (depending on beamline)
     '''
     while True:
         # log table with scan log details
@@ -217,7 +239,7 @@ def scan_importer(guiobj, confobj, pos, neg, T, H):
             for file in dtset:
                 f_name = os.path.basename(file)
                 data = pd.read_csv(file, sep=confobj.sep,
-                                   usecols=confobj.e_scn_cols(f_name))                
+                                   usecols=confobj.scn_cols(guiobj, f_name))                
                 try:
                     lgrws.update(confobj.log_scavenger(file))
                 except:
@@ -228,56 +250,83 @@ def scan_importer(guiobj, confobj, pos, neg, T, H):
                 if confobj.ask_for_T:
                     lgrws['t'] = T
                 if confobj.ask_for_H:
-                    lgrws['field'] = H         
+                    lgrws['field'] = H
 
-                # Mean and sign of magnetic field
-                h_sgn = np.sign(lgrws['field'])
                 # Light polarisation
                 pol = lgrws['pol']
 
-                e_raw, dt_raw = escan_split(confobj, data)
+                if guiobj.analysis in guiobj.type['hyst']:
+                    # Import magnetic field scan
+                    time_raw, h_raw, dt_raw = hscan_imp(confobj, data)
 
-                for i in range(len(e_raw)):
                     # Set scan number from filename                
                     scn_num = set_scn_num(confobj, f_name, pos, neg)
-
-                    # Check if magnetic field has changed: the first scan and
-                    # the scans after the field has changed are usually rejected
-                    # so a different label is provided for these scans.
-                    if (dtset.index(file) == 0) and (i == 0):
-                        scn_lbl = scn_num + ' Dummy scan'
-                        lgrws['scn_num'] = scn_num + '(D)'
-                        chk_sgn_h = h_sgn
-                    elif (chk_sgn_h != h_sgn):
-                        scn_lbl = scn_num + ' Dummy scan'
-                        lgrws['scn_num'] = scn_num + '(D)'
-                        chk_sgn_h = h_sgn
-                    else:
-                        scn_lbl = scn_num
-                        lgrws['scn_num'] = scn_num
+                    scn_lbl = scn_num
+                    lgrws['scn_num'] = scn_num
 
                     # Separate positive from negative scans
-                    if guiobj.analysis in guiobj.type['xnld']:
-                        try:
-                            islv = confobj.lv_cond(pol)
-                        except:
-                            guiobj.wrongpol(scn_num, 'linear')
-                            continue  # continue if wrong file is found
+                    try:
+                        iscr = confobj.cr_cond(pol)
+                    except:
+                        guiobj.wrongpol(scn_num, 'circular')
+                        continue  # continue if wrong file is found
 
-                        separate_scans(guiobj, confobj, e_raw[i], dt_raw[i],
-                            scn_lbl, scn_num, islv, lgrws, pos, neg)
-
-                    else:  # if not XNLD check for circular polarisation
-                        try:
-                            iscr = confobj.cr_cond(pol)
-                        except:
-                            guiobj.wrongpol(scn_num, 'circular')
-                            continue  # continue if wrong file is found
-
-                        separate_scans(guiobj, confobj, e_raw[i], dt_raw[i],
-                            scn_lbl, scn_num, iscr, lgrws, pos, neg)
+                    separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw,
+                        scn_lbl, scn_num, iscr, lgrws, log_dt, pos, neg)
 
                     log_tbl = log_tbl.append(lgrws, ignore_index=True)
+                else:
+                    # Import energy scans
+
+                    # Mean and sign of magnetic field
+                    h_sgn = np.sign(lgrws['field'])                    
+
+                    e_raw, dt_raw = escan_split(confobj, data)
+
+                    for i in range(len(e_raw)):
+                        # Set scan number from filename                
+                        scn_num = set_scn_num(confobj, f_name, pos, neg)
+
+                        # Check if magnetic field has changed: the first scan
+                        # and the scans after the field has changed are usually
+                        # rejected so a different label is provided for these
+                        # scans.
+                        if (dtset.index(file) == 0) and (i == 0):
+                            scn_lbl = scn_num + ' Dummy scan'
+                            lgrws['scn_num'] = scn_num + '(D)'
+                            chk_sgn_h = h_sgn
+                        elif (chk_sgn_h != h_sgn):
+                            scn_lbl = scn_num + ' Dummy scan'
+                            lgrws['scn_num'] = scn_num + '(D)'
+                            chk_sgn_h = h_sgn
+                        else:
+                            scn_lbl = scn_num
+                            lgrws['scn_num'] = scn_num
+
+                        # Separate positive from negative scans
+                        if guiobj.analysis in guiobj.type['xnld']:
+                            try:
+                                islv = confobj.lv_cond(pol)
+                            except:
+                                guiobj.wrongpol(scn_num, 'linear')
+                                continue  # continue if wrong file is found
+
+                            separate_escans(guiobj, confobj, e_raw[i],
+                                dt_raw[i], scn_lbl, scn_num, islv, lgrws, pos,
+                                neg)
+
+                        else:  # if not XNLD check for circular polarisation
+                            try:
+                                iscr = confobj.cr_cond(pol)
+                            except:
+                                guiobj.wrongpol(scn_num, 'circular')
+                                continue  # continue if wrong file is found
+
+                            separate_escans(guiobj, confobj, e_raw[i],
+                                dt_raw[i], scn_lbl, scn_num, iscr, lgrws, pos,
+                                neg)
+
+                        log_tbl = log_tbl.append(lgrws, ignore_index=True)                    
 
             # increase counter for cumulative scanlogs if present
             confobj.scanlog_cnt += 1
@@ -299,13 +348,16 @@ def scan_importer(guiobj, confobj, pos, neg, T, H):
 
     return log_tbl
 
-def dt_raw_import(confobj, data):
+def dt_raw_import(guiobj, confobj, data):
     '''
     Based on configuration file select data to import depending on sensing.
     It also normalize data by i0 if normalization is not provided in datafile.
 
     Parameters
     ----------
+    guiobj : GUI object
+        Provides GUI dialogs.
+
     confobj : Configuration obj
 
     data : Pandas DataFrame
@@ -316,15 +368,15 @@ def dt_raw_import(confobj, data):
     array with normalized data based on sensing reported in confobj
     '''
     if confobj.norm_curr:  # Normalize data
-        if confobj.sense == 'TEY':
-            dt_raw = data[confobj.it_escn]/data[confobj.i0_escn]
+        if (confobj.sense == 'TEY'):
+            dt_raw = data[confobj.it]/data[confobj.i0]
         else:
-            dt_raw = data[confobj.if_escn]/data[confobj.if0_escn]
+            dt_raw = data[confobj.if1]/data[confobj.if0]
     else:  # Normalized data are provided
         if confobj.sense == 'TEY':
-            dt_raw = data[confobj.iti0_escn]
+            dt_raw = data[confobj.iti0]
         else:
-            dt_raw = data[confobj.ifi0_escn]
+            dt_raw = data[confobj.ifi0]
 
     return dt_raw
 
@@ -389,6 +441,31 @@ def escan_split(confobj, data):
 
     return e_raw, dt_raw
 
+def hscan_imp(confobj, data):
+    '''
+    Select data columns from imported data for hysteresis analysis.
+
+    Parameters
+    ----------
+    confobj : Configuration Object
+    
+    data : Pandas DataFrame
+        DataFrame containing imported data from input file
+
+    Returns
+    -------
+    Returns a tuple of pd.Series of three elements:
+    - the first timestamps (needed for point by point hysteresis)
+    - the second field vlaues of the scan
+    - the third measured data values.
+    '''
+    # Import field and XAS normalized raw data
+    energy_raw = data[confobj.field]
+    data_raw = dt_raw_import(confobj, data)
+    time_raw = data[confobj.time]
+    
+    return time_raw, energy_raw, data_raw
+
 def set_scn_num(confobj, f_name, pos, neg):
     '''
     Associate an identifier for each scan.
@@ -436,11 +513,11 @@ def set_scn_num(confobj, f_name, pos, neg):
 
     return scn_num_chk
 
-def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
+def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
     lgrws, pos, neg):
     '''
-    Separate scans and fill positive and negative ScanData objects with raw data
-    and labels depending on analysis type
+    Separate energy scans and fill positive and negative ScanData objects with
+    raw data and labels depending on analysis type.
 
     Parameters
     ----------
@@ -486,7 +563,10 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
         dt_raw_to_imp = dt_raw.to_numpy()
 
     rawen = pd.DataFrame()
-    rawdt = pd.DataFrame() 
+    rawdt = pd.DataFrame()
+
+    rawen['E' + scn_num] = e_raw_to_imp
+    rawdt[scn_num] = dt_raw_to_imp
 
     # For XNLD, data are divided and different labels assigned based on
     # polarization sign.
@@ -494,9 +574,7 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
 
         scn_lbl += ' H = {:.2f} T'.format(lgrws['field'])
 
-        if ispol:  # LV data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
+        if ispol:  # LV data            
             neg.raw_imp = pd.concat([neg.raw_imp, rawen], axis=1)
             neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             neg.label.append(scn_lbl)
@@ -504,8 +582,6 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             neg.dtype = 'LV'
             lgrws['type'] = 'LV'
         else:  # LH data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             pos.raw_imp = pd.concat([pos.raw_imp, rawen], axis=1)
             pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
             pos.label.append(scn_lbl)
@@ -527,16 +603,12 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
         sigma_sgn = h_sgn * confobj.phi_sgn
 
         if sigma_sgn > 0:  # sigma + data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             pos.raw_imp = pd.concat([pos.raw_imp, rawen], axis=1)
             pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
             pos.label.append(scn_lbl)
             pos.idx.append(scn_num)
             pos.dtype = 'sigma^+'
         else:  # sigma - data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             neg.raw_imp = pd.concat([neg.raw_imp, rawen], axis=1)
             neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             neg.label.append(scn_lbl)
@@ -548,8 +620,6 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
         scn_lbl += ' H = {:.2f} T'.format(lgrws['field'])
 
         if ispol:  # CR data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             pos.raw_imp = pd.concat([pos.raw_imp, rawen], axis=1)
             pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
             pos.label.append(scn_lbl)
@@ -557,8 +627,6 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             pos.dtype = 'CR'
             lgrws['type'] = 'CR'
         else:  # CL data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             neg.raw_imp = pd.concat([neg.raw_imp, rawen], axis=1)
             neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             neg.label.append(scn_lbl)
@@ -578,21 +646,100 @@ def separate_scans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             lgrws['type'] = 'CL'
 
         if h_sgn < 0:  # H- data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             pos.raw_imp = pd.concat([pos.raw_imp, rawen], axis=1)
             pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
             pos.label.append(scn_lbl)
             pos.idx.append(scn_num)
             pos.dtype = 'H -'
         else:  # H+ data
-            rawen['E' + scn_num] = e_raw_to_imp
-            rawdt[scn_num] = dt_raw_to_imp
             neg.raw_imp = pd.concat([neg.raw_imp, rawen], axis=1)
             neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             neg.label.append(scn_lbl)
             neg.idx.append(scn_num)
             neg.dtype = 'H +'
+
+def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_lbl, scn_num,
+    ispol, lgrws, log_dt, pos, neg):
+    '''
+    Separate magnetic field scans and fill positive and negative ScanData
+    objects with raw data and labels depending on polarisation.
+
+    Parameters
+    ----------
+    confobj : configuration obj
+
+    guiobj : GUI object
+        Provides GUI dialogs
+
+    h_raw : Pandas Series
+        Series containing field values of the scan
+
+    dt_raw : Pandas Series
+        Series containing imported data
+
+    time_raw : Pandas Series
+        Series containing timestamps of imported data
+
+    scn_lbl : str
+        Scan label
+
+    scn_num : str
+        Scan number
+
+    ispol : bool
+        True for CR and LV polarisations
+        False for CL and LH polarisations
+
+    lgrws : dict
+        Dictionary with log data collected from data logfile
+
+    log_dt : dict
+        dictionary collecting log data
+
+    pos, neg : ScanData objects
+        Collect raw data from positive and negative scans
+
+    Return
+    ------
+    Fill pos and neg ScanData objects with raw data as well lgrws dictionary
+    with scan labels
+
+    '''
+    # Energy tolerance in eV. To discriminate between edge and pre-edge scans
+    e_tol = 0.8  
+
+    h_raw_to_imp = h_raw.to_numpy()
+    dt_raw_to_imp = dt_raw.to_numpy()
+    time_raw_to_imp = time_raw.to_numpy()
+
+    rawtm = pd.DataFrame()
+    rawh = pd.DataFrame()
+    rawdt = pd.DataFrame()
+
+    rawtm['t' + scn_num] = time_raw_to_imp
+    rawh['H' + scn_num] = h_raw_to_imp
+    rawdt[scn_num] = dt_raw_to_imp
+
+    if ispol:  # CR data
+        pos.dtype = 'CR'
+        lgrws['type'] = 'CR'
+
+        # Edge scan considered
+        if abs(log_dt['Edge_en'] - lgrws['mon_en']) < e_tol:
+            pos.raw_imp = pd.concat([pos.raw_imp, rawtm], axis=1)
+            pos.raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
+            pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
+            pos.label.append(scn_lbl)
+            pos.idx.append(scn_num)
+        
+    else:  # CL data
+        pos.raw_imp = pd.concat([neg.raw_imp, rawtm], axis=1)
+        neg.raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
+        neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
+        neg.label.append(scn_lbl)
+        neg.idx.append(scn_num)
+        neg.dtype = 'CL'
+        lgrws['type'] = 'CL'
 
 def output_fls_escan(guiobj, pos, neg, scanobj):
     '''

@@ -13,7 +13,7 @@ A program to analyse XAS data.
 
 import modules.pyDichroX_IO as io
 import modules.pyDichroX_gui as pdxgui
-import modules.pyDichroX_datatreat as dt
+import modules.pyDichroX_escan_datatreat as esdt
 import modules.pyDichroX_cfgmanager as cfgman
 
 
@@ -27,33 +27,36 @@ if __name__ == '__main__':
         gui = pdxgui.GUI(conf)        
 
         # Analysis type
-        gui.chs_analysis()    
+        gui.chs_analysis()
+
+        # Import scan data
+        pos, neg, log_dt, pos_ref, neg_ref = io.open_import_scan(gui, conf)
         
-        # Import data
-        pos, neg, log_dt, pos_ref, neg_ref = io.open_import_escan(gui, conf)
-
-        # Create common energy scale
-        e_scale = dt.e_scale(gui, pos, neg, log_dt, pos_ref, neg_ref)
-
-        # Analize data
-        if conf.ref_norm:
-            # First compute analysis of data not normalized by reference
-            # Empty ScanData object, data must not be normalized at first
-            log_dt_ref_norm = log_dt         
-            e_scan = dt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)            
-            # Compute analysis normalizing pos and neg ScanData
-            gui.infile_ref = True  # For gui messages
-            e_scan_norm = dt.EngyScan(gui, conf, e_scale, pos_ref, neg_ref,
-                log_dt_ref_norm, pos, neg)
-            gui.infile_ref = False 
+        if gui.analysis == 'Hysteresis on the fly':
+            pass
         else:
-            e_scan = dt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)
-            e_scan_norm = []
-            log_dt_ref_norm = ''
+            # Create common energy scale
+            e_scale = esdt.e_scale(gui, pos, neg, log_dt, pos_ref, neg_ref)
 
-        # Show and save results
-        io.save_data_escan(conf, gui, pos, neg, e_scan, log_dt, pos_ref,
-            neg_ref, e_scan_norm, log_dt_ref_norm)
+            # Analize data
+            if conf.ref_norm:
+                # First compute analysis of data not normalized by reference
+                # Empty ScanData object, data must not be normalized at first
+                log_dt_ref_norm = log_dt
+                e_scan = esdt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)
+                # Compute analysis normalizing pos and neg ScanData
+                gui.infile_ref = True  # For gui messages
+                e_scan_norm = esdt.EngyScan(gui, conf, e_scale, pos_ref,
+                    neg_ref, log_dt_ref_norm, pos, neg)
+                gui.infile_ref = False
+            else:
+                e_scan = esdt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)
+                e_scan_norm = []
+                log_dt_ref_norm = ''
+
+            # Show and save results
+            io.save_data_escan(conf, gui, pos, neg, e_scan, log_dt, pos_ref,
+                neg_ref, e_scan_norm, log_dt_ref_norm)
 
         cont = pdxgui.ask_continue()
 

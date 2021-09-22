@@ -1,7 +1,7 @@
 """
-pyDichroX_datatreat.py
+pyDichroX_escan_datatreat.py
 
-Classes and methods for XMCD, XNCD, XNLD and hysteresys data analysis.
+Classes and methods for XMCD, XNCD and XNLD data analysis.
 
 Classes
 --------

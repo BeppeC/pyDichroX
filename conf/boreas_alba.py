@@ -53,11 +53,11 @@ class Configuration():
     energy : str
         datafile column name for energy data
 
-    it_escn : str
-        datafile column name for it data in energy scan experiments
+    it : str
+        datafile's column name for not normalized it - TEY data
 
-    i0_escn : str
-        datafile column name for i0 data in energy scan experiments
+    i0 : str
+        datafile's column name for i0 - TEY data
 
     phi_sgn : int
         sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
@@ -65,8 +65,9 @@ class Configuration():
 
     Methods
     -------
-    e_scn_cols(f_name='')
-        Assing column names for energy scans based on beamline settings.
+    scn_cols(guiobj, f_name='')
+         Assign column names for columns to be imported based on beamline
+         settings.
 
     cr_cond(x)
         Set condition to discriminate for right and left circular polarizations.
@@ -131,12 +132,15 @@ class Configuration():
         # Normalizaion by reference scans
         self.ref_norm = False
 
-    def e_scn_cols(self, f_name):
+    def scn_cols(self, guiobj, f_name):
         '''
         Assing column names for energy scans based on beamline settings.
 
         Parameters
         ----------
+        guiobj : GUI object
+            Provides GUI dialogs.
+
         f_name : str
             data filename, some beamline have filename in column names,
             NOT Boreas case.
@@ -145,12 +149,16 @@ class Configuration():
         ------
         list of column names to be imprted
         '''
-        self.energy = 'energy_mono_corrected'  # column with energy data
-        self.it_escn = 'adc2_i3'  # it data - TEY
-        self.i0_escn = 'adc2_i1'  # i0 data - TEY
+        if guiobj.analysis in guiobj.type['hyst']:
+            # Yet not considered hysteresis analysis for this beamline
+            pass
+        else:    
+            self.energy = 'energy_mono_corrected'  # column with energy data
+            self.it = 'adc2_i3'  # it data - TEY
+            self.i0 = 'adc2_i1'  # i0 data - TEY
 
-        # Energy scan colums list to be imported
-        return [self.energy, self.it_escn, self.i0_escn]
+            # Energy scan colums list to be imported
+            return [self.energy, self.it, self.i0]
 
     def cr_cond(self, x):
         '''

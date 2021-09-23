@@ -7,7 +7,7 @@ Starting with XAS scan pyDichroX computes XMCD, XNXD, XNCD, XNLD.
 
 Currently pyDichroX analyse only data from:
 - Deimos beamline @ Soleil Synchrotron, Paris (France)
-- Boreas beamline @ Alba Synchrotron, Barcellona (Spain)
+- Boreas beamline @ Alba Synchrotron, Barcelona (Spain)
 - APE beamline @ Elettra Synchrotron, Trieste (Italy)
 
 REQUIREMENTS

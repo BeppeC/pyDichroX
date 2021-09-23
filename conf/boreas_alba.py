@@ -1,4 +1,4 @@
-# Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
+# Configurations for Boreas beamline at Alba Synchrotron, Barcelona (Spain)
 import os
 import numpy as np
 import modules.pyDichroX_gui as pdxgui

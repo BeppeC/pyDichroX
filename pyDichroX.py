@@ -14,6 +14,7 @@ A program to analyse XAS data.
 import modules.pyDichroX_IO as io
 import modules.pyDichroX_gui as pdxgui
 import modules.pyDichroX_escan_datatreat as esdt
+import modules.pyDichroX_hscan_datatreat as hsdt
 import modules.pyDichroX_cfgmanager as cfgman
 
 
@@ -33,15 +34,27 @@ if __name__ == '__main__':
         pos, neg, log_dt, pos_ref, neg_ref = io.open_import_scan(gui, conf)
         
         if gui.analysis == 'Hysteresis on the fly':
-            pass
+            # Create common magneti field scale
+            h_scale = hsdt.h_scale(gui, pos, neg, log_dt)
+
+            ########
+            # debug
+            ########
+            print(h_scale)
+            ########
+
+            h_scan = hsdt.FieldScan(gui, conf, h_scale, pos, neg, log_dt)
+            io.save_data_hscan(conf, gui, h_scan, log_dt)
         else:
             # Create common energy scale
             e_scale = esdt.e_scale(gui, pos, neg, log_dt, pos_ref, neg_ref)
 
             # Analize data
             if conf.ref_norm:
-                # First compute analysis of data not normalized by reference
-                # Empty ScanData object, data must not be normalized at first
+                # First compute analysis of data not normalized by
+                # reference
+                # Empty ScanData object, data must not be normalized at
+                # first
                 log_dt_ref_norm = log_dt
                 e_scan = esdt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)
                 # Compute analysis normalizing pos and neg ScanData

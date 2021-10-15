@@ -1,92 +1,98 @@
-# Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
+"""
+Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
+"""
 
 class Configuration():
     '''
-    Set program configurations based on data provenance
+    Set program configurations based on data provenance.
 
     Attributes
     ----------
     default_only_ext : str
-        default datafile exension
+        default datafile exension.
 
     default_ext : str
-        default datafile extension (mask)
+        default datafile extension (mask).
 
     interactive : bool
-        if True interactive mode is setted, if False not interactive mode is
-        setted
+        True interactive mode is setted
+        False not interactive mode is setted.
 
     sep : str
-        column separator in datafiles
+        column separator in datafiles.
 
     sense : str
-        type of sensing used
+        type of sensing used.
 
     list_analysis : list
-        list of supported analysis for the beamline
+        list of supported analysis for the beamline.
 
     scanlog_cnt : int
-        counter to run through scanlog_nms
-        Not used for Deimos
+        counter to run through scanlog_nms.
+        Not used for Deimos.
 
     norm_curr : bool
         True if it/i0 is not provided by data
-        False if it/i0 is provided by data
+        False if it/i0 is provided by data.
 
     ask_for_T : bool
-        True if no information on sample temperature is provided by datalog file
-        False if sample temperature is provided in datalog file
+        True if no information on sample temperature is provided by
+            datalog file
+        False if sample temperature is provided in datalog file.
 
     ask_for_H : bool
-        True if no information on magnetic field is provided by datalog file
-        False if mangetic field is provided in datalog file
+        True if no information on magnetic field is provided by datalog
+            file
+        False if mangetic field is provided in datalog file.
 
     ref_norm : bool
         True if spectra must be normalized by a reference spectrum
-        False otherwise
+        False otherwise.
 
     energy : str
-        datafile's column name for energy data
+        datafile's column name for energy data.
 
     iti0 : str
-        datafile's column name for normalized it/i0 - TEY data
+        datafile's column name for normalized it/i0 - TEY data.
 
     ifi0 : str
-        datafile's column name for normalized if/f0 - fluorescence data
+        datafile's column name for normalized if/f0 - fluorescence data.
 
     field : str
-        datafile's column name for magnetic field data
+        datafile's column name for magnetic field data.
 
     time : str
-        datafile's column name for acquisition timestamps
+        datafile's column name for acquisition timestamps.
 
     i0 : str
-        datafile's column name for i0 data
+        datafile's column name for i0 data.
 
     it : str
-        datafile's column name for not normalized it - TEY data
+        datafile's column name for not normalized it - TEY data.
     
     if1 : str
-        datafile's column name for not normalized if - fluorescence data
+        datafile's column name for not normalized if - fluo data.
     
     if0 : str
-        datafile's column name for if0 - fluorescence data
+        datafile's column name for if0 - fluorescence data.
 
     phi_sgn : int
-        sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
-        from sigma-
+        sign assigned to CR (+1) and CL (-1) for the discrimination of
+        sigma+ from sigma-.
 
     Methods
     -------
     scn_cols(f_name='')
-         Assign column names for columns to be imported based on beamline
-         settings.
+        Assign column names for columns to be imported based on beamline
+        settings.
 
     hyst_scn_cols(f_name='')
-        Assing column names for hysteresis scans based on beamline settings.
+        Assing column names for hysteresis scans based on beamline
+        settings.
 
     cr_cond(x)
-        Set condition to discriminate for right and left circular polarizations.
+        Set condition to discriminate for right and left circular
+        polarizations.
 
     lv_cond(x)
         Set condition to discriminate for vertical and horizontal linear
@@ -102,16 +108,21 @@ class Configuration():
         Reconstruct name of datalog file.
 
     log_scavenger(dataflnm, guiobj)
-        Search in logfile for energies, field values, temperatures and sample
-        position.
+        Search in logfile for energies, field values, temperatures and
+        sample position.
 
-    logfl_creator(log_dt):
-        Create string with log data to be saved in logfile
+    escan_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for energy
+        scans analysis.
+
+    hscan_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for field
+        scans analysis.
     '''
 
     def __init__(self):
         '''
-        Instatiate object setting all the attributes
+        Instatiate object setting all the attributes.
         '''
         self.default_only_ext = '.txt'
         self.default_ext = '*.txt'  # mask
@@ -160,7 +171,7 @@ class Configuration():
 
         Return
         ------
-        list of column names to be imprted
+        list of column names to be imprted.
         '''
         if guiobj.analysis in guiobj.type['hyst']:
             # Columns for hysteresis on fly collected with TurboHyst
@@ -221,7 +232,8 @@ class Configuration():
 
     def cr_cond(self, x):
         '''
-        Set condition to discriminate for right and left circular polarizations.
+        Set condition to discriminate for right and left circular
+        polarizations.
 
         Parameters
         ----------
@@ -231,7 +243,7 @@ class Configuration():
 
         Returns
         -------
-        bool, True if CR, False if CL
+        bool, True if CR, False if CL.
         '''
         if x == 4:
             self.phi_sgn = 1
@@ -255,7 +267,7 @@ class Configuration():
 
         Returns
         -------
-        bool, True if LV, False if LH
+        bool, True if LV, False if LH.
         '''
         if x == 2:
             return True
@@ -271,11 +283,11 @@ class Configuration():
         Parameters
         ----------
         f_name : str
-            filename
+            filename.
 
         Returns
         -------
-        str, scan-number
+        str, scan-number.
         '''
         scn_num = f_name.lstrip('scan_').rstrip(self.default_only_ext)
 
@@ -284,7 +296,7 @@ class Configuration():
     def scanlog_fname(self, guiobj):
         '''
         Collect logfile associated to scandata.
-        Not needed at Deimos, simply pass
+        Not needed at Deimos, just pass.
 
         Parameters
         ----------
@@ -296,30 +308,30 @@ class Configuration():
     def single_lognm(self, dataflnm):
         '''
         Reconstruct name of datalog file.
-        Used in case of single logfile associated to single datafile, so logfile
-        name is associated to scanfile name.
+        Used in case of single logfile associated to single datafile,
+        so logfile name is associated to scanfile name.
 
         Parameters
         ----------
         dataflnm : str
-            name of datafile associated to logfile
+            name of datafile associated to logfile.
 
         Return
         ------
-        str, name of logfile associated to dataflnm
+        str, name of logfile associated to dataflnm.
         '''
         return dataflnm.rstrip(self.default_only_ext) + '.log'
 
     def log_scavenger(self, dataflnm):
         '''
-        Search for energies, field values, temperatures and sample position of a
-        given datafile in related logfile.
+        Search for energies, field values, temperatures and sample
+        position of a given datafile in related logfile.
 
         Parameters
         ----------
         dataflnm : datafile's name.
-            The name of logfile is retrieved just changing in .log the extension
-            of datafile, following SOLEIL convention.
+            The name of logfile is retrieved just changing in .log the
+            extension of datafile, following SOLEIL convention.
 
         guiobj : GUI object
             Provides GUI dialogs.
@@ -332,6 +344,7 @@ class Configuration():
          . field : magnetic field value
          . tb1 : sample temperature 1
          . tb2 : sample temperature 2
+         . t : average of tb1 and tb2
          . rz : sample rotation angle
          . tx : sample x position
          . tz : sample z position
@@ -365,7 +378,8 @@ class Configuration():
                             if 'field ' in ln:
                                 field = float(ln.split(':')[1].strip(' TESLA'))
                     if 'Sample temperature' in par:
-                        # find line with sample temperature and take TB values
+                        # find line with sample temperature and take TB
+                        # values
                         for ln in par.split('\n'):
                             if '1_#1' in ln:
                                 tb1 = float(ln.split('=')[1].strip(' K;'))
@@ -387,17 +401,18 @@ class Configuration():
         except:            
             raise Exception()
 
-    def logfl_creator(self, log_dt):
+    def escan_logfl_creator(self, log_dt):
         '''
-        Create string with log data to be saved in logfile
+        Create string with log data to be saved in logfile for energy
+        scans analysis.
 
         Parameters
         ----------
-        log_dt : dictionary with log data
+        log_dt : dictionary with log data.
 
         Returns
         -------
-        str, data formatted to be saved in logfile
+        str, data formatted to be saved in logfile.
         '''
         logtxt = ''
         log_tbl = log_dt['log_tbl']
@@ -454,4 +469,85 @@ class Configuration():
         logtxt += ('Edge jump for Avgd XAS sptectrum' +
                    ' - int.d pre-edge: {}\n'.format(log_dt['xas_aver_ej_int']))
 
+        return logtxt
+
+    def hscan_logfl_creator(self, log_dt):
+        '''
+        Create string with log data to be saved in logfile for field
+        scans analysis.
+
+        Parameters
+        ----------
+        log_dt : dictionary with log data.
+
+        Returns
+        -------
+        str, data formatted to be saved in logfile.
+        '''
+        logtxt = ''
+        log_tbl = log_dt['log_tbl']
+
+        logtxt += 'Sample temperature\n'
+        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
+                                               log_tbl['tb1'].std())
+        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
+                                                 log_tbl['tb2'].std())
+        logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
+            log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
+        logtxt += 'Sample position\n'
+        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
+                                              log_tbl['rz'].std())
+        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+                                               log_tbl['tx'].std())
+        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
+                                                 log_tbl['tz'].std())
+
+        logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
+
+        logtxt += 'Input scans\n'
+        for i in range(len(log_tbl)):
+            logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],
+                                         log_tbl['type'].iloc[i])
+        logtxt += '\n\n'
+        logtxt += 'CR Up selected scans\n'
+        for i in log_dt['pos_up_chsn']:
+            logtxt += '{}, '.format(i)
+        logtxt += '\n\n'
+        logtxt += 'CR Down selected scans\n'
+        for i in log_dt['pos_dw_chsn']:
+            logtxt += '{}, '.format(i)
+        logtxt += '\n\n'
+        logtxt += 'CL Up selected scans\n'
+        for i in log_dt['neg_up_chsn']:
+            logtxt += '{}, '.format(i)
+        logtxt += '\n\n'
+        logtxt += 'CL Down selected scans\n'
+        for i in log_dt['neg_dw_chsn']:
+            logtxt += '{}, '.format(i)
+        logtxt += '\n\n'
+        if log_dt['pos_pe_up_chsn']:
+            logtxt += 'CR Up pre-edge selected scans\n'
+            for i in log_dt['pos_pe_up_chsn']:
+                logtxt += '{}, '.format(i)
+            logtxt += '\n\n'
+        if log_dt['pos_pe_dw_chsn']:
+            logtxt += 'CR Down pre-edge selected scans\n'
+            for i in log_dt['pos_pe_dw_chsn']:
+                logtxt += '{}, '.format(i)
+            logtxt += '\n\n'
+        if log_dt['neg_pe_up_chsn']:
+            logtxt += 'CL Up pre-edge selected scans\n'
+            for i in log_dt['neg_pe_up_chsn']:
+                logtxt += '{}, '.format(i)
+            logtxt += '\n\n'
+        if log_dt['neg_pe_dw_chsn']:
+            logtxt += 'CL Down pre-edge selected scans\n'
+            for i in log_dt['neg_pe_dw_chsn']:
+                logtxt += '{}, '.format(i)
+            logtxt += '\n\n'
+        logtxt += 'Edge used : {}\n'.format(log_dt['Edge_name'])
+        logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
+            log_dt['exper_edge'], log_dt['Edge_en'])
+        logtxt += 'Pre-edge energy : {} eV\n'.format(log_dt['setted_pedg'])
+        
         return logtxt

@@ -5,11 +5,11 @@ Classes and methods for XMCD, XNCD and XNLD data analysis.
 
 Classes
 --------
-ScanData : Collect raw data for energy scan experiments and provides methods to
-    average them.
+ScanData : Collect raw data for energy scan experiments and provides
+    methods to average them.
 
-EngyScan : Allow computation on energy scan data extracting XNLD, XMCD or XNCD
-    spctra.
+EngyScan : Allow computation on energy scan data in order to obtain
+    XNLD, XMCD, XNCD and XNXD spectra.
 
 Methods
 -------
@@ -17,7 +17,7 @@ e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref)
     Create the energy scale used for data analysis.
 
 lin_interpolate(x, y, x0):
-    Linear interpolation of the value at x0
+    Linear interpolation of the value at x0.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -41,13 +41,13 @@ class ScanData:
     Attributes
     ----------
     label : list (str)
-        Labels for graphs
+        Labels for graphs.
 
     idx : list (str)
         Scan indexes
 
     raw_imp : pandas DataFrame
-        Collect imported raw data
+        Collect imported raw data.
 
     aver : array
         Data average of selected scans from raw_imp.
@@ -61,47 +61,49 @@ class ScanData:
         H-, H+ for XNXD
         LH, LV fot XNLD
 
-    chsd_scns : list (str)
-        Labels of chosed scans for the analysis
+    chsn_scns : list (str)
+        Labels of chosen scans for the analysis.
 
     pe_av : float
-        Value of spectra at pre-edge energy. It is obtained from averaging data
-        in an defined energy range centered at pre-edge energy
+        Value of spectra at pre-edge energy. It is obtained from
+        averaging data in an defined energy range centered at pre-edge
+        energy.
 
     pe_av_int : float
-        Pre-edge value obtained from linear interpolation considering pre-edge
-        and post-edge energies
+        Pre-edge value obtained from linear interpolation considering
+        pre-edge and post-edge energies.
 
     norm : array
-        Averaged data normalized by value at pre-edge energy
+        Averaged data normalized by value at pre-edge energy.
 
     norm_int : array
-        Averaged data normalized by interpolated pre-edge value
+        Averaged data normalized by interpolated pre-edge value.
 
     ej : float
-        Edge-jump value
+        Edge-jump value.
 
     ej_norm : float
-            edge-jump value normalized by value at pre-edge energy
+            edge-jump value normalized by value at pre-edge energy.
 
     ej_int : float
-        edge-jump value computed with interpolated pre-edge value
+        edge-jump value computed with interpolated pre-edge value.
 
     ej_norm_int : float
-        edge-jump computed and normalized by interpolated pre-edge value
+        edge-jump computed and normalized by interpolated pre-edge
+        value.
 
     Methods
     -------
     man_aver_e_scans(guiobj, enrg)
-        Manage the choice of scans to be averaged and return the average of
-        selected scans.
+        Manage the choice of scans to be averaged and return the average
+        of selected scans.
 
-    aver_e_scans(enrg, chsd, guiobj)
+    aver_e_scans(enrg, chsn, guiobj)
         Performe the average of data scans.
 
     edge_norm(enrg, e_edge, e_pe, pe_rng, pe_int)
-        Normalize energy scan data by value at pre-edge energy and compute
-        edge-jump.
+        Normalize energy scan data by value at pre-edge energy and
+        compute edge-jump.
     '''
 
     def __init__(self):
@@ -114,9 +116,8 @@ class ScanData:
 
     def man_aver_e_scans(self, guiobj, enrg):
         '''
-        Manage the choice of scans to be averaged and return the average of
-        selected scans.
-        Works only with energy scans (i.e. XMCD, XNCD, XNXD and XNLD).
+        Manage the choice of scans to be averaged and return the average
+        of selected scans.
 
         Parameters
         ----------
@@ -130,10 +131,10 @@ class ScanData:
         ------
         Set class attributes:
         aver : array
-            Average values of the choosed scans.
+            Average values of the chosen scans.
 
-        chsd_scns : list
-            Labels of chosed scans for the analysis (for log purpose)
+        chsn_scns : list
+            Labels of chosen scans for the analysis (for log purpose).
         '''
         if guiobj.interactive:  # Interactive choose of scans
             # Loop until choice is confirmed
@@ -153,41 +154,41 @@ class ScanData:
                 plt.show()
 
                 # Dialogue to choose data to be averaged
-                chsd = guiobj.chs_scns(self.label)
+                chsn = guiobj.chs_scns(self.label)
 
-                # Compute average of choosed scans
-                avgd = self.aver_e_scans(enrg, chsd, guiobj)
+                # Compute average of chosen scans
+                avgd = self.aver_e_scans(enrg, chsn, guiobj)
 
                 # Ask for confirmation
                 isok = guiobj.confirm_choice()
         else:
             # Not-interactive mode: all scans except 'Dummy Scans' are
-            # evaluated.
-            chsd = []
+            # evaluated
+            chsn = []
 
             for lbl in self.label:
-                # Check it is not a 'Dummy Scan' and append corresponding scan
-                # number in chosed scan list.
+                # Check it is not a 'Dummy Scan' and append
+                # corresponding scan number in chosen scan list
                 if not ('Dummy' in lbl):
-                    chsd.append(self.idx[self.label.index(lbl)])
+                    chsn.append(self.idx[self.label.index(lbl)])
 
-            avgd = self.aver_e_scans(enrg, chsd, guiobj)
+            avgd = self.aver_e_scans(enrg, chsn, guiobj)
 
         self.aver = avgd
-        self.chsd_scns = chsd  # Collect choosed scans for log purpose
+        self.chsn_scns = chsn  # Collect chosen scans for log purpose
 
-    def aver_e_scans(self, enrg, chsd, guiobj):
+    def aver_e_scans(self, enrg, chsn, guiobj):
         '''
         Perform the average of data scans. 
-        If interactive mode, data scans and their average are shown together
-        in a plot. 
+        If interactive mode, data scans and their average are shown
+        together in a plot. 
 
         Parameters
         ----------
         enrg : array
             Energy values at which average is calculated.
 
-        chsd : list (str)
+        chsn : list (str)
             Scan-numbers of scan to be averaged.
 
         guiobj: GUI object
@@ -195,13 +196,14 @@ class ScanData:
 
         Returns
         -------
-        array, containing the average of data scans
+        array, containing the average of data scans.
 
         Notes
         -----
         To compute the average the common energy scale enrg is used.
-        All passed scans are interpolated with a linear spline (k=1 and s=0 in
-        itp.UnivariateSpline) and evaluated along the common energy scale.
+        All passed scans are interpolated with a linear spline (k=1 and
+        s=0 in itp.UnivariateSpline) and evaluated along the common
+        energy scale.
         The interpolated data are eventually averaged.
         '''
         intrp = []
@@ -211,8 +213,8 @@ class ScanData:
             if guiobj.infile_ref:
                 plt.title('Reference sample scans')
 
-        for scn in chsd:
-            # Chosed data
+        for scn in chsn:
+            # chosen data
             x = self.raw_imp['E' + scn][1:]
             y = self.raw_imp[scn][1:]
 
@@ -222,8 +224,8 @@ class ScanData:
 
             # Compute linear spline interpolation
             y_int = itp.UnivariateSpline(x, y, k=1, s=0)
-            # Evaluate interpolation of scan data on enrg energy scale and
-            # append to previous interpolations
+            # Evaluate interpolation of scan data on enrg energy scale
+            # and append to previous interpolations
             intrp.append(y_int(enrg))
 
         # Average all inteprolated scans
@@ -243,58 +245,59 @@ class ScanData:
         Normalize energy scan data by the value at pre-edge energy.
         Also compute the  energy jump defined as the difference between
         the value at the edge and pre-edge energies respectively.
-        This computations are implemented employing both a pre-edge value
-        obtained from data (averaging in the region e_pe +/+ pe_rng) and an
-        interpolated pre-edge value.
+        This computations are implemented employing both a pre-edge
+        value obtained from data (averaging in the region 
+        e_pe +/- pe_rng) and an interpolated pre-edge value.
 
         Parameters
         ----------
         enrg : array
-            Energy values of scan
+            Energy values of scan.
 
         e_edge : float
-            Edge energy value
+            Edge energy value.
 
         e_pe : float
-            Pre-edge energy value
+            Pre-edge energy value.
 
         pe_rng : int
             Number of points constituting the semi-width of energy range
             centered at e_pe.
 
         pe_int : float
-            Pre-edge value obtained from linear interpolation based on pre- and
-            post-edge energies.
+            Pre-edge value obtained from linear interpolation based on
+            pre- and post-edge energies.
 
         Returns
         -------
         Set class attributes:
         pe_av : float
-            value at pre-edge energy
+            value at pre-edge energy.
 
         norm : array
-            self.aver scan normalized by value at pre-edge energy
+            self.aver scan normalized by value at pre-edge energy.
 
         norm_int : array
-            Averaged data normalized by interpolated pre-edge value
+            Averaged data normalized by interpolated pre-edge value.
 
         ej : float
-            edge-jump value
+            edge-jump value.
 
         ej_norm : float
-            edge-jump value normalized by value at pre-edge energy
+            edge-jump value normalized by value at pre-edge energy.
 
         ej_int : float
-            edge-jump value computed with interpolated pre-edge value
+            edge-jump value computed with interpolated pre-edge value.
 
         ej_norm_int : float
-            edge-jump computed and normalized by interpolated pre-edge value
+            edge-jump computed and normalized by interpolated pre-edge
+            value.
 
         Notes
         -----
         To reduce noise effects the value of scan at pre-edge energy is
-        obtained computing an average over an energy range of width pe_rng and
-        centered at e_pe pre-edge energy.
+        obtained computing an average over an energy range of width
+        pe_rng and centered at e_pe pre-edge energy.
         The value of scan at edge energy is obtained by linear spline
         interpolation of data (itp.UnivariateSpline with k=1 and s=0).
         '''
@@ -333,79 +336,83 @@ class ScanData:
 
 class EngyScan:
     '''
-    Allow computation on energy scan data extracting XNLD, XMCD, XNCD and XNXD
-    spectra.
+    Allow computation on energy scan data in order to obtain XNLD, XMCD,
+    XNCD and XNXD spectra.
 
     Attributes
     ----------
     energy : array
-        Common energy scale for positive and negative XAS scans data treatement
+        Common energy scale for positive and negative XAS scans data
+        treatement.
 
     exper_edge : float
-        Experimental edge energy
+        Experimental edge energy.
 
     e_pe : float
-        Pre-edge energy value
+        Pre-edge energy value.
 
     e_poste : float
-        Post-edge energy value
+        Post-edge energy value.
 
     pe_wdt : float
-        Half-width of energy range for pre-edge average computation
+        Half-width of energy range for pre-edge average computation.
 
     pe_int : float
-        Interpolated value of pre-edge considering pre- and post-edge energies
-        using a linear approximation
+        Interpolated value of pre-edge considering pre- and post-edge
+        energies using a linear approximation.
 
     offest : float
-        Offset given by the difference between expected and experimental edge 
-        energy
+        Offset given by the difference between expected and experimental
+        edge energy.
 
     energycal : array
-        Common energy scale calibrated considering the offset
+        Common energy scale calibrated considering the offset.
 
     ang_w_n : float
-        Angle weight for XNLD computation
+        Angle weight for XNLD computation.
 
     ang_w_d : float
-        Angle weight for XNLD computation
+        Angle weight for XNLD computation.
 
     xd : array
-        X-Ray dichroism data
+        X-Ray dichroism data.
 
     xd_aver : array
         Average of positive and negative XAS. In case of XNLD analysis a
-        weighted average is considered
+        weighted average is considered.
 
     xd_pc : array
-        Percentage of X-Ray dichroism normalized by the average of positve and
-        negative scans edge jumps respectively. 
+        Percentage of X-Ray dichroism normalized by the average of
+        positve and negative scans edge jumps respectively. 
 
     xd_pc_int :array
         Same as xd_pc using data normalized with inerpolated edge-jump.
 
     pos_corr : array
-        Normalized positive XAS spectrum weighted by the average of values at
-        pre-edge energy of positive and negative spectra. For XNLD spectra the
-        weight consider also the X-Ray beam incidence angle.
+        Normalized positive XAS spectrum weighted by the average of
+        values at pre-edge energy of positive and negative spectra.
+        For XNLD spectra the weight consider also the X-Ray beam's
+        incidence angle.
 
     neg_corr : array
-        Normalized negative XAS spectrum weighted by the average of values at
-        pre-edge energy of positive and negative spectra. For XNLD spectra the
-        weight consider also the X-Ray beam incidence angle.
+        Normalized negative XAS spectrum weighted by the average of
+        values at pre-edge energy of positive and negative spectra.
+        For XNLD spectra the weight consider also the X-Ray beam's
+        incidence angle.
 
     pos_corr_int : array
-        Same as pos_corr but using for the avereage of pre-edge values the
-        ineterpolated values. For XNLD spectra the weight consider also the
-        X-Ray beam incidence angle.
+        Same as pos_corr but using for the avereage of pre-edge values
+        the ineterpolated values. For XNLD spectra the weight consider
+        also the X-Ray beam's incidence angle.
 
     neg_corr_int : array
-        Same as neg_corr but using for the avereage of pre-edge values the
-        ineterpolated values. For XNLD spectra the weight consider also the
-        X-Ray beam incidence angle.
+        Same as neg_corr but using for the avereage of pre-edge values
+        the ineterpolated values. For XNLD spectra the weight consider
+        also the X-Ray beam's incidence angle.
 
     xd_pc_av_ej : array
-        Percentage  ofX-Ray dichroism normalized by edge jump of xd_aver scan.        
+        Percentage  ofX-Ray dichroism normalized by edge jump of xd_aver
+        scan.        
 
     xd_pc_av_ej_int : array
         Same as xd_pc_av_ej but using for the edge-jump computation the 
@@ -417,8 +424,8 @@ class EngyScan:
         Copmute averages of positive and negative scans.
 
     compt_mxd(guiobj, pos, neg, log_dt)
-        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
-        XNCD spctra.
+        Performs computation on energy scan data extracting XNLD, XMCD,
+        XNXD or XNCD spctra.
 
     compt_xd(self, guiobj, pos, neg, log_dt)
         Compute not normalized X-Ray Dichroism.
@@ -427,23 +434,24 @@ class EngyScan:
         Set values of edge and pre-edge energies.
 
     compt_xd_pc(guiobj, pos, neg)
-        Compute the percentage of X-Ray Dichroism normalized for edge-jump.
+        Compute the percentage of X-Ray Dichroism normalized for
+        edge-jump.
 
     compt_pe_corr(guiobj, pos, neg)
         Calculate xd percentage normalizing with edge-jump obtained from
         weighted average of positive and negative spectra.
 
     comp_xd_pc_av_ej(self, log_dt)
-        Compute percentage of X-Ray Dichroism normalized for edge-jump of
-        xd_aver spectrum.
+        Compute percentage of X-Ray Dichroism normalized for edge-jump
+        of xd_aver spectrum.
     '''
 
     def __init__(self, guiobj, confobj, e_scale, pos, neg, log_dt,
         pos_to_norm=ScanData(), neg_to_norm=ScanData()):
         '''
-        At instantiation scan_average and compt_xd method are called and energy
-        attribute is settee, so upon its creation an EngyScan object collects
-        all the informations about X-Ray dichroism.
+        At instantiation scan_average and compt_xd method are called and
+        energy attribute is setted, so upon its creation an EngyScan
+        object collects all the informations about X-Ray dichroism.
 
         Parameters
         ----------
@@ -453,26 +461,26 @@ class EngyScan:
         confobj : Configuration object
 
         e_scale : array
-            Common energy scale for data analysis
+            Common energy scale for data analysis.
 
         pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).       
 
         log_dt : dict
-            Collect data for logfile
+            Collect data for logfile.
 
         pos_to_norm : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present. If no reference data are present
-            pass empty ScanData object.
+            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to
+            be normalized by reference if present. If no reference data
+            are present pass empty ScanData object.
 
         neg_to_norm : ScanData obj
-            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present. If no reference data are present
-            pass empty ScanData object.
+            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to
+            be normalized by reference if present. If no reference data
+            are present pass empty ScanData object.
         '''
         self.energy = e_scale
 
@@ -483,57 +491,60 @@ class EngyScan:
     def scan_average(self, guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm):
         '''
         Copmute averages of positive and negative scans.
-        If reference data are considered compute also the averages of reference
-        scans.
+        If reference data are considered compute also the averages of
+        reference scans.
 
         Parameters
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
 
-        pos_scan : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+        pos : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
-        neg_scan : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+        neg : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).     
 
         log_dt : dict
-            Collect data for logfile
+            Collect data for logfile.
 
         pos_to_norm : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present
+            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to
+            be normalized by reference if present.
 
         neg_to_norm : ScanData obj
-            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present
+            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to
+            be normalized by reference if present.
 
         Return
         ------
-        Instantiate aver attribute of positive and negative ScanData objects.
-        In case referecnce data are passed aver attribute is the normalization
-        ***_to_norm by reference data.
+        Instantiate aver attribute of positive and negative ScanData
+        objects. In case referecnce data are passed aver attribute is
+        the normalization ***_to_norm by reference data.
 
         Add keys to log_dt
 
-        pos_chs : list (str) with positive chosed scan
-        neg_chs : list (str) with negative chosed scan
+        pos_chs : list (str) with positive chosen scan
+        neg_chs : list (str) with negative chosen scan
 
         '''
-        # If no reference data pos_to_norm and neg_to_norm are empty ScanData
-        # object
+        # If no reference data pos_to_norm and neg_to_norm are empty
+        # ScanData object
         if pos_to_norm.raw_imp.empty or neg_to_norm.raw_imp.empty:
-            # Computes averages of positive and negative polarization scans.
+            # Computes averages of positive and negative polarization
+            # scans
             guiobj.infile_ref = False
 
             pos.man_aver_e_scans(guiobj, self.energy)
-            neg.man_aver_e_scans(guiobj, self.energy)            
+            neg.man_aver_e_scans(guiobj, self.energy)
         else:
-            # If present computes averages of positive and negative polarization
-            # of reference scans and normalize data for them.
-            # In this case pos and neg contains reference data and pos_to_norm
-            # neg_to_norm are data to be normalized. They are supposed to be
-            # already analyzed so aver attribute is already setted
+            # If present computes averages of positive and negative
+            # polarization  of reference scans and normalize data for
+            # them.
+            # In this case pos and neg contains reference data and
+            # pos_to_norm and neg_to_norm are data to be normalized.
+            # They are supposed to be already analyzed so aver attribute
+            # is already setted.
             guiobj.infile_ref = True
             pos.man_aver_e_scans(guiobj, self.energy)
             neg.man_aver_e_scans(guiobj, self.energy)
@@ -544,24 +555,25 @@ class EngyScan:
 
             guiobj.infile_ref = False
 
-        # Add keys with chosed scans to log_dt
-        log_dt['pos_chs'] = pos.chsd_scns
-        log_dt['neg_chs'] = neg.chsd_scns
+        # Add keys with chosen scans to log_dt
+        log_dt['pos_chs'] = pos.chsn_scns
+        log_dt['neg_chs'] = neg.chsn_scns
 
     def compt_mxd(self, guiobj, pos, neg, log_dt):
         '''
-        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
-        XNCD spctra.
-        Given two ScanData object (one for positive and one for negative scans):
+        Performs computation on energy scan data extracting XNLD, XMCD,
+        XNXD or XNCD spctra.
+        Given two ScanData object (one for positive and one for negative
+        scans):
         - compute X-Ray Dichroism as negative - positive;
-        - compute the arithmetical mean of positive and negative spectra for
-          XMCD, XNCD, XNXD data and the weighted average for the angle for XNLD
-          data (see Notes);
-        - compute percentage of X-Ray Dichroism normalized by the average
-          edge-jump for XMCD, XNCD, XNXD data while for XNLD an angle-weighted
-          average is considered (see Notes);
-        - compute percentage of X-Ray Dichroism normalized by edge-jump of the
-          weighted average of positive and negative spectra.
+        - compute the arithmetical mean of positive and negative spectra
+          for XMCD, XNCD, XNXD data and the weighted average for the
+          angle for XNLD data (see Notes);
+        - compute percentage of X-Ray Dichroism normalized by the
+          average edge-jump for XMCD, XNCD, XNXD data while for XNLD an
+          angle-weighted average is considered (see Notes);
+        - compute percentage of X-Ray Dichroism normalized by edge-jump
+          of the weighted average of positive and negative spectra.
 
         Parameters
         ----------
@@ -569,40 +581,42 @@ class EngyScan:
             Provides GUI dialogs.
 
         pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).     
 
         log_dt : dict
-            Collect data for logfile
+            Collect data for logfile.
 
         Returns
         -------
-        Add keys to log_dt
+        Add keys to log_dt:
 
-        pos_ej : float, edge-jump value for postitive scans
-        pos_ej_int : float, edge-jump value for postitive scans, interpolated
-            value of pre-edge energy is used
-        neg_ej : float, edge-jump value for postitive scans
-        neg_ej_int : float, edge-jump value for postitive scans, interpolated
-            value of pre-edge energy is used
+        pos_ej : float, edge-jump value for postitive scans.
+        pos_ej_int : float, edge-jump value for postitive scans,
+            interpolated value of pre-edge energy is used.
+        neg_ej : float, edge-jump value for postitive scans.
+        neg_ej_int : float, edge-jump value for postitive scans,
+            interpolated value of pre-edge energy is used.
         Notes
         -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
+        In XNLD analsysis LH and LV spectra are weighted by the angle t
+        between the sample surface and the X-Ray incident beam
+        direction.
 
-        - XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
+        - XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 
+                         3 * cos(t)^2
 
         - XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
                      (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
 
         - XNLD norm by XNLD_aver edge-jump (%) = 
-                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
-                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
-                         (XNLD_aver_edge - XNLD_aver_pe))
+                    100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
+                    3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
+                    (XNLD_aver_edge - XNLD_aver_pe))
         '''
-        # Computes not normalized X-Ray Dichroism.
+        # Computes not normalized X-Ray Dichroism
         self.compt_xd(guiobj, pos, neg, log_dt)
 
         self.edges(guiobj, log_dt)
@@ -630,67 +644,72 @@ class EngyScan:
         Parameters
         ----------
         guiobj : GUI obj
-            Provides GUI dialogs
+            Provides GUI dialogs.
 
         pos_scan : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg_scan : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).        
 
         log_dt : dict
-            Collect data for logfile
+            Collect data for logfile.
         
         Return
         ------
         Set attributes:
         
         xd : array
-            X-Ray Dichroism as negative - positive scans
+            X-Ray Dichroism as negative - positive scans.
 
         xd_aver : array
             Average of XAS spectra. Arithmetical mean of positive and
-            negative scans for XMCD and XNCD analysis. Weigthed average by angle
-            for XNLD analysis (see Notes)
+            negative scans for XMCD and XNCD analysis. Weigthed average
+            by angle for XNLD analysis (see Notes).
         
         ang_w_n : float
-            Angle weight for XNLD computation
+            Angle weight for XNLD computation.
 
         ang_w_d : float
-            Angle weight for XNLD computation
+            Angle weight for XNLD computation.
 
         Notes
         -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
+        In XNLD analsysis LH and LV spectra are weighted by the angle t
+        between the sample surface and the X-Ray incident beam's
+        direction.
 
-        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
+        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) /
+                        3 * cos(t)^2
         '''
         self.xd = neg.aver - pos.aver
         if guiobj.analysis in guiobj.type['xnld']:
-            # If XNLD the angle must be considered for weighted mean computation
+            # If XNLD the angle must be considered for weighted mean
+            # computation
             theta = log_dt['bm_angle']  # retrive angle from log table
 
             # Numerator and denominator terms of angle weight
             self.ang_w_n = 2 * (np.cos(theta))**2 - (np.sin(theta))**2
             self.ang_w_d = 3 * (np.cos(theta))**2
 
-            self.xd_aver = (pos.aver + (self.ang_w_n * neg.aver)) / self.ang_w_d
+            self.xd_aver = (pos.aver + (self.ang_w_n*neg.aver)) / self.ang_w_d
         else:
             self.xd_aver = (pos.aver + neg.aver) / 2
 
     def edges(self, guiobj, log_dt):
         '''
-        Set values of edge energy, pre-edge energy, pre-edge energy range (used
-        to compute average of spectra at pre-edge energy) and post-edge energy.
+        Set values of edge energy, pre-edge energy, pre-edge energy
+        range (used to compute average of spectra at pre-edge energy)
+        and post-edge energy.
 
-        If in interactive mode a GUI is provided to set the experimental edge
-        energy, pre-edge energy, post-edge energy and and half-width of
-        interval adopted for pre-edge average.
-        Otherwise for edge energy is considered the experimental computed one
-        from minimization, for pre-edge end post-edge energies the ones provided
-        from edge file are taken for good, and for the half-width of interval
-        for pre-edge average 4 points is considered.
+        If in interactive mode a GUI is provided to set the experimental
+        edge energy, pre-edge energy, post-edge energy and and
+        half-width of interval adopted for pre-edge average.
+        Otherwise for edge energy is considered the experimental
+        computed one from minimization, for pre-edge end post-edge
+        energies the ones provided from edge file are taken for good,
+        and for the half-width of interval for pre-edge average 4 points
+        is considered.
 
         Parameters
         ----------
@@ -698,53 +717,54 @@ class EngyScan:
             Provides GUI dialogs.
 
         log_dt : dict
-            Collect data for logfile
+            Collect data for logfile.
 
         Return
         ------
         Set class attributes
 
         exper_edge : float
-            Experimental edge energy
+            Experimental edge energy.
 
         e_pe : float
-            Pre-edge energy value
+            Pre-edge energy value.
 
         e_poste : float
-            Post-edge energy value
+            Post-edge energy value.
 
         pe_wdt : float
-            Half-width of energy range for pre-edge average computation
+            Half-width of energy range for pre-edge average computation.
 
         offset : float
-            Offset given by the difference between expected and experimental
-            edge energy
+            Offset given by the difference between expected and
+            experimental edge energy.
 
         energycal : array
-            Common energy scale calibrated considering the offset. In this way
-            absorption edge of spectra falls at the expected energy.
+            Common energy scale calibrated considering the offset. In
+            this way absorption edge of spectra falls at the expected
+            energy.
 
         Add keys to log_dt
 
-        exper_edge : experimental edge energy
-        setted_pedg : setted pre-edge energy
-        setted_postedg : setted post-edge energy
-        recal : bool, if True energy recalibration has been done
-        offset : energy offset adopted for energy recalibration
+        exper_edge : experimental edge energy.
+        setted_pedg : setted pre-edge energy.
+        setted_postedg : setted post-edge energy.
+        recal : bool, if True energy recalibration has been done.
+        offset : energy offset adopted for energy recalibration.
 
         Notes
         -----
-        Indication of experimental value of edge energy is provided finding
-        the stationary points of experimental spectrum. This is obtained
-        interpolating experimental data. Method used for interpolation is 
-        scipy.interpolate.UnivariateSpline of order 3.
+        Indication of experimental value of edge energy is provided
+        finding the stationary points of experimental spectrum. This is
+        obtained interpolating experimental data. Method used for
+        interpolation is  scipy.interpolate.UnivariateSpline of order 3.
         '''
-        # Retrive from log_dt edge, pre-edge energy and range for pre-edge
-        # average
+        # Retrive from log_dt edge, pre-edge energy and range for
+        # pre-edge average
 
-        # Check that pre-edge energy is included in the considered energy
-        # range. If not, an energy value close to the nearest range endpoint
-        # is considered
+        # Check that pre-edge energy is included in the considered
+        # energy range. If not, an energy value close to the nearest
+        # range endpoint is considered
         if float(log_dt['PreEdge_en']) <= self.energy[5]:
             pe_e = self.energy[5]
         elif float(log_dt['PreEdge_en']) >= self.energy[-5]:
@@ -752,8 +772,8 @@ class EngyScan:
         else:
             pe_e = float(log_dt['PreEdge_en'])
 
-        # Check that post edge energy is included in the considered energy
-        # range
+        # Check that post edge energy is included in the considered
+        # energy range
         if float(log_dt['PostEdge_en']) <= self.energy[0]:
             pste_e = self.energy[1]
         elif float(log_dt['PostEdge_en']) >= self.energy[-1]:
@@ -767,8 +787,8 @@ class EngyScan:
         y_aver = self.xd_aver
 
         # Order 3 interpolation of data
-        # opt.minimize_scalar serch for function minimum so negative absolute
-        # value of interpolated data is considered.
+        # opt.minimize_scalar serch for function minimum so negative
+        # absolute value of interpolated data is considered.
         y_int_for_edge = itp.UnivariateSpline(self.energy, -abs(y), k=3, s=0)
         # Bounds for  minimum search - 5 eV window is considered
         u_bnd = log_dt['Edge_en'] + 2.5
@@ -778,7 +798,8 @@ class EngyScan:
         y_int = itp.UnivariateSpline(self.energy, y_aver, k=3, s=0)
 
         if guiobj.interactive:
-            # x value which minimize y is passed as experimental edge energy
+            # x value which minimize y is passed as experimental edge
+            # energy
             edgs = guiobj.set_edges(sel_edg, min_y.x, self.energy, y, y_aver,
                 y_int)
            
@@ -788,17 +809,17 @@ class EngyScan:
             self.pe_wdt = int(edgs[3])
             recal = edgs[4]
         else:
-            # If not interactive for exper_edge the result of minimization is
-            # considered
+            # If not interactive for exper_edge the result of
+            # minimization is considered
             self.exper_edge = float(min_y.x)
             self.e_pe = pe_e
             self.e_poste = pste_e
             self.pe_wdt = 4
             recal = False
 
-        # New energy scale is created adding an offset given by the difference
-        # between expected and experimental edge energies if recal is True,
-        # otherwise no offset is added
+        # New energy scale is created adding an offset given by the
+        # difference  between expected and experimental edge energies if
+        # recal is True, otherwise no offset is added
         if recal:
             self.offset = self.exper_edge - log_dt['Edge_en']
         else:
@@ -815,12 +836,13 @@ class EngyScan:
 
     def compt_xd_pc(self, guiobj, pos, neg):
         '''
-        Compute the percentage of X-Ray Dichroism normalized for edge-jump.
+        Compute the percentage of X-Ray Dichroism normalized for
+        edge-jump.
         For XMCD and XNCD it is obtained as the difference between
-        normalized by pre-edge negative and positve scans normalized by the
-        arithmetical mean of the two respective edge jumps. For XNLD the
-        average weighted by angle of incidence X-Ray beam considered
-        (see Notes)
+        normalized by pre-edge negative and positve scans normalized by
+        the arithmetical mean of the two respective edge jumps. For XNLD
+        the average weighted by X-Ray beam's angle of incidence is
+        considered (see Notes).
 
         Parameters
         ----------
@@ -828,10 +850,10 @@ class EngyScan:
             Provides GUI dialogs.
 
         pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).   
         
         Return
         ------
@@ -839,18 +861,20 @@ class EngyScan:
         xd_pc : array
             Percentage of X-Ray Dichroism normalized for edge-jump.
             For XMCD and XNCD it is obtained as the difference between
-            normalized by pre-edge negative and positve scans normalized by the
-            arithmetical mean of the two respective edge jumps. For XNLD the
-            average weighted by angle of incidence X-Ray beam considered
-            (see Notes)
+            normalized by pre-edge negative and positve scans normalized
+            by the arithmetical mean of the two respective edge jumps.
+            For XNLD the average weighted by X-Ray beam's angle of
+            incidence is considered (see Notes).
 
         xd_pc_int : array
-            Same as xd_pc using data normalized with inerpolated edge-jump.
+            Same as xd_pc using data normalized with inerpolated
+            edge-jump.
 
         Notes
         -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
+        In XNLD analsysis LH and LV spectra are weighted by the angle t
+        between the sample surface and the X-Ray incident beam's
+        direction.
 
          XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
                      (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
@@ -873,7 +897,7 @@ class EngyScan:
     def compt_pe_corr(self, guiobj, pos, neg):
         '''
         Calculate xd percentage normalizing with edge-jump obtained from
-        weighted average of positive and negative spectra
+        weighted average of positive and negative spectra.
 
         Parameters
         ----------
@@ -881,49 +905,55 @@ class EngyScan:
             Provides GUI dialogs.
 
         pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).   
         
         Return
         ------
         Set attributes:
 
         pos_corr : array
-            Average of positive spectra weighted by the ratio between the mean
-            of positive pre-edge values and the mean of all pre-edge values.
-            For XMCD and XNCD the mean of positive and negative pre-edges is
-            arithmetical while for XNLD the average weighted by angle of
-            incidence X-Ray beam considered (see Notes)
+            Average of positive spectra weighted by the ratio between
+            the mean of positive pre-edge values and the mean of all
+            pre-edge values.
+            For XMCD and XNCD the mean of positive and negative
+            pre-edges is arithmetical while for XNLD the average
+            weighted by the angle of incidence- of X-Ray beam is
+            considered (see Notes).
 
         pos_corr_int : array
-            Same as pos_corr using interpolated pre-edge values
+            Same as pos_corr using interpolated pre-edge values.
 
         neg_corr : array
-            Average of negative spectra weighted by the ratio between the mean
-            of positive pre-edge values and the mean of all pre-edge values.
-            For XMCD and XNCD the mean of positive and negative pre-edges is
-            arithmetical while for XNLD the average weighted by angle of
-            incidence X-Ray beam considered (see Notes)
+            Average of negative spectra weighted by the ratio between
+            the mean of positive pre-edge values and the mean of all
+            pre-edge values.
+            For XMCD and XNCD the mean of positive and negative
+            pre-edges is arithmetical while for XNLD the average
+            weighted by angle of incidence if the X-Ray beam is
+            considered (see Notes).
 
         neg_corr_int : array
-            Same as neg_corr using interpolated pre-edge values
+            Same as neg_corr using interpolated pre-edge values.
         
         pos_corr_int : array
             Positive scan normalized by weighted average of interpolated
-            edge-jump
+            edge-jump.
         
         neg_corr_int : array
             Negative scan normalized by weighted average of interpolated
-            edge-jump
+            edge-jump.
 
         Notes
         -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
+        In XNLD analsysis LH and LV spectra are weighted by the angle t
+        between the sample surface and the X-Ray incident beam's
+        direction.
 
-        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
+        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) /
+                        3 * cos(t)^2
         '''
         # Compute mean
         if guiobj.analysis in guiobj.type['xnld']:
@@ -944,48 +974,49 @@ class EngyScan:
 
     def comp_xd_pc_av_ej(self, log_dt):
         '''
-        Compute percentage of X-Ray Dichroism normalized for edge-jump of
-        xd_aver spectrum. It is computed employing the weighted averages
-        pos_corr and neg_corr data. Edge-jump is calculated interpolating the
-        values at edge and pre-edge energy of xd_aver spectrum with linear
-        spline method.
-        For XNLD the average weighted by angle of incidence X-Ray beam is
-        considered (see Notes).
+        Compute percentage of X-Ray Dichroism normalized for edge-jump
+        of xd_aver spectrum. It is computed employing the weighted
+        averages pos_corr and neg_corr data. Edge-jump is calculated
+        interpolating the values at edge and pre-edge energy of xd_aver
+        spectrum with linear spline method.
+        For XNLD the average weighted by the angle of incidence of the
+        X-Ray beam is considered (see Notes).
 
         Parameters
         ----------
         log_dt : dict
-            Collect data for logfile
+            Collect data for logfile.
 
         Returns
         -------
         Set class attributes:
 
         xd_pc_av_ej : array
-            Percentage of X-Ray Dichroism normalized for edge-jump of xd_aver
-            spectrum.
+            Percentage of X-Ray Dichroism normalized for edge-jump of
+            xd_aver spectrum.
 
         xd_pc_av_ej_int : array
-            Same as xd_pc_av_ej but using for the edge-jump computation the 
-            interpolated values of pre-edges.
+            Same as xd_pc_av_ej but using for the edge-jump computation
+            the interpolated values of pre-edges.
 
         Add keys to log_dt
-        xas_aver_ej : float, edge_jump value of xd average
-        xas_aver_ej_int : float, edge jump value of xd average considering
-            interpolated value of pre-edge
+        xas_aver_ej : float, edge_jump value of xd average.
+        xas_aver_ej_int : float, edge jump value of xd average
+            considering interpolated value of pre-edge.
 
         Notes
         -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
+        In XNLD analsysis LH and LV spectra are weighted by the angle t
+        between the sample surface and the X-Ray incident beam's
+        direction.
 
         XNLD norm by XNLD_aver edge-jump (%) = 
-                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
-                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
-                         (XNLD_aver_edge - XNLD_aver_pe))
+                    100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
+                    3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
+                    (XNLD_aver_edge - XNLD_aver_pe))
         '''
-        # Linear spline interpolation of xd_aver spectrum in order to determine
-        # edge jump
+        # Linear spline interpolation of xd_aver spectrum in order to
+        # determine edge jump
         xd_aver_inter = itp.UnivariateSpline(self.energycal, self.xd_aver, k=1,
                                             s=0)
         # Ineterpolated values at edge and pre-edge energies
@@ -1012,11 +1043,12 @@ class EngyScan:
 def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
     '''
     Create the energy scale used for data analysis.
-    Range is selected considering the intersection of the energy ranges of
-    all the provided scans: the low-end is the highest minimum value and 
-    the high-end is the lowest maximum value of all the energy arrays.
+    Range is selected considering the intersection of the energy ranges
+    of all the scans provided: the low-end is the highest of the minimum
+    values and the high-end is the lowest of the maximum values between
+    all the energy arrays.
 
-    The number of points of the returned energy scale by default is the 
+    The number of points of the energy scale returned is by default the 
     average of the number of points of the energy scales of data scans.
     If in interactive mode GUI dialogues are provided to set the 
     number of points.
@@ -1026,30 +1058,32 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
     guiobj : GUI obj
         Provides GUI dialogs.
 
-    pos_scan : ScanData obj
-        Positive scans (CR for XMCD and XNCD, LH for XNLD)
+    pos : ScanData obj
+        Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
-    neg_scan : ScanData obj
-        Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+    neg : ScanData obj
+        Negative scnas (CL for XMCD and XNCD, LV for XNLD).   
 
     log_dt : dict
-        Collect data for logfile
+        Collect data for logfile.
 
     pos_ref : ScanData obj
-        Positive scans (CR for XMCD and XNCD, LH for XNLD) from reference
+        Positive scans (CR for XMCD and XNCD, LH for XNLD) from
+        reference.
 
     neg_ref : ScanData obj
-        Negative scans (CR for XMCD and XNCD, LH for XNLD) from reference
+        Negative scans (CR for XMCD and XNCD, LH for XNLD) from
+        reference.
 
     Return
     ------
     array
         Common energy scale for positive and negative XAS scans data
-        treatement (if reference scans are considered in confobj also their
-        energy scale will be considered)
+        treatement (if reference scans are considered in confobj also
+        their energy scale will be considered).
 
-    Add e_scale key to log_dt with min, max and number of points of energy
-    scale. 
+    Add e_scale key to log_dt with min, max and number of points of
+    energy scale. 
     '''
     efirst_list = []
     elast_list = []
@@ -1083,7 +1117,7 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
 
     # Set number of points of energy scale
     if guiobj.interactive:
-        n_points = guiobj.e_num_pnts(e_av_len)
+        n_points = guiobj.num_pnts(e_av_len)
     else:
         n_points = int(e_av_len)
 
@@ -1095,22 +1129,23 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
 def lin_interpolate(x, y, x0):
         '''
         Linear interpolation of the value at x0
-        A line is determined considering the couple of points passed in x and y.
+        A line is determined considering the couple of points passed in
+        x and y.
         The value at x0 point is computed.
 
         Parameters
         ----------
         x : array
-            x values of point 1 and point 2
+            x values of point 1 and point 2.
 
         y : array
-            y values of point 1 and point2
+            y values of point 1 and point 2.
 
         x0 : float
-            point where linear interpolation is computed
+            point where linear interpolation is computed.
 
         Return
         ------
-        float, interpolated value
+        float, interpolated value.
         '''
         return y[0] + ((y[1] - y[0]) * (x0 - x[0]) / (x[1] - x[0]))

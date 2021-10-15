@@ -5,19 +5,19 @@ Classes and methods for hysteresys data analysis.
 
 Classes
 --------
-ScanData : Collect raw data for energy scan experiments and provides methods to
-    average them.
+ScanData : Collect raw data for magnetic field scan experiments and
+    provides methods to average them.
 
-EngyScan : Allow computation on energy scan data extracting XNLD, XMCD or XNCD
-    spctra.
+FieldScan : Allow computation of XMCD hysteresis on magnetic field scan
+    data.
 
 Methods
 -------
-e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref)
-    Create the energy scale used for data analysis.
+h_scale(guiobj, pos, neg, log_dt)
+    Create the magnetic field scale used for data analysis.
 
-lin_interpolate(x, y, x0):
-    Linear interpolation of the value at x0
+h_num_points(h_arr)
+    Count the number of different fields present in h_arr.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -35,72 +35,99 @@ import scipy.optimize as opt
 
 class ScanData:
     '''
-    Collect raw data for magnetic field scan experiments and provides methods to
-    average them.
+    Collect raw data for magnetic field scan experiments and provides
+    methods to average them.
 
     Attributes
     ----------
     label : list (str)
-        Labels for graphs
+        Labels for graphs - for scans collected at edge energy.
 
     idx : list (str)
-        Scan indexes
+        Scan indexes - for scans collected at edge energy.
 
     raw_imp : pandas DataFrame
-        Collect imported raw data
+        Collect imported raw data at edge energy.
+
+    pre_edge : bool
+        True if pre-edge data are present.
 
     up : pandas DataFrame
+        Collect data related to magntic filed scan up branch.
 
     down : pandas DataFrame
+        Collect data related to magntic filed scan down branch.
+
+    up_chsn : list
+        Collect labels of ub branch scans chosen for analysis.
+
+    dw_chsn : list
+        Collect labels of down branch scans chosen for analysis.
+
+    up_aver : array
+        Contains average of chosen up branch scans computed on common
+        field scale.
+    
+    dw_aver : array
+        Contains average of chosen down branch scans computed on common
+        field scale.
     
     pe_label : list (str)
-        Labels for graphs
+        Labels for graphs - for scans collected at pre-edge energy.
 
     pe_idx : list (str)
-        Scan indexes
+        Scan indexes - for scans collected at pre-edge energy.
 
     pe_raw_imp : pandas DataFrame
-        Collect imported raw data
+        Collect imported raw data at pre-edge energy.
 
-    pe_up : pandas DataFrame
+    pe_up : pandas DataFrame.
+        Collect data related to magntic filed scan up branch - for scans
+        measured at pre-edge energy.
 
-    pe_down : pandas DataFrame
+    pe_down : pandas DataFrame.
+        Collect data related to magntic filed scan up branch - for scans
+        measured at pre-edge energy.
 
-    aver : array
-        Data average of selected scans from raw_imp.
-        If ScanData is a reference one, aver contain normalized data by
-        reference.
+    pe_up_chsn : list
+        Collect labels of ub branch scans chosen for analysis.
+
+    pe_dw_chsn : list
+        Collect labels of down branch scans chosen for analysis.
+
+    pe_up_aver : array
+        Contains average of chosen up branch scans computed on common
+        field scale.
+    
+    pe_dw_aver : array
+        Contains average of chosen down branch scans computed on common
+        field scale.
 
     dtype : str
-        Identifies the data collected, used for graph labelling:
-        sigma+, sigma- for XMCD
-        CR, CL for XNCD
-        H-, H+ for XNXD
-        LH, LV fot XNLD
-
-    chsd_scns : list (str)
-        Labels of chosed scans for the analysis
-
-    norm : array
-        Averaged data normalized by value at pre-edge energy
+        Identifies CR and CL data, used for graph labelling.
 
     Methods
     -------
+    up_n_down()
+        Separate input data in up branches and down branches.
+
+
     man_aver_e_scans(guiobj, enrg)
         Manage the choice of scans to be averaged and return the average of
         selected scans.
 
-    aver_e_scans(enrg, chsd, guiobj)
-        Performe the average of data scans.
+    plot_chs_avr(edge, up, fields, guiobj)
+        Plot raw data, allow to choose which data will be used for
+        analysis and average them.
 
-    edge_norm(enrg, e_edge, e_pe, pe_rng, pe_int)
-        Normalize energy scan data by value at pre-edge energy and compute
-        edge-jump.
+    aver_h_scans(title, data, fields, chsn, guiobj)
+        Perform the average of data scans.
     '''
 
     def __init__(self):
         '''
-        Initialize attributes label, idx, and raw_imp, 
+        Initialize attributes label, idx, raw_imp, up, down and pre-edge
+        corresponding pe_label, pe_idx, pe_raw_imp, pe_up, pe_down.
         '''
         self.label = []
         self.idx = []
@@ -114,82 +141,294 @@ class ScanData:
         self.pe_up = pd.DataFrame()
         self.pe_down = pd.DataFrame()
 
-    def man_aver_e_scans(self, guiobj, enrg):
+    def up_n_down(self):
         '''
-        Manage the choice of scans to be averaged and return the average of
-        selected scans.
-        Works only with energy scans (i.e. XMCD, XNCD, XNXD and XNLD).
+        Separate input data in up branches and down branches.
+
+        Return
+        ------
+        Populate the attributes self.up and self.down with data from
+        up and down branches respectively.
+        If pre-edge data are present, also populate self.pe_up and 
+        self.pe_down attributes.
+        '''
+        # Run through edge scans
+        for i in self.idx:
+            # Magnetic field column's name
+            h_col = 'H' + i
+            # Select data from scan i
+            i_scan = self.raw_imp[[h_col, i]]
+
+            if i_scan[h_col].iloc[0] > 0:
+                # If the first element is > 0 => scan down
+                # Look for the index where the minimum of magnetic
+                # fields is to find where the up branch starts
+                sep_idx = np.argmin(i_scan[h_col])
+
+                # Seprate down branch from up branch.
+                # For dw consider sep_idx + 1 in order to include the
+                # element related to minimum field value
+                dw = i_scan.iloc[0:sep_idx+1, :]
+                up = i_scan.iloc[sep_idx:, :]
+                self.down = pd.concat([self.down, dw], axis=1)
+                self.up = pd.concat([self.up, up], axis=1)
+            else:
+                # If the first element is < 0 => scan up
+                # Look for the index where the maximum of magnetic
+                # fields is to find where the down branch starts
+                sep_idx = np.argmax(i_scan[h_col])
+
+                # Seprate up branch from down branch.
+                # For up consider sep_idx + 1 in order to include the
+                # element related to maximum field value
+                up = i_scan.iloc[0:sep_idx+1, :]
+                dw = i_scan.iloc[sep_idx:, :]
+                self.down = pd.concat([self.down, dw], axis=1)
+                self.up = pd.concat([self.up, up], axis=1)
+
+        # Run through pre-edge scans if present
+        if self.pre_edge:
+            for i in self.pe_idx:
+                # Magnetic field column's name
+                h_col = 'H' + i
+                # Select data from scan i
+                i_scan = self.pe_raw_imp[[h_col, i]]
+
+                if i_scan[h_col].iloc[0] > 0:
+                    # If the first element is > 0 => scan down
+                    # Look for the index where the minimum of magnetic
+                    # fields is to find where the up branch starts
+                    sep_idx = np.argmin(i_scan[h_col])
+
+                    # Seprate down branch from up branch.
+                    # For dw consider sep_idx + 1 in order to include
+                    # the element related to minimum field value
+                    dw = i_scan.iloc[0:sep_idx+1, :]
+                    up = i_scan.iloc[sep_idx:, :]
+                    self.pe_down = pd.concat([self.pe_down, dw], axis=1)
+                    self.pe_up = pd.concat([self.pe_up, up], axis=1)
+                else:
+                    # If the first element is < 0 => scan up
+                    # Look for the index where the maximum of magnetic
+                    # fields is to find where the down branch starts
+                    sep_idx = np.argmax(i_scan[h_col])
+
+                    # Seprate up branch from down branch.
+                    # For up consider sep_idx + 1 in order to include
+                    # the element related to maximum field value
+                    up = i_scan.iloc[0:sep_idx+1, :]
+                    dw = i_scan.iloc[sep_idx:, :]
+                    self.pe_down = pd.concat([self.pe_down, dw], axis=1)
+                    self.pe_up = pd.concat([self.pe_up, up], axis=1)
+
+    def man_aver_h_scans(self, guiobj, fields):
+        '''
+        Manage the choice of scans to be averaged and return the average
+        of selected scans.
 
         Parameters
         ----------
         guiobj : GUI object
             Provides GUI dialogs.
 
-        enrg : array
-            Energy values at which average is calculated.
+        fields : array
+            Magnetic field values at which average is calculated.
 
         Return
         ------
         Set class attributes:
         aver : array
-            Average values of the choosed scans.
+            Average values of the chosen scans.
 
-        chsd_scns : list
-            Labels of chosed scans for the analysis (for log purpose)
+        chsn_scns : list
+            Labels of chosen scans for the analysis (for log purpose)
         '''
-        if guiobj.interactive:  # Interactive choose of scans
-            # Loop until choice is confirmed
-            isok = 0
-            while not isok:
-                # Plot all raw data
-                plt.figure(1)
-                if guiobj.infile_ref:
-                    plt.title('Reference sample scans')
-                for i in self.idx:
-                    e_col = 'E' + i
-                    plt.plot(self.raw_imp[e_col], self.raw_imp[i],
-                             label=self.label[self.idx.index(i)])
-                plt.xlabel('E (eV)')
-                plt.ylabel(self.dtype)
-                plt.legend()                
-                plt.show()
+        # Compute average of scans only if there are more than one scan
+        # for each branch (each scan contain one branch up and one
+        # branch down)
+        if guiobj.interactive:  # Interactive choose of scans        
+            # Choose edge scans.
+            if len(self.idx) > 1:
+                # Edge Up data
+                # Loop until choice is confirmed
+                isok = 0
+                while not isok:
+                    up_chsn, up_avgd = self.plot_chs_avr(edge=True, up=True,
+                                                        fields, guiobj)
+                    isok = guiobj.confirm_choice()
 
-                # Dialogue to choose data to be averaged
-                chsd = guiobj.chs_scns(self.label)
+                # Edge Down data
+                # Loop until choice is confirmed
+                isok = 0
+                while not isok:
+                    dw_chsn, dw_avgd = self.plot_chs_avr(edge=True, up=False,
+                                                        fields, guiobj)
+                    isok = guiobj.confirm_choice()
+            else:
+                # If there is just one scan is useless the choose, just
+                # interpolate it with the common field scale.
+                up_chsn = self.label
+                up_avgd = self.aver_h_scans(title='', self.up, fields, up_chsn,
+                                           guiobj)
+                dw_chsn = self.label
+                dw_avgd = self.aver_h_scans(title='', self.down, fields,
+                                            dw_chsn, guiobj)
+            # Choose pre-edge scans
+            if self.pre_edge:
+                if len(self.pe_idx) > 1:
+                    # pre-edge Up data
+                    # Loop until choice is confirmed
+                    isok = 0
+                    while not isok:
+                        pe_up_chsn, pe_up_avgd = self.plot_chs_avr(edge=False,
+                                                    up=True, fields, guiobj)
+                        isok = guiobj.confirm_choice()
 
-                # Compute average of choosed scans
-                avgd = self.aver_e_scans(enrg, chsd, guiobj)
+                    # pre-edge Down data
+                    # Loop until choice is confirmed
+                    isok = 0
+                    while not isok:
+                        pe_dw_chsn, pe_dw_avgd = self.plot_chs_avr(edge=False,
+                                                    up=False, fields, guiobj)
+                        isok = guiobj.confirm_choice()
+                else:  # There is just one pre-edge scan
+                    # If there is just one scan is useless the choose, just
+                    # interpolate it with the common field scale.
+                    pe_up_chsn = self.pe_label
+                    pe_up_avgd = self.aver_h_scans(title='', self.pe_up,
+                                                    fields, pe_up_chsn, guiobj)
+                    pe_dw_chsn = self.pe_label
+                    pe_dw_avgd = self.aver_h_scans(title='', self.pe_down,
+                                                    fields, pe_dw_chsn, guiobj)
+            else:
+                # If no pre-edge scans just return empty lists
+                pe_up_chsn = []
+                pe_up_avgd = []
+                pe_dw_chsn = []
+                pe_dw_avgd = []
+        else: 
+        # Not interactive - Consider and average all scans
+            up_chsn = self.label
+            up_avgd = self.aver_h_scans(title='', self.up, fields, up_chsn,
+                                       guiobj)
+            dw_chsn = self.label
+            dw_avgd = self.aver_h_scans(title='', self.down, fields, dw_chsn,
+                                        guiobj)
+            if self.pre_edge:
+                pe_up_chsn = self.pe_label
+                pe_up_avgd = self.aver_h_scans(title='', self.pe_up, fields,
+                                                pe_up_chsn, guiobj)
+                pe_dw_chsn = self.pe_label
+                pe_dw_avgd = self.aver_h_scans(title='', self.pe_down, fields,
+                                                pe_dw_chsn, guiobj)
+            else:
+                # If no pre-edge scans just return empty lists
+                pe_up_chsn = []
+                pe_up_avgd = []
+                pe_dw_chsn = []
+                pe_dw_avgd = []
 
-                # Ask for confirmation
-                isok = guiobj.confirm_choice()
-        else:
-            # Not-interactive mode: all scans except 'Dummy Scans' are
-            # evaluated.
-            chsd = []
+        self.up_chsn = up_chsn
+        self.up_aver = up_avgd
+        self.dw_chsn = dw_chsn
+        self.dw_aver = dw_avgd
 
-            for lbl in self.label:
-                # Check it is not a 'Dummy Scan' and append corresponding scan
-                # number in chosed scan list.
-                if not ('Dummy' in lbl):
-                    chsd.append(self.idx[self.label.index(lbl)])
+        self.pe_up_chsn = pe_up_chsn
+        self.pe_up_aver = pe_up_avgd
+        self.pe_dw_chsn = pe_dw_chsn
+        self.pe_dw_aver = pe_dw_avgd
 
-            avgd = self.aver_e_scans(enrg, chsd, guiobj)
-
-        self.aver = avgd
-        self.chsd_scns = chsd  # Collect choosed scans for log purpose
-
-    def aver_e_scans(self, enrg, chsd, guiobj):
+    def plot_chs_avr(self, edge, up, fields, guiobj):
         '''
-        Perform the average of data scans. 
-        If interactive mode, data scans and their average are shown together
-        in a plot. 
+        Plot raw data, allow to choose which data will be used for
+        analysis and average them.
 
         Parameters
         ----------
-        enrg : array
-            Energy values at which average is calculated.
+        edge : bool
+            True for edge scans treatment
+            False for pre-edge scan treatment.
 
-        chsd : list (str)
+        up : bool
+            True for up branches treatment
+            False for down branches treatment
+
+        fields : array
+            Array with common magneti field scale, for interpolation and
+            average of scans.
+
+        guiobj : GUI object
+            Provides GUI dialogs.
+
+        Return
+        ------
+        list, array
+        A list with the labels of chosen scans and an array with the
+        average of the chosen scans.
+        '''
+        plt.figure(1)
+        if edge:
+            # Plot configurations for edge scans
+            label = self.label
+            idx = self.idx
+            if up:
+                # Plot configuration for up branches
+                title = 'Edge ' + self.dtype + ' Up'
+                plt.title(title)
+                data = self.up
+            else:
+                # plot configurations for down branches
+                title = 'Edge ' + self.dtype + ' Down'
+                plt.title(title)
+                data = self.down
+        else:
+            # Plot configurations for pre-edge scans
+            label = self.pe_label
+            idx = self.pe_idx
+            if up:
+                # Plot configurations for up branches
+                title = 'Pre-Edge ' + self.dtype + ' Up'
+                plt.title(title)
+                data = self.pe_up
+            else:
+                # Plot configurations for down branches
+                title = 'Pre-Edge ' + self.dtype + ' Down'
+                plt.title(title)
+                data = self.pe_down
+        # Plot data
+        for i in idx:
+            h_col = 'H' + i
+            plt.plot(data[h_col], data[i], label=label[idx.index(i)])
+
+        plt.xlabel('H (T)')
+        plt.ylabel(self.dtype)
+        plt.legend()                
+        plt.show()
+
+        chsn = guiobj.chs_scns(label)
+
+        avgd = aver_h_scans(title, data, fields, chsn, guiobj)
+
+        return chsn, avgd
+
+    def aver_h_scans(self, title, data, fields, chsn, guiobj):
+        '''
+        Perform the average of data scans. 
+        If interactive mode, data scans and their average are shown
+        together in a plot. 
+
+        Parameters
+        ----------
+        title : str
+            graph title.
+
+        data : pandas DataFrame
+            scan data.
+
+        fields : array
+            Magnetic fields values at which average is calculated.
+
+        chsn : list (str)
             Scan-numbers of scan to be averaged.
 
         guiobj: GUI object
@@ -197,26 +436,28 @@ class ScanData:
 
         Returns
         -------
-        array, containing the average of data scans
+        array, containing the average of data scans.
 
         Notes
         -----
-        To compute the average the common energy scale enrg is used.
-        All passed scans are interpolated with a linear spline (k=1 and s=0 in
-        itp.UnivariateSpline) and evaluated along the common energy scale.
+        To compute the average the common scale fields is used.
+        All passed scans are interpolated with a linear spline
+        (k=1 and s=0 in itp.UnivariateSpline) and evaluated along the
+        common field scale.
         The interpolated data are eventually averaged.
         '''
         intrp = []
 
         if guiobj.interactive:
             plt.figure(1)
-            if guiobj.infile_ref:
-                plt.title('Reference sample scans')
+            plt.title(title)
 
-        for scn in chsd:
-            # Chosed data
-            x = self.raw_imp['E' + scn][1:]
-            y = self.raw_imp[scn][1:]
+        for scn in chsn:
+            # Retrive scan number from label, remove PE- for pre-edge
+            idx = scn.lstrip('PE-')
+            # chosen data
+            x = data['H' + scn][1:]
+            y = data[scn][1:]
 
             if guiobj.interactive:
                 # Plot data
@@ -224,268 +465,142 @@ class ScanData:
 
             # Compute linear spline interpolation
             y_int = itp.UnivariateSpline(x, y, k=1, s=0)
-            # Evaluate interpolation of scan data on enrg energy scale and
-            # append to previous interpolations
-            intrp.append(y_int(enrg))
+            # Evaluate interpolation of field scan data on common field
+            # scale and append to previous interpolations
+            intrp.append(y_int(fields))
 
         # Average all inteprolated scans
         avgd = np.average(intrp, axis=0)
 
         if guiobj.interactive:
-            plt.plot(enrg, avgd, color='r', label='Average')
-            plt.xlabel('E (eV)')
+            plt.plot(fields, avgd, color='r', label='Average')
+            plt.xlabel('H (T)')
             plt.ylabel(self.dtype)
             plt.legend()
             plt.show()
 
         return avgd
 
-    def edge_norm(self, enrg, e_edge, e_pe, e_poste, pe_rng):
-        '''
-        Normalize energy scan data by the value at pre-edge energy.
-        Also compute the  energy jump defined as the difference between
-        the value at the edge and pre-edge energies respectively.
-        This computations are implemented employing both a pre-edge value
-        obtained from data (averaging in the region e_pe +/+ pe_rng) and an
-        interpolated pre-edge value.
 
-        Parameters
-        ----------
-        enrg : array
-            Energy values of scan
-
-        e_edge : float
-            Edge energy value
-
-        e_pe : float
-            Pre-edge energy value
-
-        pe_rng : int
-            Number of points constituting the semi-width of energy range
-            centered at e_pe.
-
-        pe_int : float
-            Pre-edge value obtained from linear interpolation based on pre- and
-            post-edge energies.
-
-        Returns
-        -------
-        Set class attributes:
-        pe_av : float
-            value at pre-edge energy
-
-        norm : array
-            self.aver scan normalized by value at pre-edge energy
-
-        norm_int : array
-            Averaged data normalized by interpolated pre-edge value
-
-        ej : float
-            edge-jump value
-
-        ej_norm : float
-            edge-jump value normalized by value at pre-edge energy
-
-        ej_int : float
-            edge-jump value computed with interpolated pre-edge value
-
-        ej_norm_int : float
-            edge-jump computed and normalized by interpolated pre-edge value
-
-        Notes
-        -----
-        To reduce noise effects the value of scan at pre-edge energy is
-        obtained computing an average over an energy range of width pe_rng and
-        centered at e_pe pre-edge energy.
-        The value of scan at edge energy is obtained by linear spline
-        interpolation of data (itp.UnivariateSpline with k=1 and s=0).
-        '''
-        # Index of the nearest element to pre-edge energy
-        pe_idx = np.argmin((np.abs(enrg - e_pe)))
-        # Left and right extremes of energy range for pre-edge average
-        lpe_idx = int(pe_idx - pe_rng)
-        rpe_idx = int(pe_idx + pe_rng + 1)
-
-        # Average of values for computation of pre-edge
-        self.pe_av = np.average(self.aver[lpe_idx: rpe_idx: 1])
-
-        # Cubic spline interpolation of energy scan
-        y_int = itp.UnivariateSpline(enrg, self.aver, k=3, s=0)
-
-        # Interpolation of pre-edge energy
-        x = [e_pe, e_poste]
-        y = [y_int(e_pe), y_int(e_poste)]
-        self.pe_av_int = lin_interpolate(x, y, e_edge)
-
-        # Normalization by pre-edge value
-        self.norm = self.aver / self.pe_av
-        self.norm_int = self.aver / self.pe_av_int
-
-        
-        # value at edge energy from interpolation
-        y_edg = y_int(e_edge)
-
-        # Edge-jumps computations
-        self.ej = y_edg - self.pe_av
-        self.ej_norm = self.ej / self.pe_av
-
-        self.ej_int = y_edg - self.pe_av_int
-        self.ej_norm_int = self.ej_int / self.pe_av_int
-
-
-class EngyScan:
+class FieldScan:
     '''
-    Allow computation on energy scan data extracting XNLD, XMCD, XNCD and XNXD
-    spectra.
+    Allow computation of XMCD hysteresis on magnetic field scan data.
 
     Attributes
     ----------
-    energy : array
-        Common energy scale for positive and negative XAS scans data treatement
+    pre_edge : bool
+        True if pre-edge data are present.
 
-    exper_edge : float
-        Experimental edge energy
+    fields : array
+        Common magnetic field scale for CR and CL scans data treatement.
+        If present also scans collected at pre-edge energy are
+        considered.
 
-    e_pe : float
-        Pre-edge energy value
+    cr_up : array
+        Average of CR branch up scans.
 
-    e_poste : float
-        Post-edge energy value
+    cr_down : array
+        Average of CR branch down scans.
 
-    pe_wdt : float
-        Half-width of energy range for pre-edge average computation
+    cl_up : array
+        Average of CL branch up scans.
 
-    pe_int : float
-        Interpolated value of pre-edge considering pre- and post-edge energies
-        using a linear approximation
+    cl_down : array
+        Average of CL branch down scans.
+    
+    cr_pe_up :array
+        Average of CR branch up scans at pre-edge energy.
+    
+    cr_pe_down : array
+        Average of CR branch down scans at pre-edge energy.
 
-    offest : float
-        Offset given by the difference between expected and experimental edge 
-        energy
+    cl_pe_up : array
+        Average of CL branch up scans at pre-edge energy.
+    
+    cl_pe_down: array
+        Average of CL branch down scans at pre-edge energy.
 
-    energycal : array
-        Common energy scale calibrated considering the offset
+    edg_up : array
+        XMCD for scan up branch considering only edge scans.
 
-    ang_w_n : float
-        Angle weight for XNLD computation
+    edg_down : array
+        XMCD for scan down branch considering only edge scans.
 
-    ang_w_d : float
-        Angle weight for XNLD computation
+    edg_up_norm : array
+        XMCD for scan up branch normalized to 1 considering only edge
+        scans.
 
-    xd : array
-        X-Ray dichroism data
+    edg_down_norm : array
+        XMCD for scan down branch normalized to 1 considering only edge
+        scans.
 
-    xd_aver : array
-        Average of positive and negative XAS. In case of XNLD analysis a
-        weighted average is considered
+    up_w_pe : array
+        XMCD for scan up branch with data normalized by pre-edge scans.
 
-    xd_pc : array
-        Percentage of X-Ray dichroism normalized by the average of positve and
-        negative scans edge jumps respectively. 
+    dw_w_pe : array
+        XMCD for scan down branch with data normalized by pre-edge
+        scans.
 
-    xd_pc_int :array
-        Same as xd_pc using data normalized with inerpolated edge-jump.
+    up_perc : array
+        XMCD in percentage for scan up branch with data normalized by
+        pre-edge scans.
 
-    pos_corr : array
-        Normalized positive XAS spectrum weighted by the average of values at
-        pre-edge energy of positive and negative spectra. For XNLD spectra the
-        weight consider also the X-Ray beam incidence angle.
-
-    neg_corr : array
-        Normalized negative XAS spectrum weighted by the average of values at
-        pre-edge energy of positive and negative spectra. For XNLD spectra the
-        weight consider also the X-Ray beam incidence angle.
-
-    pos_corr_int : array
-        Same as pos_corr but using for the avereage of pre-edge values the
-        ineterpolated values. For XNLD spectra the weight consider also the
-        X-Ray beam incidence angle.
-
-    neg_corr_int : array
-        Same as neg_corr but using for the avereage of pre-edge values the
-        ineterpolated values. For XNLD spectra the weight consider also the
-        X-Ray beam incidence angle.
-
-    xd_pc_av_ej : array
-        Percentage  ofX-Ray dichroism normalized by edge jump of xd_aver scan.        
-
-    xd_pc_av_ej_int : array
-        Same as xd_pc_av_ej but using for the edge-jump computation the 
-        interpolated values of pre-edges.
+    down_perc : array
+        XMCD in percentage for scan down branch with data normalized by
+        pre-edge scans.
 
     Methods
     -------
-    scan_average(guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm)
-        Copmute averages of positive and negative scans.
+    scan_average(guiobj, pos, neg, log_dt)
+        Separate CR and CL scans in up and down branches and average
+        scans.
 
-    compt_mxd(guiobj, pos, neg, log_dt)
-        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
-        XNCD spctra.
-
-    compt_xd(self, guiobj, pos, neg, log_dt)
-        Compute not normalized X-Ray Dichroism.
-
-    edges(guiobj, confobj, log_dt)
-        Set values of edge and pre-edge energies.
-
-    compt_xd_pc(guiobj, pos, neg)
-        Compute the percentage of X-Ray Dichroism normalized for edge-jump.
-
-    compt_pe_corr(guiobj, pos, neg)
-        Calculate xd percentage normalizing with edge-jump obtained from
-        weighted average of positive and negative spectra.
-
-    comp_xd_pc_av_ej(self, log_dt)
-        Compute percentage of X-Ray Dichroism normalized for edge-jump of
-        xd_aver spectrum.
+    compt_scanfield()
+        Perform computation on magnetic field scan data in order to
+        obtain XMCD hysteresis.
     '''
 
-    def __init__(self, guiobj, confobj, e_scale, pos, neg, log_dt,
-        pos_to_norm=ScanData(), neg_to_norm=ScanData()):
+    def __init__(self, guiobj, confobj, h_scale, pos, neg, log_dt):
         '''
-        At instantiation scan_average and compt_xd method are called and energy
-        attribute is settee, so upon its creation an EngyScan object collects
-        all the informations about X-Ray dichroism.
+        At instantiation the field attribute is created with common
+        magnetic field scale. CR and CL scans are separated in up and
+        down branches and averaged. Finally XMCD is calculated.
+        To do this scan_average and compt_scanfield method are called. 
+        The FieldScan object created collects all the informations about X-Ray dichroism.
 
         Parameters
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
 
-        confobj : Configuration object
+        confobj : Configuration object.
 
-        e_scale : array
-            Common energy scale for data analysis
+        h_scale : array
+            Common magnetic field scale for data analysis.
 
         pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+            Contains CR scans.
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+            Contains CL scnas.
 
         log_dt : dict
-            Collect data for logfile
-
-        pos_to_norm : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present. If no reference data are present
-            pass empty ScanData object.
-
-        neg_to_norm : ScanData obj
-            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present. If no reference data are present
-            pass empty ScanData object.
+            Collect data for logfile.
         '''
-        self.energy = e_scale
+        # Initialize pre_edge False if pre-edges scans are present it
+        # will be set True by scan_average
+        self.pre_edge = False
+        self.fields = h_scale
 
-        self.scan_average(guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm)
-        
-        self.compt_mxd(guiobj, pos, neg, log_dt)
+        self.scan_average(guiobj, pos, neg, log_dt)
 
-    def scan_average(self, guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm):
+        self.compt_scanfield(guiobj, log_dt)
+
+    def scan_average(self, guiobj, pos, neg, log_dt):
         '''
-        Copmute averages of positive and negative scans.
-        If reference data are considered compute also the averages of reference
+        Separate CR and CL scans in up and down branches and average
+        scans.
+        Plot average results for edge and, if present, for pre-edge
         scans.
 
         Parameters
@@ -493,533 +608,259 @@ class EngyScan:
         guiobj : GUI obj
             Provides GUI dialogs.
 
-        pos_scan : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
+        pos : ScanData obj
+            Contains CR scans.
 
-        neg_scan : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+        neg : ScanData obj
+            Contains CL scnas.
 
         log_dt : dict
-            Collect data for logfile
-
-        pos_to_norm : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present
-
-        neg_to_norm : ScanData obj
-            Negative scans (CR for XMCD and XNCD, LH for XNLD) data to be
-            normalized by reference if present
-
+            Collect data for logfile.
+        
         Return
         ------
-        Instantiate aver attribute of positive and negative ScanData objects.
-        In case referecnce data are passed aver attribute is the normalization
-        ***_to_norm by reference data.
+        Instantiate attributes:
+
+        cr_up : array
+            Average of CR branch up scans.
+
+        cr_down : array
+            Average of CR branch down scans.
+
+        cl_up : array
+            Average of CL branch up scans.
+
+        cl_down : array
+            Average of CL branch down scans.
+        
+        cr_pe_up :array
+            Average of CR branch up scans at pre-edge energy.
+        
+        cr_pe_down : array
+            Average of CR branch down scans at pre-edge energy.
+
+        cl_pe_up : array
+            Average of CL branch up scans at pre-edge energy.
+        
+        cl_pe_down: array
+            Average of CL branch down scans at pre-edge energy.
 
         Add keys to log_dt
 
-        pos_chs : list (str) with positive chosed scan
-        neg_chs : list (str) with negative chosed scan
-
+        pos_up_chsn : list (str) with CR branch up chosen scans
+        pos_dw_chsn : list (str) with CR branch down chosen scans
+        pos_pe_up_chsn : list (str) with CR pre-edge branch up chosen
+                        scans
+        pos_pe_dw_chsn : list (str) with CR pre-edge branch down chosen
+                        scans
+        neg_up_chsn : list (str) with CL branch up chosen scans
+        neg_dw_chsn : list (str) with CL branch down chosen scans
+        neg_pe_up_chsn : list (str) with CL pre-edge branch up chosen
+                        scans
+        neg_pe_dw_chsn : list (str) with CL pre-edge branch down chosen
+                        scans
         '''
-        # If no reference data pos_to_norm and neg_to_norm are empty ScanData
-        # object
-        if pos_to_norm.raw_imp.empty or neg_to_norm.raw_imp.empty:
-            # Computes averages of positive and negative polarization scans.
-            guiobj.infile_ref = False
+        # Separate up and down branches and compute the  average of
+        # scans
+        pos.man_aver_h_scans(guiobj, self.fields)
+        neg.man_aver_e_scans(guiobj, self.fields)
 
-            pos.man_aver_e_scans(guiobj, self.energy)
-            neg.man_aver_e_scans(guiobj, self.energy)            
-        else:
-            # If present computes averages of positive and negative polarization
-            # of reference scans and normalize data for them.
-            # In this case pos and neg contains reference data and pos_to_norm
-            # neg_to_norm are data to be normalized. They are supposed to be
-            # already analyzed so aver attribute is already setted
-            guiobj.infile_ref = True
-            pos.man_aver_e_scans(guiobj, self.energy)
-            neg.man_aver_e_scans(guiobj, self.energy)
+        # Fill log data with chosen scans
+        log_dt['pos_up_chsn'] = pos.up_chsn
+        log_dt['pos_dw_chsn'] = pos.dw_chsn
+        log_dt['pos_pe_up_chsn'] = pos.pe_up_chsn
+        log_dt['pos_pe_dw_chsn'] = pos.pe_dw_chsn
+        log_dt['neg_up_chsn'] = neg.up_chsn
+        log_dt['neg_dw_chsn'] = neg.dw_chsn
+        log_dt['neg_pe_up_chsn'] = neg.pe_up_chsn
+        log_dt['neg_pe_dw_chsn'] = neg.pe_dw_chsn
 
-            # Just substitute pos.aver and neg.aver with normalized data
-            pos.aver = pos_to_norm.aver / pos.aver
-            neg.aver = neg_to_norm.aver / neg.aver
+        self.cr_up = pos.up_aver
+        self.cr_down = pos.dw_aver
+        self.cl_up = neg.up_aver
+        self.cl_down = neg.dw_aver
 
-            guiobj.infile_ref = False
+        plt.figure(1)
+        plt.title('Up and Down branches')
+        plt.subplot(221)
+        plt.plot(self.fields, self.cr_up, label='CR Up')
+        plt.xlabel('I (a.u.)')
+        plt.ylabel('H (T)')
+        plt.axhline(y=0, color='darkgray')
+        plt.axvline(x=0, color='darkgray')
+        plt.legend()
 
-        # Add keys with chosed scans to log_dt
-        log_dt['pos_chs'] = pos.chsd_scns
-        log_dt['neg_chs'] = neg.chsd_scns
+        plt.subplot(222)
+        plt.plot(self.fields, self.cr_down, label='CR Down')
+        plt.xlabel('I (a.u.)')
+        plt.ylabel('H (T)')
+        plt.axhline(y=0, color='darkgray')
+        plt.axvline(x=0, color='darkgray')
+        plt.legend()
 
-    def compt_mxd(self, guiobj, pos, neg, log_dt):
+        plt.subplot(223)
+        plt.plot(self.fields, self.cl_up, label='CL Up')
+        plt.xlabel('I (a.u.)')
+        plt.ylabel('H (T)')
+        plt.axhline(y=0, color='darkgray')
+        plt.axvline(x=0, color='darkgray')
+        plt.legend()
+
+        plt.subplot(224)
+        plt.plot(self.fields, self.cl_down, label='CL Down')
+        plt.xlabel('I (a.u.)')
+        plt.ylabel('H (T)')
+        plt.axhline(y=0, color='darkgray')
+        plt.axvline(x=0, color='darkgray')
+        plt.legend()
+
+        self.cr_pe_up = pos.pe_up_aver
+        self.cr_pe_down = pos.pe_dw_aver
+        self.cl_pe_up = neg.pe_up_aver
+        self.cl_pe_down = neg.pe_dw_aver
+
+        # Check if there are pre-edge scans.
+        if (pos.pre_edge and neg.pre_edge):
+            # Report the presence of pre-edge scans
+            self.pre_edge = True
+
+            plt.figure(2)
+            plt.title('Up and Down pre-edge branches')
+            plt.subplot(221)
+            plt.plot(self.fields, self.cr_pe_up, label='CR pre-edge Up')
+            plt.xlabel('I (a.u.)')
+            plt.ylabel('H (T)')
+            plt.axhline(y=0, color='darkgray')
+            plt.axvline(x=0, color='darkgray')
+            plt.legend()
+
+            plt.subplot(222)
+            plt.plot(self.fields, self.cr_pe_down, label='CR pre-edge Down')
+            plt.xlabel('I (a.u.)')
+            plt.ylabel('H (T)')
+            plt.axhline(y=0, color='darkgray')
+            plt.axvline(x=0, color='darkgray')
+            plt.legend()
+
+            plt.subplot(223)
+            plt.plot(self.fields, self.cl_pe_up, label='CL pre-edge Up')
+            plt.xlabel('I (a.u.)')
+            plt.ylabel('H (T)')
+            plt.axhline(y=0, color='darkgray')
+            plt.axvline(x=0, color='darkgray')
+            plt.legend()
+
+            plt.subplot(224)
+            plt.plot(self.fields, self.cl_pe_down, label='CL pre-edge Down')
+            plt.xlabel('I (a.u.)')
+            plt.ylabel('H (T)')
+            plt.axhline(y=0, color='darkgray')
+            plt.axvline(x=0, color='darkgray')
+            plt.legend()
+        plt.show()
+
+    def compt_scanfield(self):
         '''
-        Performs computation on energy scan data extracting XNLD, XMCD, XNXD or
-        XNCD spctra.
-        Given two ScanData object (one for positive and one for negative scans):
-        - compute X-Ray Dichroism as negative - positive;
-        - compute the arithmetical mean of positive and negative spectra for
-          XMCD, XNCD, XNXD data and the weighted average for the angle for XNLD
-          data (see Notes);
-        - compute percentage of X-Ray Dichroism normalized by the average
-          edge-jump for XMCD, XNCD, XNXD data while for XNLD an angle-weighted
-          average is considered (see Notes);
-        - compute percentage of X-Ray Dichroism normalized by edge-jump of the
-          weighted average of positive and negative spectra.
-
-        Parameters
-        ----------
-        guiobj : GUI obj
-            Provides GUI dialogs.
-
-        pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
-
-        neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
-
-        log_dt : dict
-            Collect data for logfile
+        Perform computation on magnetic field scan data in order to
+        obtain XMCD hysteresis.
+        Given two ScanData object (one for  CR and one for CL
+        polarization):
+        - compute X-Ray Dichroism as CL - CR for each scan field up and
+          down branch;
+        - compute normalized to 1 X-Ray dichroism for each scan field up
+          and down branch;
+        If pre-edge scans are present:
+        - compute X-Ray Dichroism as CL - CR for each scan field up and
+          down branch normalized by pre-edge data;
+        - compute X-Ray dichroism in percentage normalized by pre-edge
+            data for each scan field up and down branch.
 
         Returns
         -------
-        Add keys to log_dt
-
-        pos_ej : float, edge-jump value for postitive scans
-        pos_ej_int : float, edge-jump value for postitive scans, interpolated
-            value of pre-edge energy is used
-        neg_ej : float, edge-jump value for postitive scans
-        neg_ej_int : float, edge-jump value for postitive scans, interpolated
-            value of pre-edge energy is used
-        Notes
-        -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
-
-        - XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
-
-        - XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
-                     (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
-
-        - XNLD norm by XNLD_aver edge-jump (%) = 
-                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
-                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
-                         (XNLD_aver_edge - XNLD_aver_pe))
-        '''
-        # Computes not normalized X-Ray Dichroism.
-        self.compt_xd(guiobj, pos, neg, log_dt)
-
-        self.edges(guiobj, log_dt)
-
-        # Normalize spectra
-        pos.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
-                      self.pe_wdt)
-        neg.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
-                      self.pe_wdt)
-
-        log_dt['pos_ej'] = pos.ej
-        log_dt['pos_ej_int'] = pos.ej_int
-        log_dt['neg_ej'] = neg.ej
-        log_dt['neg_ej_int'] = neg.ej_int
-
-        # Compute percentage X-Ray Dichroism normalized for edge-jump
-        self.compt_xd_pc(guiobj, pos, neg)
-        self.compt_pe_corr(guiobj, pos, neg)
-        self.comp_xd_pc_av_ej(log_dt)
-
-    def compt_xd(self, guiobj, pos, neg, log_dt):
-        '''
-        Compute not normalized X-Ray Dichroism.
-
-        Parameters
-        ----------
-        guiobj : GUI obj
-            Provides GUI dialogs
-
-        pos_scan : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
-
-        neg_scan : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
-
-        log_dt : dict
-            Collect data for logfile
+        Instantiate attributes:
         
-        Return
-        ------
-        Set attributes:
+        edg_up : array
+            XMCD for scan up branch considering only edge scans.
+
+        edg_down : array
+            XMCD for scan down branch considering only edge scans.
+
+        edg_up_norm : array
+            XMCD for scan up branch normalized to 1 considering only
+            edge scans.
+
+        edg_down_norm : array
+            XMCD for scan down branch normalized to 1 considering only
+            edge scans.
         
-        xd : array
-            X-Ray Dichroism as negative - positive scans
+        If pre-edge data are present:
 
-        xd_aver : array
-            Average of XAS spectra. Arithmetical mean of positive and
-            negative scans for XMCD and XNCD analysis. Weigthed average by angle
-            for XNLD analysis (see Notes)
+        up_w_pe : array
+            XMCD for scan up branch with data normalized by pre-edge
+            scans.
+
+        dw_w_pe : array
+            XMCD for scan down branch with data normalized by pre-edge
+            scans.
+
+        up_perc : array
+            XMCD in percentage for scan up branch with data normalized
+            by pre-edge scans.
+
+        down_perc : array
+            XMCD in percentage for scan down branch with data normalized
+            by pre-edge scans.
+        '''
+        # Compute XMCD for up and down branches @ edge energy
+        self.edg_up = self.cl_up - self.cr_up
+        self.edg_down = self.cl_down - self.cr_down
+
+        # Normalize in [-1,1] edge XMCD up and down branches.
+        # Normalization is performed considering values at high fields:
+        # for each branch the average of 5 points at maximum and minimum
+        # fields is considered then the normalization is computed
+        # considering the greatest value of the two
+        up_av_field1 = np.abs(np.average(self.edg_up[:5]))
+        up_av_field2 = np.abs(np.average(self.edg_up[-5:-1]))
+
+        dw_av_field1 = np.abs(np.average(self.edg_down[:5]))
+        dw_av_field2 = np.abs(np.average(self.edg_down[-5:-1]))
         
-        ang_w_n : float
-            Angle weight for XNLD computation
+        self.edg_up_norm = self.edg_up / np.maximum(up_av_field1, up_av_field2)
+        self.edg_down_norm = self.edg_up / np.maximum(dw_av_field1,
+                                                      dw_av_field2)
 
-        ang_w_d : float
-            Angle weight for XNLD computation
+        if self.pre_edge:
+            # Normalize branches by pre-edge data
+            cl_up_over_pe = self.cl_up / self.cl_pe_up
+            cr_up_over_pe = self.cr_up / self.cr_pe_up
+            cl_dw_over_pe = self.cl_down / self.cl_pe_down
+            cr_dw_over_pe = self.cr_down / self.cr_pe_down
 
-        Notes
-        -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
+            # XMCD for branches up and down considering data normalized
+            # by pre-edge scans
+            self.up_w_pe = cl_up_over_pe - cr_dw_over_pe
+            self.dw_w_pe = cl_dw_over_pe - cr_dw_over_pe
 
-        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
-        '''
-        self.xd = neg.aver - pos.aver
-        if guiobj.analysis in guiobj.type['xnld']:
-            # If XNLD the angle must be considered for weighted mean computation
-            theta = log_dt['bm_angle']  # retrive angle from log table
-
-            # Numerator and denominator terms of angle weight
-            self.ang_w_n = 2 * (np.cos(theta))**2 - (np.sin(theta))**2
-            self.ang_w_d = 3 * (np.cos(theta))**2
-
-            self.xd_aver = (pos.aver + (self.ang_w_n * neg.aver)) / self.ang_w_d
-        else:
-            self.xd_aver = (pos.aver + neg.aver) / 2
-
-    def edges(self, guiobj, log_dt):
-        '''
-        Set values of edge energy, pre-edge energy, pre-edge energy range (used
-        to compute average of spectra at pre-edge energy) and post-edge energy.
-
-        If in interactive mode a GUI is provided to set the experimental edge
-        energy, pre-edge energy, post-edge energy and and half-width of
-        interval adopted for pre-edge average.
-        Otherwise for edge energy is considered the experimental computed one
-        from minimization, for pre-edge end post-edge energies the ones provided
-        from edge file are taken for good, and for the half-width of interval
-        for pre-edge average 4 points is considered.
-
-        Parameters
-        ----------
-        guiobj : GUI object
-            Provides GUI dialogs.
-
-        log_dt : dict
-            Collect data for logfile
-
-        Return
-        ------
-        Set class attributes
-
-        exper_edge : float
-            Experimental edge energy
-
-        e_pe : float
-            Pre-edge energy value
-
-        e_poste : float
-            Post-edge energy value
-
-        pe_wdt : float
-            Half-width of energy range for pre-edge average computation
-
-        offset : float
-            Offset given by the difference between expected and experimental
-            edge energy
-
-        energycal : array
-            Common energy scale calibrated considering the offset. In this way
-            absorption edge of spectra falls at the expected energy.
-
-        Add keys to log_dt
-
-        exper_edge : experimental edge energy
-        setted_pedg : setted pre-edge energy
-        setted_postedg : setted post-edge energy
-        recal : bool, if True energy recalibration has been done
-        offset : energy offset adopted for energy recalibration
-
-        Notes
-        -----
-        Indication of experimental value of edge energy is provided finding
-        the stationary points of experimental spectrum. This is obtained
-        interpolating experimental data. Method used for interpolation is 
-        scipy.interpolate.UnivariateSpline of order 3.
-        '''
-        # Retrive from log_dt edge, pre-edge energy and range for pre-edge
-        # average
-
-        # Check that pre-edge energy is included in the considered energy
-        # range. If not, an energy value close to the nearest range endpoint
-        # is considered
-        if float(log_dt['PreEdge_en']) <= self.energy[5]:
-            pe_e = self.energy[5]
-        elif float(log_dt['PreEdge_en']) >= self.energy[-5]:
-            pe_e = self.energy[-5]
-        else:
-            pe_e = float(log_dt['PreEdge_en'])
-
-        # Check that post edge energy is included in the considered energy
-        # range
-        if float(log_dt['PostEdge_en']) <= self.energy[0]:
-            pste_e = self.energy[1]
-        elif float(log_dt['PostEdge_en']) >= self.energy[-1]:
-            pste_e = self.energy[-2]
-        else:
-            pste_e = float(log_dt['PostEdge_en'])
-
-        sel_edg = [log_dt['Edge_en'], pe_e, pste_e]
-
-        y = self.xd
-        y_aver = self.xd_aver
-
-        # Order 3 interpolation of data
-        # opt.minimize_scalar serch for function minimum so negative absolute
-        # value of interpolated data is considered.
-        y_int_for_edge = itp.UnivariateSpline(self.energy, -abs(y), k=3, s=0)
-        # Bounds for  minimum search - 5 eV window is considered
-        u_bnd = log_dt['Edge_en'] + 2.5
-        l_bnd = log_dt['Edge_en'] - 2.5
-        min_y = opt.minimize_scalar(y_int_for_edge, bounds=(l_bnd, u_bnd),
-                                    method='bounded')
-        y_int = itp.UnivariateSpline(self.energy, y_aver, k=3, s=0)
-
-        if guiobj.interactive:
-            # x value which minimize y is passed as experimental edge energy
-            edgs = guiobj.set_edges(sel_edg, min_y.x, self.energy, y, y_aver,
-                y_int)
-           
-            self.exper_edge = edgs[0]
-            self.e_pe = edgs[1]
-            self.e_poste = edgs[2]
-            self.pe_wdt = int(edgs[3])
-            recal = edgs[4]
-        else:
-            # If not interactive for exper_edge the result of minimization is
-            # considered
-            self.exper_edge = float(min_y.x)
-            self.e_pe = pe_e
-            self.e_poste = pste_e
-            self.pe_wdt = 4
-            recal = False
-
-        # New energy scale is created adding an offset given by the difference
-        # between expected and experimental edge energies if recal is True,
-        # otherwise no offset is added
-        if recal:
-            self.offset = self.exper_edge - log_dt['Edge_en']
-        else:
-            self.offset = 0
-
-        self.energycal = self.energy - self.offset
-
-        # Log data related to edge and pre-edge energy setted
-        log_dt['exper_edge'] = self.exper_edge
-        log_dt['setted_pedg'] = self.e_pe
-        log_dt['setted_postedg'] = self.e_poste
-        log_dt['recal'] = recal
-        log_dt['offset'] = self.offset
-
-    def compt_xd_pc(self, guiobj, pos, neg):
-        '''
-        Compute the percentage of X-Ray Dichroism normalized for edge-jump.
-        For XMCD and XNCD it is obtained as the difference between
-        normalized by pre-edge negative and positve scans normalized by the
-        arithmetical mean of the two respective edge jumps. For XNLD the
-        average weighted by angle of incidence X-Ray beam considered
-        (see Notes)
-
-        Parameters
-        ----------
-        guiobj : GUI obj
-            Provides GUI dialogs.
-
-        pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
-
-        neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
-        
-        Return
-        ------
-        Set attributes
-        xd_pc : array
-            Percentage of X-Ray Dichroism normalized for edge-jump.
-            For XMCD and XNCD it is obtained as the difference between
-            normalized by pre-edge negative and positve scans normalized by the
-            arithmetical mean of the two respective edge jumps. For XNLD the
-            average weighted by angle of incidence X-Ray beam considered
-            (see Notes)
-
-        xd_pc_int : array
-            Same as xd_pc using data normalized with inerpolated edge-jump.
-
-        Notes
-        -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
-
-         XNLD (%) = 100 * 3 * cos(t)^2 * (LV/LV_pe - LH/LH_pe) /
-                     (LH/LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV/LV_pe)
-        '''
-        # Compute mean
-        if guiobj.analysis in guiobj.type['xnld']:
-            # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = (100 * self.ang_w_d * (neg.norm - pos.norm) /
-                (pos.ej_norm + self.ang_w_n * neg.ej_norm))
-            self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int - 
-                pos.norm_int) / (pos.ej_norm_int + self.ang_w_n * 
-                neg.ej_norm_int))
-        else:
-            # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = 200 * (neg.norm - pos.norm) / (neg.ej_norm + 
-                pos.ej_norm)
-            self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int) /
-                (neg.ej_norm_int + pos.ej_norm_int))
-
-    def compt_pe_corr(self, guiobj, pos, neg):
-        '''
-        Calculate xd percentage normalizing with edge-jump obtained from
-        weighted average of positive and negative spectra
-
-        Parameters
-        ----------
-        guiobj : GUI obj
-            Provides GUI dialogs.
-
-        pos : ScanData obj
-            Positive scans (CR for XMCD and XNCD, LH for XNLD)
-
-        neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
-        
-        Return
-        ------
-        Set attributes:
-
-        pos_corr : array
-            Average of positive spectra weighted by the ratio between the mean
-            of positive pre-edge values and the mean of all pre-edge values.
-            For XMCD and XNCD the mean of positive and negative pre-edges is
-            arithmetical while for XNLD the average weighted by angle of
-            incidence X-Ray beam considered (see Notes)
-
-        pos_corr_int : array
-            Same as pos_corr using interpolated pre-edge values
-
-        neg_corr : array
-            Average of negative spectra weighted by the ratio between the mean
-            of positive pre-edge values and the mean of all pre-edge values.
-            For XMCD and XNCD the mean of positive and negative pre-edges is
-            arithmetical while for XNLD the average weighted by angle of
-            incidence X-Ray beam considered (see Notes)
-
-        neg_corr_int : array
-            Same as neg_corr using interpolated pre-edge values
-        
-        pos_corr_int : array
-            Positive scan normalized by weighted average of interpolated
-            edge-jump
-        
-        neg_corr_int : array
-            Negative scan normalized by weighted average of interpolated
-            edge-jump
-
-        Notes
-        -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
-
-        XNLD average = (LH + (2 * cos(t)^2 - sin(t)^2) * LV) / 3 * cos(t)^2
-        '''
-        # Compute mean
-        if guiobj.analysis in guiobj.type['xnld']:
-            # Angle weighted average of pre-edges values
-            av_pe_av = (pos.pe_av + self.ang_w_n * neg.pe_av) / self.ang_w_d
-            av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int) / 
-                self.ang_w_d)
-        else:
-            # Average of pre-edges values
-            av_pe_av = (pos.pe_av + neg.pe_av) / 2
-            av_pe_int = (pos.pe_av_int + neg.pe_av_int) /2
-
-        self.pos_corr = pos.aver * av_pe_av / pos.pe_av
-        self.neg_corr = neg.aver * av_pe_av / neg.pe_av
-
-        self.pos_corr_int = pos.aver * av_pe_int / pos.pe_av_int
-        self.neg_corr_int = neg.aver * av_pe_int / neg.pe_av_int
-
-    def comp_xd_pc_av_ej(self, log_dt):
-        '''
-        Compute percentage of X-Ray Dichroism normalized for edge-jump of
-        xd_aver spectrum. It is computed employing the weighted averages
-        pos_corr and neg_corr data. Edge-jump is calculated interpolating the
-        values at edge and pre-edge energy of xd_aver spectrum with linear
-        spline method.
-        For XNLD the average weighted by angle of incidence X-Ray beam is
-        considered (see Notes).
-
-        Parameters
-        ----------
-        log_dt : dict
-            Collect data for logfile
-
-        Returns
-        -------
-        Set class attributes:
-
-        xd_pc_av_ej : array
-            Percentage of X-Ray Dichroism normalized for edge-jump of xd_aver
-            spectrum.
-
-        xd_pc_av_ej_int : array
-            Same as xd_pc_av_ej but using for the edge-jump computation the 
-            interpolated values of pre-edges.
-
-        Add keys to log_dt
-        xas_aver_ej : float, edge_jump value of xd average
-        xas_aver_ej_int : float, edge jump value of xd average considering
-            interpolated value of pre-edge
-
-        Notes
-        -----
-        In XNLD analsysis LH and LV spectra are weighted by the angle t between
-        the sample surface and the X-Ray incident beam direction.
-
-        XNLD norm by XNLD_aver edge-jump (%) = 
-                         100 * ((LH_pe + (2 * cos(t)^2 - sin(t)^2) * LV_pe) / 
-                         3 * cos(t)^2) * ((LV / LV_pe) - (LH / LH_pe)) /
-                         (XNLD_aver_edge - XNLD_aver_pe))
-        '''
-        # Linear spline interpolation of xd_aver spectrum in order to determine
-        # edge jump
-        xd_aver_inter = itp.UnivariateSpline(self.energycal, self.xd_aver, k=1,
-                                            s=0)
-        # Ineterpolated values at edge and pre-edge energies
-        edg_val_xd_aver = xd_aver_inter(self.exper_edge)
-        pedg_val_xd_aver = xd_aver_inter(self.e_pe)
-
-        # Compute linear interpolation of pre-edge for average xd
-        pstedg_val_xd_aver = xd_aver_inter(self.e_poste)
-
-        x = [self.e_pe, self.e_poste]
-        y = [pedg_val_xd_aver, pstedg_val_xd_aver]
-        pedg_val_xd_aver_int = lin_interpolate(x, y, self.exper_edge)
-
-        # xd percentage normalized for edge-jump of xd_aver
-        self.xd_pc_av_ej = (100 * (self.neg_corr - self.pos_corr) /
-                            (edg_val_xd_aver - pedg_val_xd_aver))
-        self.xd_pc_av_ej_int = (100 * (self.neg_corr_int - self.pos_corr_int) /
-                                (edg_val_xd_aver - pedg_val_xd_aver_int))
-
-        log_dt['xas_aver_ej'] = edg_val_xd_aver - pedg_val_xd_aver
-        log_dt['xas_aver_ej_int'] = edg_val_xd_aver - pedg_val_xd_aver_int
+            # XMCD in percentage for branches up and down considering
+            # data normalized by pre-edge scans            
+            self.up_perc = 200 * self.up_w_pe / (cl_up_over_pe +
+                                                    cr_up_over_pe - 2)
+            self.down_perc = 200 * self.dw_w_pe / (cl_dw_over_pe +
+                                                    cr_dw_over_pe - 2)
 
 
-def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
+def h_scale(guiobj, pos, neg, log_dt):
     '''
-    Create the energy scale used for data analysis.
-    Range is selected considering the intersection of the energy ranges of
-    all the provided scans: the low-end is the highest minimum value and 
-    the high-end is the lowest maximum value of all the energy arrays.
+    Create the magnetic field scale used for data analysis.
+    Range is selected considering the intersection of the field ranges
+    of all the scans provided: the low-end is the highest of the minimum
+    values and  the high-end is the lowest of the maximum values between
+    all the magnetic field arrays.
 
-    The number of points of the returned energy scale by default is the 
-    average of the number of points of the energy scales of data scans.
+    The number of points of the magnetic field scale returned is by
+    default the average of the number of points of the field scales of
+    data scans.
     If in interactive mode GUI dialogues are provided to set the 
     number of points.
 
@@ -1028,91 +869,99 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
     guiobj : GUI obj
         Provides GUI dialogs.
 
-    pos_scan : ScanData obj
-        Positive scans (CR for XMCD and XNCD, LH for XNLD)
+    pos: ScanData obj
+        Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
-    neg_scan : ScanData obj
-        Negative scnas (CL for XMCD and XNCD, LV for XNLD)        
+    neg: ScanData obj
+        Negative scnas (CL for XMCD and XNCD, LV for XNLD).      
 
     log_dt : dict
-        Collect data for logfile
-
-    pos_ref : ScanData obj
-        Positive scans (CR for XMCD and XNCD, LH for XNLD) from reference
-
-    neg_ref : ScanData obj
-        Negative scans (CR for XMCD and XNCD, LH for XNLD) from reference
+        Collect data for logfile.
 
     Return
     ------
     array
-        Common energy scale for positive and negative XAS scans data
-        treatement (if reference scans are considered in confobj also their
-        energy scale will be considered)
+        Common magnetic field scale for positive and negative XAS scans
+        data treatement
 
-    Add e_scale key to log_dt with min, max and number of points of energy
-    scale. 
+    Add h_scale key to log_dt with min, max and number of points of
+    field scale. 
     '''
-    efirst_list = []
-    elast_list = []
-    e_len = []
+    h_maxs = []  # Maxima of magnetic field scans
+    h_mins = []  # Minima of magnetic field scans
+    h_len = []  # Number of different fields in each scan
     
-    # Sort energy data arrays and count their elements
+    # Collect maxima and minima and count the fields for edge scans
     for i in pos.idx:
-        efirst_list.append(np.sort(pos.raw_imp['E' + i])[0])
-        elast_list.append(np.sort(pos.raw_imp['E' + i])[-1])
-        e_len.append(pos.raw_imp['E' + i].size)
+        h_maxs.append(np.amax(pos.raw_imp['H' + i]))
+        h_mins.append(np.amin(pos.raw_imp['H' + i]))
+        h_len.append(h_num_points(pos.raw_imp['H' + i]))
     for i in neg.idx:
-        efirst_list.append(np.sort(neg.raw_imp['E' + i])[0])
-        elast_list.append(np.sort(neg.raw_imp['E' + i])[-1])
-        e_len.append(neg.raw_imp['E' + i].size)
-    # If reference data are present computes common energy scale for all
-    # data
-    if not (pos_ref.raw_imp.empty or neg_ref.raw_imp.empty):
-        for i in pos_ref.idx:
-            efirst_list.append(np.sort(pos_ref.raw_imp['E' + i])[0])
-            elast_list.append(np.sort(pos_ref.raw_imp['E' + i])[-1])
-            e_len.append(pos_ref.raw_imp['E' + i].size)
-        for i in neg_ref.idx:
-            efirst_list.append(np.sort(neg_ref.raw_imp['E' + i])[0])
-            elast_list.append(np.sort(neg_ref.raw_imp['E' + i])[-1])
-            e_len.append(neg_ref.raw_imp['E' + i].size)            
-
+        h_maxs.append(np.amax(neg.raw_imp['H' + i]))
+        h_mins.append(np.amin(neg.raw_imp['H' + i]))
+        h_len.append(h_num_points(neg.raw_imp['H' + i]))
+    # If present pre-edge scans do the same for them
+    if pos.pre_edge:
+        for i in pos.pe_idx:
+            h_maxs.append(np.amax(pos.pe_raw_imp['H' + i]))
+            h_mins.append(np.amin(pos.pe_raw_imp['H' + i]))
+            h_len.append(h_num_points(pos.pe_raw_imp['H' + i]))
+    if neg.pre_edge:
+        for i in neg.pe_idx:
+            h_maxs.append(np.amax(neg.pe_raw_imp['H' + i]))
+            h_mins.append(np.amin(neg.pe_raw_imp['H' + i]))
+            h_len.append(h_num_points(neg.pe_raw_imp['H' + i]))
+    
     # Compute min, max and default langth of energy range
-    e_min = np.around(np.amax(efirst_list), 1)
-    e_max = np.around(np.amin(elast_list), 1)
-    e_av_len = np.around(np.average(e_len), 0)
+    # Set decimal place to round the first OoM higher than tolerance in
+    # h_num_points
+    h_min = np.around(np.amax(efirst_list), 3)
+    h_max = np.around(np.amin(elast_list), 3)
+    h_av_len = np.around(np.average(h_len), 0)
 
     # Set number of points of energy scale
     if guiobj.interactive:
-        n_points = guiobj.e_num_pnts(e_av_len)
+        n_points = guiobj.num_pnts(h_av_len)
     else:
-        n_points = int(e_av_len)
+        n_points = int(h_av_len)
 
-    log_dt['e_scale'] = [e_min, e_max, n_points]
+    log_dt['h_scale'] = [h_min, h_max, n_points]
 
-    return np.linspace(e_min, e_max, n_points)
+    return np.linspace(h_min,h_max, n_points)
 
+def h_num_points(h_arr):
+    '''
+    Count the number of different fields present in h_arr.
 
-def lin_interpolate(x, y, x0):
-        '''
-        Linear interpolation of the value at x0
-        A line is determined considering the couple of points passed in x and y.
-        The value at x0 point is computed.
+    During on-fly scans the magnetic field speed variation is not
+    uniform. In particular at the extremes of the field range (so at the
+    beginning of the scan, at the end of the scan and each time the
+    magntic field scan direction is reversed) there are different points
+    at the same field value within the experimental uncertainty. This
+    means that the number of acquisitions is not the same as the number
+    of different magnetic fields measured. In order to obtain a reliable
+    value for the number of different magnetic fileds measured during
+    the scan a tolerance value is introduced and consecutive fields
+    differing less than tolerance are considered the same and counted
+    only once.
 
-        Parameters
-        ----------
-        x : array
-            x values of point 1 and point 2
+    Parameters
+    ----------
+    h_arr : array
+        array with magnetic field values.
 
-        y : array
-            y values of point 1 and point2
+    Return
+    ------
+    int, the number of different magnetic fields present in h_arr.
+    '''
+    tolerance = 5e-4  # Field tolerance (5 Oe)
 
-        x0 : float
-            point where linear interpolation is computed
+    n = 1  # Loop starts from element 1 of h_arr
 
-        Return
-        ------
-        float, interpolated value
-        '''
-        return y[0] + ((y[1] - y[0]) * (x0 - x[0]) / (x[1] - x[0]))
+    for i in range(1, len(h_arr)):
+        if (h_arr[i] - h_arr[i-1]) < tolerance:
+            continue
+        else:
+            n += 1
+
+    return n

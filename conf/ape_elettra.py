@@ -1,71 +1,77 @@
-# Configurations for APE beamline at Elettra Synchrotron, Trieste (Italy)
+"""
+Configurations for APE beamline at Elettra Synchrotron, Trieste (Italy)
+"""
+
 import numpy as np
 
 class Configuration():
     '''
-    Set program configurations based on data provenance
+    Set program configurations based on data provenance.
 
     Attributes
     ----------
     default_only_ext : str
-        default datafile exension
+        default datafile exension.
 
     default_ext : str
-        default datafile extension (mask)
+        default datafile extension (mask).
 
     interactive : bool
-        if True interactive mode is setted, if False not interactive mode is
-        setted
+        True interactive mode is setted
+        False not interactive mode is setted.
     
     sep : str
-        column separator in datafiles
+        column separator in datafiles.
 
     sense : str
-        type of sensing used
+        type of sensing used.
 
     list_analysis : list
-        list of supported analysis for the beamline
+        list of supported analysis for the beamline.
 
     scanlog_nms : list
-        list of scanlog filenames associated at different dataset
+        list of scanlog filenames associated at different dataset.
 
     scanlog_cnt : int
-        counter to run through scanlog_nms
+        counter to run through scanlog_nms.
 
     norm_curr : bool
         True if it/i0 is not provided by data
-        False if it/i0 is provided by data
+        False if it/i0 is provided by data.
 
     ask_for_T : bool
-        True if no information on sample temperature is provided by datalog file
-        False if sample temperature is provided in datalog file
+        True if no information on sample temperature is provided by
+            datalog file
+        False if sample temperature is provided in datalog file.
 
     ask_for_H : bool
-        True if no information on magnetic field is provided by datalog file
-        False if mangetic field is provided in datalog file
+        True if no information on magnetic field is provided by datalog
+            file
+        False if mangetic field is provided in datalog file.
     
     ref_norm : bool
         True if spectra must be normalized by a reference spectrum
-        False otherwise
+        False otherwise.
         
     energy : str
-        datafile's column name for energy data
+        datafile's column name for energy data.
 
     iti0 : str
-        datafile's column name for normalized it/i0 - TEY data
+        datafile's column name for normalized it/i0 - TEY data.
 
     phi_sgn : int
-        sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
-        from sigma-
+        sign assigned to CR (+1) and CL (-1) for the discrimination of
+        sigma+ from sigma-.
 
     Methods
     -------
     scn_cols(guiobj, f_name):
-         Assign column names for columns to be imported based on beamline
-         settings.
+        Assign column names for columns to be imported based on beamline
+        settings.
 
     cr_cond(x)
-        Set condition to discriminate for right and left circular polarizations.
+        Set condition to discriminate for right and left circular
+        polarizations.
 
     lv_cond(x)
         Set condition to discriminate for vertical and horizontal linear
@@ -79,19 +85,23 @@ class Configuration():
 
     def single_lognm(self, dataflnm):
         Reconstruct name of datalog file.
-        Not used for Boreas @ Alba.
 
     log_scavenger(dataflnm, guiobj)
-        Search in logfile for energies, field values, temperatures and sample
-        position.
+        Search in logfile for energies, field values, temperatures and
+        sample position.
 
-    logfl_creator(log_dt):
-        Create string with log data to be saved in logfile
+    escan_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for energy
+        scans analysis.
+
+    hscan_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for field
+        scans analysis. - NOT YET PROVIDED FOR APE.
     '''
 
     def __init__(self):
         '''
-        Instatiate object setting all the attributes
+        Instatiate object setting all the attributes.
         '''
         # Default file extension
         self.default_only_ext = '.txt'
@@ -142,22 +152,25 @@ class Configuration():
 
         Return
         ------
-        list of column names to be imprted
+        list of column names to be imprted.
         '''
         if guiobj.analysis in guiobj.type['hyst']:
             # Yet not considered hysteresis analysis for this beamline
             pass
         else:
             f_nm = f_name.rstrip(self.default_only_ext)
-            self.energy = 'Energy_{}'.format(f_nm)  # column with energy data
-            self.iti0 = 'Is/Im (#)_1_{}'.format(f_nm)  # it/i0 data - TEY
+            # column with energy data
+            self.energy = 'Energy_{}'.format(f_nm)
+            # it/i0 data - TEY
+            self.iti0 = 'Is/Im (#)_1_{}'.format(f_nm)
 
             # Energy scan colums list to be imported
             return [self.energy, self.iti0]
 
     def cr_cond(self, x):
         '''
-        Set condition to discriminate for right and left circular polarizations.
+        Set condition to discriminate for right and left circular
+        polarizations.
 
         Parameters
         ----------
@@ -167,7 +180,7 @@ class Configuration():
 
         Returns
         -------
-        bool, True if CR, False if CL
+        bool, True if CR, False if CL.
         '''
         x_trunc = np.trunc(x)
         if x_trunc == -21:
@@ -192,7 +205,7 @@ class Configuration():
 
         Returns
         -------
-        bool, True if LV, False if LH
+        bool, True if LV, False if LH.
         '''
         x_trunc = np.trunc(x)
         if x_trunc == 0 :
@@ -209,11 +222,11 @@ class Configuration():
         Parameters
         ----------
         f_name : str
-            filename
+            filename.
 
         Returns
         -------
-        str, scan-number
+        str, scan-number.
         '''
         scn_num = f_name.rstrip(self.default_only_ext)
 
@@ -222,7 +235,7 @@ class Configuration():
     def scanlog_fname(self, guiobj):
         '''
         Collect logfile associated to scandata.
-        Not needed at APE, simply pass
+        Not needed at APE, simply pass.
 
         Parameters
         ----------
@@ -234,30 +247,30 @@ class Configuration():
     def single_lognm(self, dataflnm):
         '''
         Reconstruct name of datalog file.
-        Used in case of single logfile associated to single datafile, so logfile
-        name is associated to scanfile name.
+        Used in case of single logfile associated to single datafile, so
+        logfile name is associated to scanfile name.
 
         Parameters
         ----------
         dataflnm : str
-            name of datafile associated to logfile
+            name of datafile associated to logfile.
 
         Return
         ------
-        str, name of logfile associated to dataflnm
+        str, name of logfile associated to dataflnm.
         '''
         return dataflnm.rstrip(self.default_only_ext) + '.meta'
 
     def log_scavenger(self, dataflnm):
         '''
-        Search for energies, field values, temperatures and sample position of a
-        given datafile in related logfile.
+        Search for energies, field values, temperatures and sample
+        position of a given datafile in related logfile.
 
         Parameters
         ----------
         dataflnm : datafile's name.
-            The name of logfile is retrieved just changing in .log the extension
-            of datafile, following SOLEIL convention.
+            The name of logfile is retrieved just changing in .log the
+            extension of datafile, following SOLEIL convention.
 
         Returns
         -------
@@ -289,17 +302,17 @@ class Configuration():
         except:            
             raise Exception()
 
-    def logfl_creator(self, log_dt):
+    def escan_logfl_creator(self, log_dt):
         '''
-        Create string with log data to be saved in logfile
+        Create string with log data to be saved in logfile.
 
         Parameters
         ----------
-        log_dt : dictionary with log data
+        log_dt : dictionary with log data.
 
         Returns
         -------
-        str, data formatted to be saved in logfile
+        str, data formatted to be saved in logfile.
         '''
         logtxt = ''
         log_tbl = log_dt['log_tbl']
@@ -354,3 +367,18 @@ class Configuration():
                    ' - int.d pre-edge: {}\n'.format(log_dt['xas_aver_ej_int']))
 
         return logtxt
+
+    def hscan_logfl_creator(self, log_dt):
+        '''
+        Create string with log data to be saved in logfile for field
+        scans analysis.
+
+        Parameters
+        ----------
+        log_dt : dictionary with log data.
+
+        Returns
+        -------
+        Not yet provided for Ape, currently does nothing.
+        '''
+        pass

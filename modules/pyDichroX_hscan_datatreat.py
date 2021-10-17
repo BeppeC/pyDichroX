@@ -18,6 +18,9 @@ h_scale(guiobj, pos, neg, log_dt)
 
 h_num_points(h_arr)
     Count the number of different fields present in h_arr.
+
+aver_duplicates(data, idx)
+    Check if in the field column idx there are repeated values.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -116,11 +119,11 @@ class ScanData:
         Manage the choice of scans to be averaged and return the average of
         selected scans.
 
-    plot_chs_avr(edge, up, fields, guiobj)
+    plot_chs_avr(fields, guiobj, edge, up)
         Plot raw data, allow to choose which data will be used for
         analysis and average them.
 
-    aver_h_scans(title, data, fields, chsn, guiobj)
+    aver_h_scans(data, fields, chsn, guiobj, title)
         Perform the average of data scans.
     '''
 
@@ -253,26 +256,26 @@ class ScanData:
                 # Loop until choice is confirmed
                 isok = 0
                 while not isok:
-                    up_chsn, up_avgd = self.plot_chs_avr(edge=True, up=True,
-                                                        fields, guiobj)
+                    up_chsn, up_avgd = self.plot_chs_avr(fields, guiobj,
+                                                        edge=True, up=True)
                     isok = guiobj.confirm_choice()
 
                 # Edge Down data
                 # Loop until choice is confirmed
                 isok = 0
                 while not isok:
-                    dw_chsn, dw_avgd = self.plot_chs_avr(edge=True, up=False,
-                                                        fields, guiobj)
+                    dw_chsn, dw_avgd = self.plot_chs_avr(fields, guiobj,
+                                                        edge=True, up=False)
                     isok = guiobj.confirm_choice()
             else:
                 # If there is just one scan is useless the choose, just
                 # interpolate it with the common field scale.
                 up_chsn = self.label
-                up_avgd = self.aver_h_scans(title='', self.up, fields, up_chsn,
-                                           guiobj)
+                up_avgd = self.aver_h_scans(self.up, fields, up_chsn, guiobj,
+                                            title='Edge - Up branch')
                 dw_chsn = self.label
-                dw_avgd = self.aver_h_scans(title='', self.down, fields,
-                                            dw_chsn, guiobj)
+                dw_avgd = self.aver_h_scans(self.down, fields, dw_chsn, guiobj,
+                                            title='Edge - Down branch')
             # Choose pre-edge scans
             if self.pre_edge:
                 if len(self.pe_idx) > 1:
@@ -280,26 +283,26 @@ class ScanData:
                     # Loop until choice is confirmed
                     isok = 0
                     while not isok:
-                        pe_up_chsn, pe_up_avgd = self.plot_chs_avr(edge=False,
-                                                    up=True, fields, guiobj)
+                        pe_up_chsn, pe_up_avgd = self.plot_chs_avr(fields,
+                                                guiobj, edge=False, up=True)
                         isok = guiobj.confirm_choice()
 
                     # pre-edge Down data
                     # Loop until choice is confirmed
                     isok = 0
                     while not isok:
-                        pe_dw_chsn, pe_dw_avgd = self.plot_chs_avr(edge=False,
-                                                    up=False, fields, guiobj)
+                        pe_dw_chsn, pe_dw_avgd = self.plot_chs_avr(fields,
+                                                guiobj, edge=False, up=False)
                         isok = guiobj.confirm_choice()
                 else:  # There is just one pre-edge scan
                     # If there is just one scan is useless the choose, just
                     # interpolate it with the common field scale.
                     pe_up_chsn = self.pe_label
-                    pe_up_avgd = self.aver_h_scans(title='', self.pe_up,
-                                                    fields, pe_up_chsn, guiobj)
+                    pe_up_avgd = self.aver_h_scans(self.pe_up, fields,
+                            pe_up_chsn, guiobj, title='Pre-Edge - Up branch')
                     pe_dw_chsn = self.pe_label
-                    pe_dw_avgd = self.aver_h_scans(title='', self.pe_down,
-                                                    fields, pe_dw_chsn, guiobj)
+                    pe_dw_avgd = self.aver_h_scans(self.pe_down, fields,
+                            pe_dw_chsn, guiobj, title='Pre-Edge - Down branch')
             else:
                 # If no pre-edge scans just return empty lists
                 pe_up_chsn = []
@@ -309,18 +312,18 @@ class ScanData:
         else: 
         # Not interactive - Consider and average all scans
             up_chsn = self.label
-            up_avgd = self.aver_h_scans(title='', self.up, fields, up_chsn,
-                                       guiobj)
+            up_avgd = self.aver_h_scans(self.up, fields, up_chsn, guiobj,
+                                        title='Edge - Up branch')
             dw_chsn = self.label
-            dw_avgd = self.aver_h_scans(title='', self.down, fields, dw_chsn,
-                                        guiobj)
+            dw_avgd = self.aver_h_scans(self.down, fields, dw_chsn, guiobj,
+                                        title='Edge - Down branch')
             if self.pre_edge:
                 pe_up_chsn = self.pe_label
-                pe_up_avgd = self.aver_h_scans(title='', self.pe_up, fields,
-                                                pe_up_chsn, guiobj)
+                pe_up_avgd = self.aver_h_scans(self.pe_up, fields, pe_up_chsn,
+                                        guiobj, title='Pre-Edge - Up branch')
                 pe_dw_chsn = self.pe_label
-                pe_dw_avgd = self.aver_h_scans(title='', self.pe_down, fields,
-                                                pe_dw_chsn, guiobj)
+                pe_dw_avgd = self.aver_h_scans(self.pe_down, fields,
+                            pe_dw_chsn, guiobj, title='Pre-Edge - Down branch')
             else:
                 # If no pre-edge scans just return empty lists
                 pe_up_chsn = []
@@ -338,27 +341,27 @@ class ScanData:
         self.pe_dw_chsn = pe_dw_chsn
         self.pe_dw_aver = pe_dw_avgd
 
-    def plot_chs_avr(self, edge, up, fields, guiobj):
+    def plot_chs_avr(self, fields, guiobj, edge, up):
         '''
         Plot raw data, allow to choose which data will be used for
         analysis and average them.
 
         Parameters
         ----------
-        edge : bool
-            True for edge scans treatment
-            False for pre-edge scan treatment.
-
-        up : bool
-            True for up branches treatment
-            False for down branches treatment
-
         fields : array
             Array with common magneti field scale, for interpolation and
             average of scans.
 
         guiobj : GUI object
             Provides GUI dialogs.
+
+        edge : bool
+            True for edge scans treatment
+            False for pre-edge scan treatment.
+
+        up : bool
+            True for up branches treatment
+            False for down branches treatment.
 
         Return
         ------
@@ -407,11 +410,11 @@ class ScanData:
 
         chsn = guiobj.chs_scns(label)
 
-        avgd = aver_h_scans(title, data, fields, chsn, guiobj)
+        avgd = aver_h_scans(data, fields, chsn, guiobj, title)
 
         return chsn, avgd
 
-    def aver_h_scans(self, title, data, fields, chsn, guiobj):
+    def aver_h_scans(self, data, fields, chsn, guiobj, title):
         '''
         Perform the average of data scans. 
         If interactive mode, data scans and their average are shown
@@ -419,9 +422,6 @@ class ScanData:
 
         Parameters
         ----------
-        title : str
-            graph title.
-
         data : pandas DataFrame
             scan data.
 
@@ -433,6 +433,9 @@ class ScanData:
 
         guiobj: GUI object
             Provides GUI dialogs.
+
+        title : str
+            graph title.
 
         Returns
         -------
@@ -454,10 +457,16 @@ class ScanData:
 
         for scn in chsn:
             # Retrive scan number from label, remove PE- for pre-edge
-            idx = scn.lstrip('PE-')
+            idx = scn.removeprefix('PE-')
             # chosen data
-            x = data['H' + scn][1:]
-            y = data[scn][1:]
+
+            # Univariate spline requires increasing x
+            # Data are sorted by field
+            ##sorted_data = data.sort_values(by=['H' + idx])
+            
+            ##x = sorted_data['H' + idx][1:].dropna()
+            ##y = sorted_data[idx][1:].dropna()
+            x, y = aver_duplicates(data, idx)
 
             if guiobj.interactive:
                 # Plot data
@@ -523,7 +532,7 @@ class FieldScan:
     edg_up : array
         XMCD for scan up branch considering only edge scans.
 
-    edg_down : array
+    edg_down 8: array
         XMCD for scan down branch considering only edge scans.
 
     edg_up_norm : array
@@ -594,7 +603,7 @@ class FieldScan:
 
         self.scan_average(guiobj, pos, neg, log_dt)
 
-        self.compt_scanfield(guiobj, log_dt)
+        self.compt_scanfield()
 
     def scan_average(self, guiobj, pos, neg, log_dt):
         '''
@@ -663,7 +672,7 @@ class FieldScan:
         # Separate up and down branches and compute the  average of
         # scans
         pos.man_aver_h_scans(guiobj, self.fields)
-        neg.man_aver_e_scans(guiobj, self.fields)
+        neg.man_aver_h_scans(guiobj, self.fields)
 
         # Fill log data with chosen scans
         log_dt['pos_up_chsn'] = pos.up_chsn
@@ -684,32 +693,32 @@ class FieldScan:
         plt.title('Up and Down branches')
         plt.subplot(221)
         plt.plot(self.fields, self.cr_up, label='CR Up')
-        plt.xlabel('I (a.u.)')
-        plt.ylabel('H (T)')
+        plt.ylabel('I (a.u.)')
+        plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
         plt.axvline(x=0, color='darkgray')
         plt.legend()
 
         plt.subplot(222)
         plt.plot(self.fields, self.cr_down, label='CR Down')
-        plt.xlabel('I (a.u.)')
-        plt.ylabel('H (T)')
+        plt.ylabel('I (a.u.)')
+        plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
         plt.axvline(x=0, color='darkgray')
         plt.legend()
 
         plt.subplot(223)
         plt.plot(self.fields, self.cl_up, label='CL Up')
-        plt.xlabel('I (a.u.)')
-        plt.ylabel('H (T)')
+        plt.ylabel('I (a.u.)')
+        plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
         plt.axvline(x=0, color='darkgray')
         plt.legend()
 
         plt.subplot(224)
         plt.plot(self.fields, self.cl_down, label='CL Down')
-        plt.xlabel('I (a.u.)')
-        plt.ylabel('H (T)')
+        plt.ylabel('I (a.u.)')
+        plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
         plt.axvline(x=0, color='darkgray')
         plt.legend()
@@ -728,32 +737,32 @@ class FieldScan:
             plt.title('Up and Down pre-edge branches')
             plt.subplot(221)
             plt.plot(self.fields, self.cr_pe_up, label='CR pre-edge Up')
-            plt.xlabel('I (a.u.)')
-            plt.ylabel('H (T)')
+            plt.ylabel('I (a.u.)')
+            plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
             plt.axvline(x=0, color='darkgray')
             plt.legend()
 
             plt.subplot(222)
             plt.plot(self.fields, self.cr_pe_down, label='CR pre-edge Down')
-            plt.xlabel('I (a.u.)')
-            plt.ylabel('H (T)')
+            plt.ylabel('I (a.u.)')
+            plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
             plt.axvline(x=0, color='darkgray')
             plt.legend()
 
             plt.subplot(223)
             plt.plot(self.fields, self.cl_pe_up, label='CL pre-edge Up')
-            plt.xlabel('I (a.u.)')
-            plt.ylabel('H (T)')
+            plt.ylabel('I (a.u.)')
+            plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
             plt.axvline(x=0, color='darkgray')
             plt.legend()
 
             plt.subplot(224)
             plt.plot(self.fields, self.cl_pe_down, label='CL pre-edge Down')
-            plt.xlabel('I (a.u.)')
-            plt.ylabel('H (T)')
+            plt.ylabel('I (a.u.)')
+            plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
             plt.axvline(x=0, color='darkgray')
             plt.legend()
@@ -895,28 +904,28 @@ def h_scale(guiobj, pos, neg, log_dt):
     for i in pos.idx:
         h_maxs.append(np.amax(pos.raw_imp['H' + i]))
         h_mins.append(np.amin(pos.raw_imp['H' + i]))
-        h_len.append(h_num_points(pos.raw_imp['H' + i]))
+        h_len.append(h_num_points(pos.raw_imp['H' + i].dropna()))
     for i in neg.idx:
         h_maxs.append(np.amax(neg.raw_imp['H' + i]))
         h_mins.append(np.amin(neg.raw_imp['H' + i]))
-        h_len.append(h_num_points(neg.raw_imp['H' + i]))
+        h_len.append(h_num_points(neg.raw_imp['H' + i].dropna()))
     # If present pre-edge scans do the same for them
     if pos.pre_edge:
         for i in pos.pe_idx:
             h_maxs.append(np.amax(pos.pe_raw_imp['H' + i]))
             h_mins.append(np.amin(pos.pe_raw_imp['H' + i]))
-            h_len.append(h_num_points(pos.pe_raw_imp['H' + i]))
+            h_len.append(h_num_points(pos.pe_raw_imp['H' + i].dropna()))
     if neg.pre_edge:
         for i in neg.pe_idx:
             h_maxs.append(np.amax(neg.pe_raw_imp['H' + i]))
             h_mins.append(np.amin(neg.pe_raw_imp['H' + i]))
-            h_len.append(h_num_points(neg.pe_raw_imp['H' + i]))
+            h_len.append(h_num_points(neg.pe_raw_imp['H' + i].dropna()))
     
     # Compute min, max and default langth of energy range
     # Set decimal place to round the first OoM higher than tolerance in
     # h_num_points
-    h_min = np.around(np.amax(efirst_list), 3)
-    h_max = np.around(np.amin(elast_list), 3)
+    h_min = np.around(np.amax(h_mins), 3)
+    h_max = np.around(np.amin(h_maxs), 3)
     h_av_len = np.around(np.average(h_len), 0)
 
     # Set number of points of energy scale
@@ -965,3 +974,43 @@ def h_num_points(h_arr):
             n += 1
 
     return n
+
+def aver_duplicates(data, idx):
+    '''
+    Check if in the field column idx there are repeated values. In case
+    compute average of corresponding XAS values. This is required by the
+    fact the univariate spline method employed to interpolate date on a
+    common field scale requires strictly increasing x values.
+
+    Parameters
+    ----------
+    data : Pandas DataFrame
+        contains data.
+
+    idx : str
+        identifies scan to be analyse.
+
+    Return
+    ------
+    array, field scale with unique values.
+    array, XAS values corresponding to unique values field scale.
+    '''
+
+    # Remove NaNs and sort data by field column
+    sorted_data = data.dropna().sort_values(by=['H' + idx])
+
+    # Extract unique field values and corresonding indexes of first 
+    # unique value occurence
+    x, indexes = np.unique(sorted_data['H' + idx], return_index=True)
+
+    y = []
+
+    # From one index and the next there are repeated values of fields.
+    # This for loop average the XAS value between consecutive indexes.
+    for i in range(len(indices)):
+        if i == len(indices) - 1:
+            y.append(np.average(sorted_data[idx][indexes[i]:]))
+        else:
+            y.append(np.average(sorted_data[idx][indexes[i]:indexes[i+1]]))
+
+    return x, y

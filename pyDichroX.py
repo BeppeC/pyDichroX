@@ -33,15 +33,9 @@ if __name__ == '__main__':
         # Import scan data
         pos, neg, log_dt, pos_ref, neg_ref = io.open_import_scan(gui, conf)
         
-        if gui.analysis == 'Hysteresis on the fly':
+        if gui.analysis == 'XMCD Hysteresis on the fly':
             # Create common magneti field scale
             h_scale = hsdt.h_scale(gui, pos, neg, log_dt)
-
-            ########
-            # debug
-            ########
-            print(h_scale)
-            ########
 
             h_scan = hsdt.FieldScan(gui, conf, h_scale, pos, neg, log_dt)
             io.save_data_hscan(conf, gui, h_scan, log_dt)

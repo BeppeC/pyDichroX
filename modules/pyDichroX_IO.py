@@ -191,6 +191,11 @@ def open_import_scan(guiobj, confobj):
     # dictionary collecting log data
     log_dt = {}
 
+    log_dt['Edge_name'] = edge[0]
+    log_dt['Edge_en'] = float(edge[1])
+    log_dt['PreEdge_en'] = float(edge[2])
+    log_dt['PostEdge_en'] = float(edge[3])
+
     # Insert experimental rotation angle of the sample
     angle, bm_angle = guiobj.ask_angle()
 
@@ -222,6 +227,7 @@ def open_import_scan(guiobj, confobj):
         log_dt['exper_edge'] = np.round(log_tbl['edge_mon_en'].abs().mean(), 2)
         log_dt['setted_pedg'] = np.round(
                                     log_tbl['pre_edge_mon_en'].abs().mean(), 2)
+        log_dt['field'] = np.round(log_tbl['field'].abs().mean(), 1)
 
         # Just create empty data list for pos_ref and neg_ref currently
         # not considered for hysteresis
@@ -241,10 +247,6 @@ def open_import_scan(guiobj, confobj):
     # dictionary collecting log data
     log_dt['log_tbl'] = log_tbl
     log_dt['temp'] = np.round(log_tbl['t'].mean(), 1)    
-    log_dt['Edge_name'] = edge[0]
-    log_dt['Edge_en'] = float(edge[1])
-    log_dt['PreEdge_en'] = float(edge[2])
-    log_dt['PostEdge_en'] = float(edge[3])
     log_dt['angle'] = angle
     log_dt['bm_angle'] = bm_angle
 
@@ -526,9 +528,12 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
 
         break  # If no problem with number of files breaks the loop
 
+    pos.up_n_down()
+    neg.up_n_down()
+
     return log_tbl
 
-def dt_raw_import(guiobj, confobj, data):
+def dt_raw_import(confobj, data):
     '''
     Based on configuration file select data to import depending on
     sensing.
@@ -928,9 +933,9 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
             lgrws['type'] = 'PE-CR'
             lgrws['edge_mon_en'] = np.nan
             lgrws['pre_edge_mon_en'] = lgrws['mon_en']
-            pos.pe_raw_imp = pd.concat([pos.raw_imp, rawtm], axis=1)
-            pos.pe_raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
-            pos.pe_raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
+            pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawtm], axis=1)
+            pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawh], axis=1)
+            pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt], axis=1)
             pos.pe_label.append(scn_lbl)
             pos.pe_idx.append(scn_num)        
     else:  # CL data
@@ -954,9 +959,9 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
             lgrws['type'] = 'PE-CL'
             lgrws['edge_mon_en'] = np.nan
             lgrws['pre_edge_mon_en'] = lgrws['mon_en']
-            neg.pe_raw_imp = pd.concat([neg.raw_imp, rawtm], axis=1)
-            neg.pe_raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
-            neg.pe_raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
+            neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawtm], axis=1)
+            neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawh], axis=1)
+            neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt], axis=1)
             neg.pe_label.append(scn_lbl)
             neg.pe_idx.append(scn_num)
 
@@ -1109,7 +1114,7 @@ def output_fls_hscan(guiobj, scanobj):
     col_desc += 'Normalized to 1\n'
 
     if scanobj.pre_edge:
-        col_nms.removesuffix('\n')
+        col_nms = col_nms.removesuffix('\n')
         col_nms += ',CR up pre-edge (a.u.),'
         col_nms += 'CL up pre-edge (a.u.),'
         col_nms += 'CR down pre-edge (a.u.),'
@@ -1119,7 +1124,7 @@ def output_fls_hscan(guiobj, scanobj):
         col_nms += 'Up Norm (%),'
         col_nms += 'Down Norm (%)\n'
 
-        col_desc.removesuffix('\n')
+        col_desc = col_desc.removesuffix('\n')
         col_desc += ',Interpolated & averaged CR @ pre-edge,'
         col_desc += 'Interpolated & averaged CL @ pre-edge,'
         col_desc += 'Interpolated & averaged CR @ pre-edge,'
@@ -1266,10 +1271,10 @@ def output_plot_hscan(guiobj, scanobj, log_dt):
     ax1.plot(scanobj.fields, scanobj.edg_up_norm, label='UP', color='crimson')
     ax1.plot(scanobj.fields, scanobj.edg_down_norm, label='DOWN',
             color='green')
-    ax1.title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-            log_dt['energy'], log_dt['temp'], log_dt['angle']))
+    ax1.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
+            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
     ax1.legend()
-    ax1.ylim(limy, -limy)
+    ax1.set_ylim(limy, -limy)
     ax1.axhline(y=0, color='darkgray')
     ax1.axvline(x=0, color='darkgray')
     ax1.set_xlabel('H (T)')
@@ -1285,14 +1290,17 @@ def output_plot_hscan(guiobj, scanobj, log_dt):
             log_dt['neg_pe_dw_chsn']))
 
         f2, ax2 = plt.subplots()
+
+        limy2 = max(abs(scanobj.up_perc[0]), abs(scanobj.up_perc[-1]),
+            abs(scanobj.down_perc[0]), abs(scanobj.down_perc[-1])) * 1.3
         
         ax2.plot(scanobj.fields, scanobj.up_perc, label='UP', color='crimson')
         ax2.plot(scanobj.fields, scanobj.down_perc, label='DOWN',
                 color='green')
-        ax2.title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-                log_dt['energy'], log_dt['temp'], log_dt['angle']))
+        ax2.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
+                log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
         ax2.legend()
-        ax2.ylim(limy, -limy)
+        ax2.set_ylim(limy2, -limy2)
         ax2.axhline(y=0, color='darkgray')
         ax2.axvline(x=0, color='darkgray')
         ax2.set_xlabel('H (T)')

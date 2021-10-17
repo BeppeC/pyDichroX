@@ -1,3 +1,7 @@
+v 0.4.1
+-------
+- Corrected bugs.
+
 v 0.4.0
 -------
 - Added hystereis on the fly for Soleil.

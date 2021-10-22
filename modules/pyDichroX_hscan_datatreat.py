@@ -51,29 +51,79 @@ class ScanData:
 
     raw_imp : pandas DataFrame
         Collect imported raw data at edge energy.
+        For hysteresis on the fly analysis it consist of a couple of
+        columns for each scan ('HscanNum' and 'scanN') containing the
+        field and data values respectively
+        For hysteresis point by point it consists of just three columns
+        'H', 'I' and 't' where field values, data and times of all scans
+        are appended.
+
+    pe_raw_imp : pandas DataFrame
+        Collect imported raw data at pre-edge energy.
+        For hysteresis on the fly analysis it consist of a couple of
+        columns for each scan ('HscanNum' and 'scanN') containing the
+        field and data values respectively
+        For hysteresis point by point it consists of just three columns
+        'H', 'I' and 't' where field values, data and times of all scans
+        are appended.
 
     pre_edge : bool
         True if pre-edge data are present.
+        Only for Hysteresis on the fly analisys.
+
+    sel_data : pandas DataFrame
+        Collect data at edge energy inside the chosen time window.
+        Only for Hysteresis point by pont analysis.
+
+    pe_sel_data : pandas DataFrame
+        Collect data at pre-edge energy inside the chosen time window.
+        Only for Hysteresis point by pont analysis.
+
+    min_t : list
+        Collect the minima of the timescales of data scans.
+        Only for Hysteresis point by pont analysis.
+    
+    max_t : list
+        Collect the maxima of the timescales of data scans.
+        Only for Hysteresis point by pont analysis.
+
+    aver : pandas DataFrame
+        Collect averaged data at edge energy for time averaged analysis
+        or data at edge energy interpolated on a common time scale for
+        time splitted analysis.
+        Only for Hysteresis point by point analysis.
+
+    pe_aver : pandas DataFrame
+        Collect averaged data at pre-edge energy for time averaged
+        analysis or data at pre-edge energy interpolated on a common
+        time scale for time splitted analysis.
+        Only for Hysteresis point by point analysis.
 
     up : pandas DataFrame
         Collect data related to magntic filed scan up branch.
+        Only for Hysteresis on the fly analisys.
 
     down : pandas DataFrame
         Collect data related to magntic filed scan down branch.
+        Only for Hysteresis on the fly analisys.
 
     up_chsn : list
         Collect labels of ub branch scans chosen for analysis.
+        Only for Hysteresis on the fly analisys.
 
     dw_chsn : list
         Collect labels of down branch scans chosen for analysis.
+        Only for Hysteresis on the fly analisys.
 
     up_aver : array
         Contains average of chosen up branch scans computed on common
         field scale.
+        Only for Hysteresis on the fly analisys.
     
     dw_aver : array
         Contains average of chosen down branch scans computed on common
         field scale.
+        Only for Hysteresis on the fly analisys.
     
     pe_label : list (str)
         Labels for graphs - for scans collected at pre-edge energy.
@@ -83,28 +133,40 @@ class ScanData:
 
     pe_raw_imp : pandas DataFrame
         Collect imported raw data at pre-edge energy.
+        For hysteresis on the fly analysis it consist of a couple of
+        columns for each scan ('HscanNum' and 'scanN') containing the
+        field and data values respectively
+        For hysteresis point by point it consists of just three columns
+        'H', 'I' and 't' where field values, data and times of all scans
+        are appended.
 
     pe_up : pandas DataFrame.
         Collect data related to magntic filed scan up branch - for scans
         measured at pre-edge energy.
+        Only for Hysteresis on the fly analisys.
 
     pe_down : pandas DataFrame.
         Collect data related to magntic filed scan up branch - for scans
         measured at pre-edge energy.
+        Only for Hysteresis on the fly analisys.
 
     pe_up_chsn : list
         Collect labels of ub branch scans chosen for analysis.
+        Only for Hysteresis on the fly analisys.
 
     pe_dw_chsn : list
         Collect labels of down branch scans chosen for analysis.
+        Only for Hysteresis on the fly analisys.
 
     pe_up_aver : array
         Contains average of chosen up branch scans computed on common
         field scale.
+        Only for Hysteresis on the fly analisys.
     
     pe_dw_aver : array
         Contains average of chosen down branch scans computed on common
         field scale.
+        Only for Hysteresis on the fly analisys.
 
     dtype : str
         Identifies CR and CL data, used for graph labelling.
@@ -113,7 +175,7 @@ class ScanData:
     -------
     up_n_down()
         Separate input data in up branches and down branches.
-
+        For hysteresis on the fly analysis.
 
     man_aver_e_scans(guiobj, enrg)
         Manage the choice of scans to be averaged and return the average of
@@ -127,26 +189,39 @@ class ScanData:
         Perform the average of data scans.
     '''
 
-    def __init__(self):
+    def __init__(self, guiobj):
         '''
         Initialize attributes label, idx, raw_imp, up, down and pre-edge
         corresponding pe_label, pe_idx, pe_raw_imp, pe_up, pe_down.
+
+        Prameters
+        ---------
+        guiobj : GUI object
+            Provides GUI dialogs.
         '''
         self.label = []
         self.idx = []
         self.raw_imp = pd.DataFrame()
-        self.up = pd.DataFrame()
-        self.down = pd.DataFrame()
 
         self.pe_label = []
         self.pe_idx = []
         self.pe_raw_imp = pd.DataFrame()
-        self.pe_up = pd.DataFrame()
-        self.pe_down = pd.DataFrame()
+
+        # Only for hysteresis on the fly is currently cosidered the
+        # possibility to seprate up from down branches.
+        if guiobj.analysis == 'hyst_fly'
+            self.up = pd.DataFrame()
+            self.down = pd.DataFrame()
+            self.pe_up = pd.DataFrame()
+            self.pe_down = pd.DataFrame()
+        else:
+            self.min_t = []
+            self.max_t = []
 
     def up_n_down(self):
         '''
         Separate input data in up branches and down branches.
+        For Hysteresis on the fly analysis.
 
         Return
         ------
@@ -489,6 +564,94 @@ class ScanData:
             plt.show()
 
         return avgd
+
+    def aver_pt_scans(self, guiobj, time_scale):
+        '''
+        Perform the average of data scans. 
+        If interactive mode, data scans and their average are shown
+        together in a plot. 
+
+        Parameters
+        ----------
+        guiobj: GUI object
+            Provides GUI dialogs.
+
+        time_scale : array
+            Common time scale.
+
+        Returns
+        -------
+        array, containing the average of data scans.
+
+        Notes
+        -----
+        To compute the average the common scale fields is used.
+        All passed scans are interpolated with a linear spline
+        (k=1 and s=0 in itp.UnivariateSpline) and evaluated along the
+        common field scale.
+        The interpolated data are eventually averaged.
+        '''
+        if guiobj.analysis == 'hyst_t_aver':
+            # Data at the same field collect in window time are averaged
+            aver = pd.DataFrame(columns=['H', 'I', 'dI'])
+            # Group data by field values and average them.
+            for Hval, dat in self.sel_data.groupby('H'):
+            ## In case the baseline subtraction must be implemented
+            ## this is the place where to put it.
+            ##    if guiobj.bsl_sub:
+            ##        # Subtract baseline and average data
+            ##        pass
+            ##    else:
+                row = pd.Series([Hval, np.nanmean(dat['I'], dtype=np.float64),
+                                np.nanstd(dat['I'])], index=['H', 'I', 'dI'])
+                aver = aver.append(row, ignore_index=True)
+            # Sort data by H
+            self.aver = aver.sort_values(by=['H'], ignore_index=True)
+            if self.pre_edge:
+                pe_aver = pd.DataFrame(columns=['H', 'I', 'dI'])
+                # Group data by field values and average them.
+                for Hval, dat in self.pe_sel_data.groupby('H'):
+                ## In case the baseline subtraction must be implemented
+                ## this is the place where to put it.
+                ##    if guiobj.bsl_sub:
+                ##        # Subtract baseline and average data
+                ##        pass
+                ##    else:
+                    row = pd.Series([Hval, np.nanmean(dat['I'],
+                                    dtype=np.float64), np.nanstd(dat['I'])], 
+                                    index=['H', 'I', 'dI'])
+                    pe_aver = pe_aver.append(row, ignore_index=True)
+                # Sort data by H
+                self.pe_aver = pe_aver.sort_values(by=['H'], ignore_index=True)
+        else:
+            aver = pd.DataFrame(columns=['H', 'I', 't'])
+            # Group data by fields
+            for Hval, dat in self.sel_data.groupby('H'):
+                # Sort data by time
+                srt = dat.sort_values(by=['t'])
+                # Interpolate data on common time scale
+                interp = itp.interp1d(srt['t'], srt['I'], kind='slinear')
+                # Append interpolated data
+                temp = pd.DataFrame([dat['H'], interp(time_scale), time_scale],
+                                    columns=['H', 'I', 't'])
+                aver = aver.append(temp, ignore_index=True)
+            # Sort data by t and H
+            self.aver = aver.sort_values(by=['t', 'H'], ignore_index=True)
+            if self.pre_edge:
+                pe_aver = pd.DataFrame(columns=['H', 'I', 't'])
+                # Group data by fields
+                for Hval, dat in self.pe_sel_data.groupby('H'):
+                    # Sort data by time
+                    srt = dat.sort_values(by=['t'])
+                    # Interpolate data on common time scale
+                    interp = itp.interp1d(srt['t'], srt['I'], kind='slinear')
+                    # Append interpolated data
+                    temp = pd.DataFrame([dat['H'], interp(time_scale),
+                                        time_scale], columns=['H', 'I', 't'])
+                    pe_aver = pe_aver.append(temp, ignore_index=True)
+                # Sort data by t and H
+                self.pe_aver = pe_aver.sort_values(by=['t', 'H'],
+                                                    ignore_index=True)
 
 
 class FieldScan:
@@ -858,6 +1021,232 @@ class FieldScan:
             self.down_perc = 200 * self.dw_w_pe / (cl_dw_over_pe +
                                                     cr_dw_over_pe - 2)
 
+class FieldPtScan:
+    '''
+    Allow computation of XMCD hysteresis on magnetic field scan data.
+
+    Attributes
+    ----------
+    pre_edge : bool
+        True if pre-edge data are present.
+
+    time_scale : array
+        Common time scale for CR and CL scans data treatement.
+        If present also scans collected at pre-edge energy are
+        considered.
+
+    xmcd : array
+    
+    Methods
+    -------
+    time_scale(guiobj, pos, neg, log_dt)
+        Create commom time scale for hysteresis point by point analysis.
+
+    scan_average(guiobj, pos, neg, log_dt)
+        Separate CR and CL scans in up and down branches and average
+        scans.
+
+    compt_scanfield()
+        Perform computation on magnetic field scan data in order to
+        obtain XMCD hysteresis.
+    '''
+
+    def __init__(self, guiobj, confobj, pos, neg, log_dt):
+        '''
+        At instantiation the field attribute is created with common
+        magnetic field scale. CR and CL scans are separated in up and
+        down branches and averaged. Finally XMCD is calculated.
+        To do this scan_average and compt_scanfield method are called. 
+        The FieldScan object created collects all the informations about X-Ray dichroism.
+
+        Parameters
+        ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
+        confobj : Configuration object.
+
+        pos : ScanData obj
+            Contains CR scans.
+
+        neg : ScanData obj
+            Contains CL scnas.
+
+        log_dt : dict
+            Collect data for logfile.
+        '''
+        if (pos.pre_edge and neg.pre_edge):
+            self.pre_edge = True
+        else:
+            self.pre_edge = False
+
+        self.time_scale(guiobj, pos, neg, log_dt)
+
+        self.scan_average(guiobj, pos, neg, log_dt)
+
+        self.compt_scanfield()
+
+    def time_scale(self, guiobj, pos, neg, log_dt):
+        '''
+        Create commom time scale for hysteresis point by point analysis.
+        Start and end points of the scale are provided by
+        guiobj.acq_times, the number of points of the scale is instead
+        obtained as average of the number of points between start time
+        and end time of all the scans.
+
+        Parameters
+        ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
+        pos : ScanData obj
+            Contains CR scans.
+
+        neg : ScanData obj
+            Contains CL scnas.
+
+        log_dt : dict
+            Collect data for logfile.
+
+        Return
+        ------
+        Set time_scale attribute with the common time scale.
+        Add t_scale key to log_dt, list with starting, ending, number of
+        points and stepsize used for time scale definition.
+
+        '''
+        len_t = []
+        st_t, end_t = guiobj.acq_times(pos, neg)
+
+        pos.sel_data = pos.raw_imp[(pos.raw_imp['t'] >= st_t) &
+                                    (pos.raw_imp['t'] <= end_t)]
+        neg.sel_data = neg.raw_imp[(neg.raw_imp['t'] >= st_t) &
+                                    (neg.raw_imp['t'] <= end_t)]
+        # Collect the number of time points in the time window for each
+        # field
+        for Hval, dat in pos.sel_data.groupby('H'):
+            len_t.append(dat['t'])
+        for Hval, dat in neg.sel_data.groupby('H'):
+            len_t.append(dat['t'])
+
+        if pos.pre_edge and neg.pre_edge:
+            pos.pe_sel_data = pos.pe_raw_imp[(pos.pe_raw_imp['t'] >= st_t) &
+                                            (pos.pe_raw_imp['t'] <= end_t)]
+            neg.pe_sel_data = neg.pe_raw_imp[(neg.pe_raw_imp['t'] >= st_t) &
+                                            (neg.pe_raw_imp['t'] <= end_t)]
+            for Hval, dat in pos.pe_sel_data.groupby('H'):
+                len_t.append(dat['t'])
+            for Hval, dat in neg.pe_sel_data.groupby('H'):
+                len_t.append(dat['t'])        
+        
+        num_t = np.around(np.average(len_t), 0)
+        step_t = (end_t - st_t) / (num_t -1)
+
+        log_dt['t_scale'] = [st_t, end_t, num_t, step_t]
+
+        self.time_scale = np.linspace(st_t, end_t, num_t)
+
+    def compt_pt_scan(self, guiobj, pos, neg, log_dt):
+        '''
+        Separate CR and CL scans in up and down branches and average
+        scans.
+        Plot average results for edge and, if present, for pre-edge
+        scans.
+
+        Parameters
+        ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
+        pos : ScanData obj
+            Contains CR scans.
+
+        neg : ScanData obj
+            Contains CL scnas.
+
+        log_dt : dict
+            Collect data for logfile.
+        
+        Return
+        ------
+        Instantiate attributes:
+
+        '''
+        # Average pos and neg scanData
+        pos.aver_pt_scans(guiobj, self.time_scale)
+        neg.aver_pt_scans(guiobj, self.time_scale)
+        
+        # First create xmcd DataFrame
+        if guiobj.analysis == 'hyst_t_aver':
+            # Rename columns to join them
+            pos.aver.rename(columns={'H': 'H', 'I': 'CR', 'dI': 'dCR'},
+                            inplace=True)
+            neg.aver.rename(columns={'H': 'H', 'I': 'CL', 'dI': 'dCL'},
+                            inplace=True)
+            # Join pos and neg aver using H as reference
+            xmcd = pos.aver.join(neg.aver.set_indext_index('H'), on='H')
+
+            if self.pre_edge:
+                pos.pe_aver.rename(columns={'H': 'H', 'I': 'CRpe',
+                                    'dI': 'dCRpe'}, inplace=True)
+                neg.pe_aver.rename(columns={'H': 'H', 'I': 'CLpe',
+                                    'dI': 'dCLpe'}, inplace=True)
+                # Join pos and neg pe_aver using H as reference
+                xmcd = xmcd.join(pos.pe_aver.set_index('H'), on='H')
+                xmcd = xmcd.join(neg.pe_aver.set_index('H'), on='H')
+        else:
+            # For time split analysis group by H, sort by t and add the
+            # columns
+            pos.aver.rename(columns={'H': 'H', 'I': 'CR', 't': 't'},
+                            inplace=True)
+            pos_gb = pos.aver.groupby('H')
+            neg_gb = neg.aver.groupby('H')
+
+            if self.pre_edge:
+                pospe_gb = pos.pe_aver.groupby('H')
+                negpe_gb = neg.pe_aver.groupby('H')
+
+                for Hval, dat in pos_gb:
+                    xmcd = dat.sort_values(by=['t'])
+                    xmcd['CL'] = neg_gb['I'].get_group(Hval).sort_values(
+                                                                    by=['t'])
+                    xmcd['CRpe'] = pospe_gb['I'].get_group(Hval).sort_values(
+                                                                    by=['t'])
+                    xmcd['CLpe'] = negpe_gb['I'].get_group(Hval).sort_values(
+                                                                    by=['t'])
+            else:
+                for Hval, dat in pos_gb:
+                    xmcd = dat.sort_values(by=['t'])
+                    xmcd['CL'] = neg_gb['I'].get_group(Hval).sort_values(
+                                                                    by=['t'])            
+        # Compute XMCD
+        xmcd['edge'] = xmcd['CL'] - xmcd['CR']
+
+        if self.pre_edge:
+            xmcd['pre-edge'] = xmcd['CLpe'] - xmcd['CRpe']
+
+            crcrp = xmcd['CR'] / xmcd['CRpe']
+            clclp = xmcd['CL'] / xmcd['CLpe']
+
+            xmcd['no-norm'] = (clclp - crcrp)
+            xmcd['norm'] = 200 * xmcd['no-norm'] / (crcrp + clclp - 2)
+
+            if guiobj.analysis == 'hyst_t_aver':
+                # For time average compute also error coming from
+                # averaging
+                xmcd['Dedge'] = xmcd['dCL'] + xmcd['dCR']
+                xmcd['Dpre-edge'] = xmcd['dCLpe'] + xmcd['dCRpe']
+
+                dcrcrp = np.abs((np.abs(xmcd['dCR'] / xmcd['CR']) +
+                                np.abs(xmcd['dCRpe'] / xmcd['CRpe'])) * crcrp)
+                dclclp = np.abs((np.abs(xmcd['dCL'] / xmcd['CL']) +
+                                np.abs(xmcd['dCLpe'] / xmcd['CLpe'])) * clclp)
+                denerr = (clclp + crcrp - 2) ** 2
+                xmcd['Dnorm'] = 400 * (((np.abs(crcrp-1) / denerr) * dclclp) +
+                                        ((np.abs(clclp-1) / denerr) * dcrcrp))
+
+    self.xmcd = xmcd
+
 
 def h_scale(guiobj, pos, neg, log_dt):
     '''
@@ -934,9 +1323,10 @@ def h_scale(guiobj, pos, neg, log_dt):
     else:
         n_points = int(h_av_len)
 
-    log_dt['h_scale'] = [h_min, h_max, n_points]
+    h_step = (h_max - h_min) / (n_points - 1)
+    log_dt['h_scale'] = [h_min, h_max, n_points, h_step]
 
-    return np.linspace(h_min,h_max, n_points)
+    return np.linspace(h_min, h_max, n_points)
 
 def h_num_points(h_arr):
     '''

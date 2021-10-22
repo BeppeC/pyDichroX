@@ -128,6 +128,14 @@ class GUI:
     wrongpol(scn_num, polarisation)
         GUI dialogue to warn that a file with wrong polarisation has
         been passed.
+
+    acq_times(pos, neg, fieldscn)
+        Set start and end values to define the time window to select
+        data to for hysteresis point by point analysis.
+
+    ask_acq_times()
+        Prompt for starting and ending acquisition times to be 
+        considered in hysteresis point by point analysis.
     '''
 
     def __init__(self, confobj):
@@ -139,8 +147,7 @@ class GUI:
         ----------
         confobj : configuration object.
         '''
-        self.type = {'hyst': ['XMCD Hysteresis on the fly',
-                              'XMCD Hysteresis point by point'],  #hysts
+        self.type = {'hyst': ['hyst_fly', 'hyst_t_aver', 'hyst_t_split'],
                      'xmcd': ['XMCD'],  # analysis values for XMCD
                      'xncd': ['XNCD'],  # analysis values for XNCD
                      'xnld': ['XNLD'],  # analysis values for XNLD
@@ -175,10 +182,18 @@ class GUI:
                 ask_quit(self.title)
             else:
                 break
+        
+        # Make easier id for hysteresis analysis
+        if a_choice == 'XMCD Hysteresis on the fly':
+            self.analysis = 'hyst_fly'
+        elif a_choice == 'XMCD Hysteresis point by point - time average':
+            self.analysis = 'hyst_t_aver'
+        elif a_choice == 'XMCD Hysteresis point by point - time split':
+            self.analysis = 'hyst_t_split'
+        else
+            self.analysis = a_choice
 
-        self.analysis = a_choice
-
-        self.title = '{} {} analysis'.format(self.analysis, self.sense)
+        self.title = '{} {} analysis'.format(a_choice, self.sense)
 
     def sel_edg_fls(self):
         '''
@@ -919,6 +934,110 @@ class GUI:
                ' will not be considered')
 
         eg.msgbox(msg=msg, title=self.title)
+
+    def acq_times(self, pos, neg):
+        '''
+        Set start and end values to define the time window to select
+        data to for hysteresis point by point analysis.
+
+        Parameters
+        ----------
+        pos : ScanData obj
+            ScanData obj with CR data.
+
+        neg : ScanData obj
+            ScanData obj with CL data.
+
+        Return
+        ------
+        float, float : start (by default 0) and end (by default the
+        smallest of max times of all scans) times for common time scale
+        definition.
+        '''
+        while True:
+            st_t, end_t = self.ask_acq_times()
+            msg = ''
+            
+            t_min = pos.min_t.copy()
+            t_min.extend(neg.min_t)
+
+            t_max = pos.max_t.copy()
+            t_max.extend(neg.max_t)
+
+            t_num = pos.num_t.copy()
+            t_num.extend(neg.num_t)
+
+            # Check that start and end times are consistent with data            
+            if st_t > np.amin(t_max):
+                msg += ('The start time inserted is outside the acquired time'+
+                    'range.\nPlease chose a value smaller than {} s'.format(
+                    np.amin(t_max)))
+            if end_t < 0:
+                end_t = np.amin(t_max)  # default value for no input
+            if st_t >= end_t:
+                msg += ('Start time must be smaller than end time.\n' +
+                        'Please chose a value smaller than {} s'.format(end_t))
+            if not msg:
+                break
+            eg.msgbox(msg, self.title)
+
+        return st_t, end_t
+
+    def ask_acq_times(self):
+        '''
+        Prompt for starting and ending acquisition times to be 
+        considered in hysteresis point by point analysis.
+
+        Return
+        ------
+        float, float
+            starting and ending times inserted by user. If nothing is
+            passed 0 and -1 are the default values passed by deafult for
+            start and end times respectively.
+        '''
+        msg = ("Enter the START acquisition time you want to consider (sec)" +
+                "\n\nIf nothing is passed 0 is taken as default.")
+        st_t = eg.enterbox(msg, self.title)
+
+        while True:
+            errmsg = ''
+            if st_t is None or not st_t:
+                st_t = 0
+            else:                
+                try:
+                    st_t = float(st_t)
+                except:
+                    errmsg += ('\n\nPlease insert only numbers for start' +
+                                ' time.')
+                if st_t < 0:
+                    errmsg += ('\n\nInsert only positive numbers for start' +
+                                ' time.')
+            if not errmsg:
+                break
+            st_t = eg.enterbox(msg + errmsg, self.title)
+
+        msg = ("Enter the STOP acquisition time you want to consider (sec)" +
+                "\n\nIf nothing is passed last acquired time is taken as" +
+                " default.")
+        end_t = eg.enterbox(msg, self.title)
+
+        while True:
+            errmsg = ''
+            if end_t is None or not end_t:
+                end_t = -1
+            else:
+                try:
+                    end_t = float(end_t)                    
+                except:
+                    errmsg += ('\n\nPlease insert only numbers for end time.')
+                if end_t < 0:
+                    errmsg += ('\n\nInsert only positive numbers for end' +
+                                ' time.')
+            if not errmsg:
+                break
+            end_t = eg.enterbox(msg + errmsg, self.title)
+
+        return st_t, end_t
 
 
 def ask_continue():

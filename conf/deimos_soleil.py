@@ -138,7 +138,9 @@ class Configuration():
 
         # List of of performed analysis
         self.list_analysis = ['XMCD', 'XNCD', 'XNLD', 'XNXD',
-            'XMCD Hysteresis on the fly']
+                            'XMCD Hysteresis on the fly',
+                            'XMCD Hysteresis point by point - time average',
+                            'XMCD Hysteresis point by point - time split']
 
         # Attributes for logfiles - present but not used
         self.scanlog_cnt = 0

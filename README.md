@@ -3,7 +3,8 @@ pyDichroX
 
 pyDichroX is a program written in Pyhton to analyse XAS data.
 
-Starting with XAS scan pyDichroX computes XMCD, XNXD, XNCD, XNLD.
+Starting from XAS scans, pyDichroX computes XMCD, XNXD, XNCD, XNLD spectra.
+It also calculates XMCD hysteresis.
 
 Currently pyDichroX analyse only data from:
 - Deimos beamline @ Soleil Synchrotron, Paris (France)
@@ -23,16 +24,14 @@ USAGE
 -----
 Just run pyDichroX.py.
 
-Dialogues and interactions through the data analysis are provided by a sequence
-of pup-up windows, here listed: 
+Dialogues and interactions through the data analysis are provided by a sequence of pup-up windows, here listed: 
 
 - Chose the analysis type:
-A dialogue ask to choose which type of analysis perform between XMCD, XNXD,
-XNCD, XNLD.
+A dialogue asks to choose which type of analysis perform between XMCD, XNXD,
+XNCD, XNLD, Hysteresis on the fly and Hysteresis point by point.
 
 - Edge file selection:
-Select the edge-file where edge and preedge energies of the element of interests
-are listed. By default edge-files are located in 'edge files' folder.
+Select the edge-file where edge and preedge energies of the element of interests are listed. By default edge-files are located in 'edge files' folder.
 If there's no edge-file present a wizard allows to create one.
 
 - Edge chose:
@@ -47,8 +46,7 @@ Insert the angle of the X-Ray beam with respect the sample.
 All the further set of data will be averaged together.
 
 - Set interpolation points numbers
-During analysis, XAS spectra will be interpolated using the number of points
-inserted. By default the number of points in the scans is setted.
+During analysis, XAS spectra will be interpolated using the number of points inserted. By default the number of points in the scans is setted.
 
 - Chose XAS spectra to average
 The graphs of the scans are shown and then a dialogue ask which scans select
@@ -57,12 +55,9 @@ to be averaged and used for the analysis.
 - If configuration file is setted in order to accept scans from a reference 
 sample, repeat the same passages before for reference scans
 
-- Energies
-A graph with analyzed data is shown togheter with the position of edge energy
-present in the edge-file and the edge energy found from experimental data.
-The average of the XAS spectra is also shown with a linear baseline based on pre
-and post-edge energies. Final data will be normalized based edge jump computed
-using both the pre-edge energy setted and linear baseline.
+- Energies - Only for energy scans (XMCD, XNXD, XNCD, XNLD)
+A graph with analyzed data is shown togheter with the position of edge energy present in the edge-file and the edge energy found from experimental data.
+The average of the XAS spectra is also shown with a linear baseline based on pre and post-edge energies. Final data will be normalized based edge jump computed using both the pre-edge energy setted and linear baseline.
 Another pop-up window allows to change edge, pre-edge and post-edge energies.
 
 - Save data

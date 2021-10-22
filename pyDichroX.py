@@ -39,6 +39,8 @@ if __name__ == '__main__':
 
             h_scan = hsdt.FieldScan(gui, conf, h_scale, pos, neg, log_dt)
             io.save_data_hscan(conf, gui, h_scan, log_dt)
+        elif gui.analysis == 'XMCD Hysteresis point by point':
+            
         else:
             # Create common energy scale
             e_scale = esdt.e_scale(gui, pos, neg, log_dt, pos_ref, neg_ref)

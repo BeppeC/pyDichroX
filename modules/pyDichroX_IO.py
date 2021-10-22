@@ -145,10 +145,10 @@ def open_import_scan(guiobj, confobj):
     . setted_postedg : energy value chooed as post-edge energy
     . recal : bool, True if energy scale has been recalibrated
     . offset : offset value added to energy scale to recalibrate it
-    . e_scale : list containing start value, end value and number of
-                point used to contruct the energy scale
-    . h_scale : list containing start value, end value and number of
-                point used to contruct the magnetic field scale
+    . e_scale : list containing start value, end value, number of points
+                and stepsize used to contruct the energy scale
+    . h_scale : list containing start value, end value, number of points
+                and stepsize used to contruct the magnetic field scale
     . pe_int : interpolated pre-edge value
     . pos_ej : edge-jump for positive scans
     . pos_ej_int : edge-jump for positve scans computed using
@@ -220,8 +220,8 @@ def open_import_scan(guiobj, confobj):
     # If field scan data use hsdt data object, if energy scan data use
     # es.dt data object
     if guiobj.analysis in guiobj.type['hyst']:
-        pos = hsdt.ScanData()
-        neg = hsdt.ScanData()
+        pos = hsdt.ScanData(guiobj)
+        neg = hsdt.ScanData(guiobj)
 
         log_tbl = h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt)      
         log_dt['exper_edge'] = np.round(log_tbl['edge_mon_en'].abs().mean(), 2)
@@ -509,10 +509,11 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                 sys.exit(0)
             else:
                 continue
-        # If no pre-edge files are present hysteresis analysis can be done
-        # without pre-edge normalization.
-        # But if are present pre-edge files for one polarization also at least
-        # one pre-edge file for the other polarization is requested
+        # If no pre-edge files are present hysteresis analysis can be 
+        # done without pre-edge normalization.
+        # But if are present pre-edge files for one polarization also at
+        # least one pre-edge file for the other polarization is
+        # required.
         if (len(pos.pe_idx) < 1) and (len(neg.pe_idx) >= 1):
             cont = guiobj.not_enough_fls(True, True)
             if (not cont) or (cont is None):
@@ -525,11 +526,30 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                 sys.exit(0)
             else:
                 continue
+        
+        if guiobj.analysis != 'hyst_fly': 
+            # For point by point analysis if pre-edge scans are present they
+            # must be in the same number as edge scans
+            if (len(pos.pe_idx) > 0) and (len(pos.pe_idx) != len(pos.idx)):
+                cont = guiobj.not_enough_fls(True, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            if (len(neg.pe_idx) > 0) and (len(neg.pe_idx) != len(neg.idx)):
+                cont = guiobj.not_enough_fls(False, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
 
         break  # If no problem with number of files breaks the loop
 
-    pos.up_n_down()
-    neg.up_n_down()
+    if guiobj.analysis == 'hyst_fly':
+    # For hysteresis point by point no branch recognition mechanism is
+    # at the moment present.
+        pos.up_n_down()
+        neg.up_n_down()
 
     return log_tbl
 
@@ -902,15 +922,26 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
 
     h_raw_to_imp = h_raw.to_numpy()
     dt_raw_to_imp = dt_raw.to_numpy()
-    time_raw_to_imp = time_raw.to_numpy()
 
-    rawtm = pd.DataFrame()
-    rawh = pd.DataFrame()
     rawdt = pd.DataFrame()
 
-    rawtm['t' + scn_num] = time_raw_to_imp
-    rawh['H' + scn_num] = h_raw_to_imp
-    rawdt[scn_num] = dt_raw_to_imp
+    # For hysteresis on fly scans are collected as separate columns
+    # For hysteresis pont by point they are just appended on the same
+    # columns
+    if guiobj.analysis == 'hyst_fly':
+        rawh = pd.DataFrame()
+        rawdt[scn_num] = dt_raw_to_imp
+        rawh['H' + scn_num] = h_raw_to_imp
+    else:
+        rawdt['H'] = np.around(h_raw_to_imp, decimals=3)
+        rawdt['I'] = dt_raw_to_imp
+        rawdt['t'] = time_raw.to_numpy()
+
+        # List with min, max and number of times data
+        # to be used for the realization of a common time scale for time
+        # splitted point by point analysis
+        min_t = np.nanmin(rawdt['t'])
+        max_t = np.nanmax(rawdt['t'])
 
     if ispol:  # CR data
         pos.dtype = 'CR'
@@ -919,9 +950,15 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
             lgrws['type'] = 'CR'
             lgrws['edge_mon_en'] = lgrws['mon_en']
             lgrws['pre_edge_mon_en'] = np.nan
-            pos.raw_imp = pd.concat([pos.raw_imp, rawtm], axis=1)
-            pos.raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
-            pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
+            
+            if guiobj.analysis == 'hyst_fly':
+                pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
+                pos.raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
+            else:
+                pos.raw_imp = pos.raw_imp.append(rawdt, ignore_index=True)
+                pos.min_t.append(min_t)
+                pos.max_t.append(max_t)
+            
             pos.label.append(scn_lbl)
             pos.idx.append(scn_num)
         else:
@@ -933,9 +970,16 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
             lgrws['type'] = 'PE-CR'
             lgrws['edge_mon_en'] = np.nan
             lgrws['pre_edge_mon_en'] = lgrws['mon_en']
-            pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawtm], axis=1)
-            pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawh], axis=1)
-            pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt], axis=1)
+            
+            if guiobj.analysis == 'hyst_fly':
+                pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawh], axis=1)
+                pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt], axis=1)
+            else:
+                pos.pe_raw_imp = pos.pe_raw_imp.append(rawdt,
+                                                        ignore_index=True)
+                pos.min_t.append(min_t)
+                pos.max_t.append(max_t)
+            
             pos.pe_label.append(scn_lbl)
             pos.pe_idx.append(scn_num)        
     else:  # CL data
@@ -945,9 +989,15 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
             lgrws['type'] = 'CL'
             lgrws['edge_mon_en'] = lgrws['mon_en']
             lgrws['pre_edge_mon_en'] = np.nan
-            neg.raw_imp = pd.concat([neg.raw_imp, rawtm], axis=1)
-            neg.raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
-            neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
+            
+            if guiobj.analysis == 'hyst_fly':
+                neg.raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
+                neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
+            else:
+                neg.raw_imp = neg.raw_imp.append(rawdt, ignore_index=True)
+                neg.min_t.append(min_t)
+                neg.max_t.append(max_t)
+            
             neg.label.append(scn_lbl)
             neg.idx.append(scn_num)
         else:
@@ -959,9 +1009,16 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
             lgrws['type'] = 'PE-CL'
             lgrws['edge_mon_en'] = np.nan
             lgrws['pre_edge_mon_en'] = lgrws['mon_en']
-            neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawtm], axis=1)
-            neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawh], axis=1)
-            neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt], axis=1)
+            
+            if guiobj.analysis == 'hyst_fly':
+                neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawh], axis=1)
+                neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt], axis=1)
+            else:
+                neg.pe_raw_imp = neg.pe_raw_imp.append(rawdt,
+                                                        ignore_index=True)
+                neg.min_t.append(min_t)
+                neg.max_t.append(max_t)
+            
             neg.pe_label.append(scn_lbl)
             neg.pe_idx.append(scn_num)
 

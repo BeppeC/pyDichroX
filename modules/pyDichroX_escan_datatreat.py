@@ -1121,7 +1121,9 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
     else:
         n_points = int(e_av_len)
 
-    log_dt['e_scale'] = [e_min, e_max, n_points]
+    e_step = (e_max - e_min) / (n_points - 1)
+
+    log_dt['e_scale'] = [e_min, e_max, n_points, e_step]
 
     return np.linspace(e_min, e_max, n_points)
 

@@ -118,6 +118,10 @@ class Configuration():
     hscan_logfl_creator(log_dt)
         Create string with log data to be saved in logfile for field
         scans analysis.
+
+    ptbypt_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for
+        hysteresis point by point analysis.
     '''
 
     def __init__(self):
@@ -177,7 +181,7 @@ class Configuration():
         '''
         if guiobj.analysis in guiobj.type['hyst']:
             # Columns for hysteresis on fly collected with TurboHyst
-            if guiobj.analysis == 'XMCD Hysteresis on the fly':
+            if guiobj.analysis == 'hyst_fly':
                 self.field = 'data_02'  # magnetic field data
                 self.iti0 = 'data_08'  # it/i0 data - TEY
 
@@ -196,7 +200,7 @@ class Configuration():
                 # Hysteresis scan colums list to be imported
                 return [self.field, self.iti0, self.ifi0, self.time]
 
-            elif guiobj.analysis == 'XMCD Hysteresis point by point':
+            else:
                 # Columns for hysteresis point by point collected with
                 # TurboTimeScan
                 self.field = 'data_09'  # magnetic field data
@@ -547,6 +551,57 @@ class Configuration():
             for i in log_dt['neg_pe_dw_chsn']:
                 logtxt += '{}, '.format(i)
             logtxt += '\n\n'
+        logtxt += 'Edge used : {}\n'.format(log_dt['Edge_name'])
+        logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
+            log_dt['exper_edge'], log_dt['Edge_en'])
+        logtxt += 'Pre-edge energy : {} eV\n'.format(log_dt['setted_pedg'])
+        
+        return logtxt
+
+    def ptbypt_logfl_creator(self, log_dt):
+        '''
+        Create string with log data to be saved in logfile for
+        hysteresis point by point analysis.
+
+        Parameters
+        ----------
+        log_dt : dictionary with log data.
+
+        Returns
+        -------
+        str, data formatted to be saved in logfile.
+        '''
+        logtxt = ''
+        log_tbl = log_dt['log_tbl']
+
+        logtxt += 'Sample temperature\n'
+        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
+                                               log_tbl['tb1'].std())
+        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
+                                                 log_tbl['tb2'].std())
+        logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
+            log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
+        logtxt += 'Sample position\n'
+        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
+                                              log_tbl['rz'].std())
+        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+                                               log_tbl['tx'].std())
+        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
+                                                 log_tbl['tz'].std())
+
+        logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
+
+        logtxt += 'Input scans\n'
+        for i in range(len(log_tbl)):
+            logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],
+                                         log_tbl['type'].iloc[i])
+        logtxt += '\n\n'
+        
+        logtxt += 'Time window : {} -- {} s\n'.format(log_dt['t_scale'][0],
+                                                        log_dt['t_scale'][1])
+        logtxt += 'Number of time steps : {}\n'.format(log_dt['t_scale'][2])
+        logtxt += 'Time step length : {} s\n\n'.format(log_dt['t_scale'][3])
+
         logtxt += 'Edge used : {}\n'.format(log_dt['Edge_name'])
         logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
             log_dt['exper_edge'], log_dt['Edge_en'])

@@ -104,6 +104,11 @@ class Configuration():
     hscan_logfl_creator(log_dt)
         Create string with log data to be saved in logfile for field
         scans analysis. - NOT YET PROVIDED FOR BOREAS.
+
+    ptbypt_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for
+        hysteresis point by point analysis.
+        NOT YET PROVIDED FOR BOREAS.
     '''
 
     def __init__(self):
@@ -405,6 +410,21 @@ class Configuration():
         '''
         Create string with log data to be saved in logfile for field
         scans analysis.
+
+        Parameters
+        ----------
+        log_dt : dictionary with log data.
+
+        Returns
+        -------
+        Not yet provided for Boreas, currently does nothing.
+        '''
+        pass
+
+    def ptbypt_logfl_creator(self, log_dt):
+        '''
+        Create string with log data to be saved in logfile for
+        hysteresis point by point analysis.
 
         Parameters
         ----------

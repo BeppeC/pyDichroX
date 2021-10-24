@@ -46,19 +46,37 @@ output_fls_hscan(guiobj, scanobj)
     Organize output data and columns names for hysteresis on fly
     analysis.
 
+output_fls_ptbypt(guiobj, scanobj):
+    Organize output data and columns names for hysteresis on point by
+    point analysis.
+
 output_plot_escan(guiobj, pos, neg, scanobj, log_dt)
     Create a final figure with plot reporting averaged positive and
     negative XAS and percentage X-Ray dichroism.
 
-output_plot_hscan(guiobj, scanobj, log_dt)
-    Create a final figure with plot reporting XMCD hysteresis analized.
+output_plot_hscan(scanobj, log_dt)
+    Create a final figure with plot reporting XMCD hysteresis on the fly
+    analized.
+
+output_plot_t_aver(scanobj, log_dt)
+    Create a final figure with plot reporting XMCD hysteresis point by
+    point analized with time averaging.
+
+output_plot_t_split(guiobj, scanobj, log_dt)
+    Create a final figure with plot reporting XMCD hysteresis point by
+    point analized with time splitting.
 
 save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
     neg_ref, scanobj_ref_norm, log_dt_ref)
     Save output data, logdata and final plots for energy scan analysis.
 
 save_data_hscan(confobj, guiobj, scanobj, log_dt)
-    Save output data, logdata and final plots for scan field analysis.
+    Save output data, logdata and final plots for scan field on the fly
+    analysis.
+
+save_data_tscan(confobj, guiobj, scanobj, log_dt):
+    Save output data, logdata and final plots for scan field point by
+    point analysis.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -146,9 +164,11 @@ def open_import_scan(guiobj, confobj):
     . recal : bool, True if energy scale has been recalibrated
     . offset : offset value added to energy scale to recalibrate it
     . e_scale : list containing start value, end value, number of points
-                and stepsize used to contruct the energy scale
+                and stepsize used to construct the energy scale
     . h_scale : list containing start value, end value, number of points
-                and stepsize used to contruct the magnetic field scale
+                and stepsize used to construct the magnetic field scale
+    . t_scale : list containing start value, end value, number of points
+                and step size used to construct the time scale
     . pe_int : interpolated pre-edge value
     . pos_ej : edge-jump for positive scans
     . pos_ej_int : edge-jump for positve scans computed using
@@ -669,11 +689,11 @@ def hscan_imp(confobj, data):
     - 3rd. measured data values.
     '''
     # Import field and XAS normalized raw data
-    energy_raw = data[confobj.field]
+    h_raw = data[confobj.field]
     data_raw = dt_raw_import(confobj, data)
     time_raw = data[confobj.time]
     
-    return time_raw, energy_raw, data_raw
+    return time_raw, h_raw, data_raw
 
 def set_scn_num(confobj, f_name, pos, neg):
     '''
@@ -1193,6 +1213,119 @@ def output_fls_hscan(guiobj, scanobj):
 
     return out_data, col_nms, col_desc
 
+def output_fls_ptbypt(guiobj, scanobj):
+    '''
+    Organize output data and columns names for hysteresis on point by
+    point analysis.
+    
+    Parameters
+    ----------
+    guiobj : GUI object
+        Provide GUI dialogues.
+
+    scanobj : FieldScan object
+        Contains results of X-Ray dichroism computations.
+
+    Return
+    ------
+    Numpy array with data to be saved
+    col_nms str with column names
+    col_desc str with column description.
+    '''
+    if guiobj.analysis == 'hyst_t_aver':
+        # Output column names
+        col_nms = 'H (T),'
+        col_nms += 'CR (a.u.),'
+        col_nms += 'ErrCR (a.u.),'
+        col_nms += 'CL (a.u.),'
+        col_nms += 'ErrCL (a.u.),'
+        col_nms += 'Edge only (a.u.),'
+        col_nms += 'ErrEdge only (a.u.)\n'
+
+        # Output file column description
+        col_desc = 'Magnetic field,'
+        col_desc += 'Averaged CR,'
+        col_desc += 'Std of averaged CR,'
+        col_desc += 'Averaged CL,'
+        col_desc += 'Std of averaged CL,'
+        col_desc += 'CL - CR - only edge,'
+        col_desc += 'Std of CL - CR - only edge\n'
+        
+        if scanobj.pre_edge:
+            # Order data
+            scanobj.xmcd = scanobj.xmcd[['H', 'CR', 'dCR', 'CL', 'dCL', 'edge',
+                                        'Dedge', 'CRpe', 'dCRpe', 'CLpe',
+                                        'dCLpe', 'pre-edge', 'Dpre-edge',
+                                        'no-norm', 'norm', 'Dnorm']]    
+            # Output column names
+            col_nms = col_nms.removesuffix('\n')
+            col_nms += ',CR_pe (a.u.),'
+            col_nms += 'ErrCR_pe (a.u.),'
+            col_nms += 'CL_pe (a.u.),'
+            col_nms += 'ErrCL_pe (a.u.),'
+            col_nms += 'PreEdge only (a.u.),'
+            col_nms += 'ErrPreEdge only (a.u.),'
+            col_nms += 'Hyst not norm (a.u.),'
+            col_nms += 'Hyst norm (%),'
+            col_nms += 'ErrHyst norm (%)\n'
+
+            # Output column description
+            col_desc = col_desc.removesuffix('\n')
+            col_desc += ',Averaged CR pre-edge,'
+            col_desc += 'Std of averaged CR pre-edge,'
+            col_desc += 'Averaged CL pre-edge,'
+            col_desc += 'Std of averaged CL pre-edge,'
+            col_desc += 'CL_pe - CR_pe,'
+            col_desc += 'Std of CL_pe - CR_pe'
+            col_desc += 'CL/CL_pe - CR/CR_pe,'
+            col_desc += '100 * 2 * Hyst_not_norm/((CL/CL_pe + CR/CR_PE) - 2),'
+            col_desc += 'Std of Hyst norm\n'
+        else:
+            # Order data
+            scanobj.xmcd = scanobj.xmcd[['H', 'CR', 'dCR', 'CL', 'dCL', 'edge',
+                                        'Dedge']]
+    else:
+        # Output column names
+        col_nms = 'H (T),'
+        col_nms += 't (s),'
+        col_nms += 'CR (a.u.),'
+        col_nms += 'CL (a.u.),'
+        col_nms += 'Edge only (a.u.)\n'
+
+        # Output file column description
+        col_desc = 'Magnetic field,'
+        col_desc += 'Time,'
+        col_desc += 'CR,'
+        col_desc += 'CL,'
+        col_desc += 'CL - CR - only edge\n'
+
+        if scanobj.pre_edge:
+            # Order data
+            scanobj.xmcd = scanobj.xmcd[['H', 't', 'CR', 'CL', 'edge', 'CRpe',
+                                        'CLpe', 'pre-edge', 'no-norm', 'norm']]
+            # Output column names
+            col_nms = col_nms.removesuffix('\n')
+            col_nms += ',CR_pe (a.u.),'
+            col_nms += 'CL_pe (a.u.),'
+            col_nms += 'PreEdge only (a.u.),'
+            col_nms += 'Hyst not norm (a.u.),'
+            col_nms += 'Hyst norm (%)\n'
+
+            # Output column description
+            col_desc = col_desc.removesuffix('\n')
+            col_desc += ',CR pre-edge,'
+            col_desc += 'CL pre-edge,'
+            col_desc += 'CL_pe - CR_pe,'
+            col_desc += 'CL/CL_pe - CR/CR_pe,'
+            col_desc += '100 * 2 * Hyst_not_norm/((CL/CL_pe + CR/CR_PE) - 2)\n'
+        else:
+            # Order data
+            scanobj.xmcd = scanobj.xmcd[['H', 't', 'CR', 'CL', 'edge']]
+    scanobj.xmcd = scanobj.xmcd.sort_values(by=['t', 'H'])
+    out_data = scanobj.xmcd.to_numpy()
+
+    return out_data, col_nms, col_desc
+
 def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     '''
     Create a final figure with plot reporting averaged positive and
@@ -1293,15 +1426,13 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
 
     return f1, f2
 
-def output_plot_hscan(guiobj, scanobj, log_dt):
+def output_plot_hscan(scanobj, log_dt):
     '''
-    Create a final figure with plot reporting XMCD hysteresis analized.
+    Create a final figure with plot reporting XMCD hysteresis on the fly
+    analized.
 
     Parameters
     ----------
-    guiobj : GUI object
-        Provide GUI dialogues.
-
     scanobj : FieldScan object
         Contains results of X-Ray dichroism computations.
 
@@ -1354,8 +1485,9 @@ def output_plot_hscan(guiobj, scanobj, log_dt):
         ax2.plot(scanobj.fields, scanobj.up_perc, label='UP', color='crimson')
         ax2.plot(scanobj.fields, scanobj.down_perc, label='DOWN',
                 color='green')
-        ax2.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-                log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+        ax2.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
+                log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
+                log_dt['angle']))
         ax2.legend()
         ax2.set_ylim(limy2, -limy2)
         ax2.axhline(y=0, color='darkgray')
@@ -1370,6 +1502,189 @@ def output_plot_hscan(guiobj, scanobj, log_dt):
     else:
         plt.show()
         return f1
+
+def output_plot_t_aver(scanobj, log_dt):
+    '''
+    Create a final figure with plot reporting XMCD hysteresis point by
+    point analized with time averaging.
+
+    Parameters
+    ----------
+    scanobj : FieldScan object
+        Contains results of X-Ray dichroism computations.
+
+    log_dt : dict
+        Collect data for logfile.
+
+    Return
+    ------
+    Two pyplot figure objects: CR and CL data in the first, XMCD edge
+    only in the sedond one.
+    
+    If pre-edge data are present also a third pyplot figure object with
+    XMCD normalized with pre-edge data is returned.
+    '''
+    data = scanobj.xmcd
+    log_tbl = log_dt['log_tbl']
+
+    int_scn_num = [int(x) for x in log_tbl['scn_num']]
+
+    low_scn = np.amin(int_scn_num)
+    hgh_scn = np.amax(int_scn_num)
+    time = '{:.1f}--{:.1f} s'.format(log_dt['t_scale'][0],
+                                    log_dt['t_scale'][1])
+    s_nums = 'scans {} - {} '.format(low_scn, hgh_scn)
+    scanobj.subtitle = s_nums + time
+    
+    f1, ax1 = plt.subplots()
+    
+    ax1.plot(data['H'], data['CR'], label='CR')
+    ax1.plot(data['H'], data['CL'], label='CL')
+    ax1.set_xlabel('H (T)')
+    ax1.set_ylabel('XAS (a.u.)')
+    ax1.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
+            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+    ax1.legend()
+    ax1.axhline(y=0, color='darkgray')
+    ax1.axvline(x=0, color='darkgray')
+    f1.suptitle('CR and CL\n{}'.format(scanobj.subtitle))
+
+    f2, ax2 = plt.subplots()
+    ax2.errorbar(data['H'], data['edge'], yerr=data['Dedge'],
+                label='Edge only')
+    ax2.set_xlabel('H (T)')
+    ax2.set_ylabel('XMCD (a.u.)')
+    ax2.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
+            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+    ax2.legend()
+    ax2.axhline(y=0, color='darkgray')
+    ax2.axvline(x=0, color='darkgray')
+    f2.suptitle('XMCD edge only\n{}'.format(scanobj.subtitle))
+
+    if scanobj.pre_edge:
+        f3, ax3 = plt.subplots()
+        ax3.errorbar(data['H'], data['norm'], yerr=data['Dnorm'],
+                    label='Normalized')
+        ax3.set_xlabel('H (T)')
+        ax3.set_ylabel('XMCD (%)')
+        ax3.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
+                log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
+                log_dt['angle']))
+        ax3.legend()
+        ax3.axhline(y=0, color='darkgray')
+        ax3.axvline(x=0, color='darkgray')
+        f3.suptitle('XMCD normalized\n{}'.format(scanobj.subtitle))
+
+        plt.show()
+        return f1, f2, f3
+    else:
+        plt.show()
+        return f1, f2
+
+def output_plot_t_split(guiobj, scanobj, log_dt):
+    '''
+    Create a final figure with plot reporting XMCD hysteresis point by
+    point analized with time splitting.
+
+    Parameters
+    ----------
+    guiobj : GUI object
+        Provide GUI dialogues.
+
+    scanobj : FieldScan object
+        Contains results of X-Ray dichroism computations.
+
+    log_dt : dict
+        Collect data for logfile.
+
+    Return
+    ------
+    Two pyplot figure objects: CR and CL data in the first, XMCD edge
+    only in the sedond one.
+    
+    If pre-edge data are present also a third pyplot figure object with
+    XMCD normalized with pre-edge data is returned.
+    '''
+    log_tbl = log_dt['log_tbl']
+
+    int_scn_num = [int(x) for x in log_tbl['scn_num']]
+
+    low_scn = np.amin(int_scn_num)
+    hgh_scn = np.amax(int_scn_num)
+    time = '{:.1f}--{:.1f} s'.format(log_dt['t_scale'][0],
+                                    log_dt['t_scale'][1])
+    s_nums = 'scans {} - {} '.format(low_scn, hgh_scn)
+    scanobj.subtitle = s_nums + time
+
+    num_times = guiobj.num_times(log_dt) - 1
+
+    # Create colormap
+    col = cm.jet(np.linspace(0, 1, num_times))
+    c = 0
+
+    # Group data by times
+    t_gr = scanobj.xmcd.groupby('t')
+
+    f1, (ax11, ax12) = plt.subplots(2, 1, sharex=True)
+    f2, ax2 = plt.subplots()
+
+    steps = scanobj.time_scale[::int(np.rint(len(scanobj.time_scale) /
+                                num_times)) + 1]
+    for i in steps:
+        data = t_gr.get_group(i)
+        label = np.around(i, decimals=2)
+        ax2.plot(data['H'], data['edge'], color=col[c], label=label)
+        ax11.plot(data['H'], data['CR'], color=col[c], label=label)
+        ax12.plot(data['H'], data['CL'], color=col[c], label=label)
+        c += 1
+
+    ax2.set_xlabel('H (T)')
+    ax2.set_ylabel('XMCD (a.u.)')
+    ax2.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
+            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+    ax2.legend()
+    ax2.axhline(y=0, color='darkgray')
+    ax2.axvline(x=0, color='darkgray')
+    f2.suptitle('XMCD edge only\n{}'.format(scanobj.subtitle))
+
+    ax12.set_xlabel('H (T)')
+    ax11.set_ylabel('CR (a.u.)')
+    ax11.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
+            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+    ax11.legend()
+    ax11.axhline(y=0, color='darkgray')
+    ax11.axvline(x=0, color='darkgray')
+    ax12.set_ylabel('CL (a.u.)')
+    ax12.legend()
+    ax12.axhline(y=0, color='darkgray')
+    ax12.axvline(x=0, color='darkgray')
+    f1.suptitle('CR and CL\n{}'.format(scanobj.subtitle))
+
+    if scanobj.pre_edge:
+        c = 0
+        f3, ax3 = plt.subplots()
+
+        for i in steps:
+            data = t_gr.get_group(i)
+            label = np.around(i, decimals=2)
+            ax3.plot(data['H'], data['norm'], color=col[c], label=label)
+            c += 1
+
+        ax3.set_xlabel('H (T)')
+        ax3.set_ylabel('XMCD (%)')
+        ax3.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
+                log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
+                log_dt['angle']))
+        ax3.legend()
+        ax3.axhline(y=0, color='darkgray')
+        ax3.axvline(x=0, color='darkgray')
+        f3.suptitle('XMCD normalized\n{}'.format(scanobj.subtitle))
+
+        plt.show()
+        return f1, f2, f3
+    else:
+        plt.show()
+        return f1, f2
 
 def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
     neg_ref, scanobj_ref_norm, log_dt_ref):
@@ -1465,7 +1780,8 @@ def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
 
 def save_data_hscan(confobj, guiobj, scanobj, log_dt):
     '''
-    Save output data, logdata and final plots for scan field analysis.
+    Save output data, logdata and final plots for scan field on the fly
+    analysis.
 
     Parameters
     ----------
@@ -1483,15 +1799,14 @@ def save_data_hscan(confobj, guiobj, scanobj, log_dt):
     out_data, col_nms, col_desc = output_fls_hscan(guiobj, scanobj)
 
     if scanobj.pre_edge:
-        f1, f2 = output_plot_hscan(guiobj, scanobj, log_dt)
+        f1, f2 = output_plot_hscan(scanobj, log_dt)
     else:
-        f1 = output_plot_hscan(guiobj, scanobj, log_dt)
+        f1 = output_plot_hscan(scanobj, log_dt)
     
     logtxt = confobj.hscan_logfl_creator(log_dt)
     
-    default_nm = ('{}_{}_scan_{}-{}_{}K_{}T_{}_{}.dat'.format(
-        log_dt['Edge_name'], guiobj.analysis,
-        log_dt['log_tbl']['scn_num'].iloc[0],
+    default_nm = ('{}_Hyst_scan_{}-{}_{}K_{}T_{}_{}.dat'.format(
+        log_dt['Edge_name'], log_dt['log_tbl']['scn_num'].iloc[0],
         log_dt['log_tbl']['scn_num'].iloc[-1], log_dt['temp'], log_dt['field'],
         log_dt['angle'], guiobj.sense))
 
@@ -1513,6 +1828,74 @@ def save_data_hscan(confobj, guiobj, scanobj, log_dt):
         if scanobj.pre_edge:
             f2_out_nm = out_nm.removesuffix('dat') + 'png'
             f2.savefig(f2_out_nm)
+
+        logfl_nm = out_nm.removesuffix('dat') + 'log'
+
+        with open(logfl_nm, 'w') as fl:
+            fl.write(logfl_nm + '\n\n')
+            fl.write(logtxt)
+
+def save_data_tscan(confobj, guiobj, scanobj, log_dt):
+    '''
+    Save output data, logdata and final plots for scan field point by
+    point analysis.
+
+    Parameters
+    ----------
+    confobj : configuration obj.
+
+    guiobj : GUI object
+        Provide GUI dialogues.
+
+    scanobj : FieldScan object
+        Contains results of X-Ray dichroism computations.
+
+    log_dt : dict
+        Collect data for logfile.
+    '''
+    out_data, col_nms, col_desc = output_fls_ptbypt(guiobj, scanobj)
+
+    if guiobj.analysis == 'hyst_t_aver':
+        name = 'Hyst time aver'
+        if scanobj.pre_edge:
+            f1, f2, f3 = output_plot_t_aver(scanobj, log_dt)
+        else:
+            f1, f2 = output_plot_t_aver(scanobj, log_dt)        
+    if guiobj.analysis == 'hyst_t_split':
+        name = 'Hyst time split'
+        if scanobj.pre_edge:
+            f1, f2, f3 = output_plot_t_split(guiobj, scanobj, log_dt)
+        else:
+            f1, f2 = output_plot_t_split(guiobj, scanobj, log_dt)
+
+    default_nm = ('{}_{}_scan_{}-{}_{}-{}s_{}K_{}T_{}_{}.dat'.format(
+        log_dt['Edge_name'], name, log_dt['log_tbl']['scn_num'].iloc[0],
+        log_dt['log_tbl']['scn_num'].iloc[-1], log_dt['t_scale'][0],
+        log_dt['t_scale'][1],log_dt['temp'], log_dt['field'], log_dt['angle'],
+        guiobj.sense))
+
+    logtxt = confobj.ptbypt_logfl_creator(log_dt)
+
+    out_nm = guiobj.outfile_name(default_nm)
+
+    if out_nm is None:
+        pass
+    elif out_nm == '':
+        pass
+    else:
+        with open(out_nm, 'w') as fl:
+            fl.write(col_nms)
+            fl.write(col_desc)
+            np.savetxt(fl, out_data, fmt='%.7e', delimiter=',')
+
+            f1_out_nm = out_nm.removesuffix('.dat') + '_CR_CL.png'
+            f1.savefig(f1_out_nm)
+            f2_out_nm = out_nm.removesuffix('.dat') + '_Edge Only.png'
+            f2.savefig(f2_out_nm)
+
+        if scanobj.pre_edge:
+            f3_out_nm = out_nm.removesuffix('dat') + 'png'
+            f3.savefig(f3_out_nm)
 
         logfl_nm = out_nm.removesuffix('dat') + 'log'
 

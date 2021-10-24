@@ -150,7 +150,7 @@ class ScanData:
                              label=self.label[self.idx.index(i)])
                 plt.xlabel('E (eV)')
                 plt.ylabel(self.dtype)
-                plt.legend()                
+                plt.legend()
                 plt.show()
 
                 # Dialogue to choose data to be averaged
@@ -322,7 +322,6 @@ class ScanData:
         self.norm = self.aver / self.pe_av
         self.norm_int = self.aver / self.pe_av_int
 
-        
         # value at edge energy from interpolation
         y_edg = y_int(e_edge)
 
@@ -447,7 +446,7 @@ class EngyScan:
     '''
 
     def __init__(self, guiobj, confobj, e_scale, pos, neg, log_dt,
-        pos_to_norm=ScanData(), neg_to_norm=ScanData()):
+                 pos_to_norm=ScanData(), neg_to_norm=ScanData()):
         '''
         At instantiation scan_average and compt_xd method are called and
         energy attribute is setted, so upon its creation an EngyScan
@@ -485,7 +484,7 @@ class EngyScan:
         self.energy = e_scale
 
         self.scan_average(guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm)
-        
+
         self.compt_mxd(guiobj, pos, neg, log_dt)
 
     def scan_average(self, guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm):
@@ -654,11 +653,11 @@ class EngyScan:
 
         log_dt : dict
             Collect data for logfile.
-        
+
         Return
         ------
         Set attributes:
-        
+
         xd : array
             X-Ray Dichroism as negative - positive scans.
 
@@ -666,7 +665,7 @@ class EngyScan:
             Average of XAS spectra. Arithmetical mean of positive and
             negative scans for XMCD and XNCD analysis. Weigthed average
             by angle for XNLD analysis (see Notes).
-        
+
         ang_w_n : float
             Angle weight for XNLD computation.
 
@@ -801,8 +800,8 @@ class EngyScan:
             # x value which minimize y is passed as experimental edge
             # energy
             edgs = guiobj.set_edges(sel_edg, min_y.x, self.energy, y, y_aver,
-                y_int)
-           
+                                    y_int)
+
             self.exper_edge = edgs[0]
             self.e_pe = edgs[1]
             self.e_poste = edgs[2]
@@ -854,7 +853,7 @@ class EngyScan:
 
         neg : ScanData obj
             Negative scnas (CL for XMCD and XNCD, LV for XNLD).   
-        
+
         Return
         ------
         Set attributes
@@ -883,16 +882,16 @@ class EngyScan:
         if guiobj.analysis in guiobj.type['xnld']:
             # Percentage X-Ray dichroism normalized for edge jump
             self.xd_pc = (100 * self.ang_w_d * (neg.norm - pos.norm) /
-                (pos.ej_norm + self.ang_w_n * neg.ej_norm))
-            self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int - 
-                pos.norm_int) / (pos.ej_norm_int + self.ang_w_n * 
-                neg.ej_norm_int))
+                          (pos.ej_norm + self.ang_w_n * neg.ej_norm))
+            self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int -
+                            pos.norm_int) / (pos.ej_norm_int + self.ang_w_n *
+                            neg.ej_norm_int))
         else:
             # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = 200 * (neg.norm - pos.norm) / (neg.ej_norm + 
-                pos.ej_norm)
+            self.xd_pc = 200 * (neg.norm - pos.norm) / (neg.ej_norm +
+                                                        pos.ej_norm)
             self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int) /
-                (neg.ej_norm_int + pos.ej_norm_int))
+                                    (neg.ej_norm_int + pos.ej_norm_int))
 
     def compt_pe_corr(self, guiobj, pos, neg):
         '''
@@ -909,7 +908,7 @@ class EngyScan:
 
         neg : ScanData obj
             Negative scnas (CL for XMCD and XNCD, LV for XNLD).   
-        
+
         Return
         ------
         Set attributes:
@@ -937,11 +936,11 @@ class EngyScan:
 
         neg_corr_int : array
             Same as neg_corr using interpolated pre-edge values.
-        
+
         pos_corr_int : array
             Positive scan normalized by weighted average of interpolated
             edge-jump.
-        
+
         neg_corr_int : array
             Negative scan normalized by weighted average of interpolated
             edge-jump.
@@ -959,12 +958,12 @@ class EngyScan:
         if guiobj.analysis in guiobj.type['xnld']:
             # Angle weighted average of pre-edges values
             av_pe_av = (pos.pe_av + self.ang_w_n * neg.pe_av) / self.ang_w_d
-            av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int) / 
-                self.ang_w_d)
+            av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int) /
+                         self.ang_w_d)
         else:
             # Average of pre-edges values
             av_pe_av = (pos.pe_av + neg.pe_av) / 2
-            av_pe_int = (pos.pe_av_int + neg.pe_av_int) /2
+            av_pe_int = (pos.pe_av_int + neg.pe_av_int) / 2
 
         self.pos_corr = pos.aver * av_pe_av / pos.pe_av
         self.neg_corr = neg.aver * av_pe_av / neg.pe_av
@@ -1018,7 +1017,7 @@ class EngyScan:
         # Linear spline interpolation of xd_aver spectrum in order to
         # determine edge jump
         xd_aver_inter = itp.UnivariateSpline(self.energycal, self.xd_aver, k=1,
-                                            s=0)
+                                             s=0)
         # Ineterpolated values at edge and pre-edge energies
         edg_val_xd_aver = xd_aver_inter(self.exper_edge)
         pedg_val_xd_aver = xd_aver_inter(self.e_pe)
@@ -1088,7 +1087,7 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
     efirst_list = []
     elast_list = []
     e_len = []
-    
+
     # Sort energy data arrays and count their elements
     for i in pos.idx:
         efirst_list.append(np.sort(pos.raw_imp['E' + i])[0])
@@ -1108,7 +1107,7 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
         for i in neg_ref.idx:
             efirst_list.append(np.sort(neg_ref.raw_imp['E' + i])[0])
             elast_list.append(np.sort(neg_ref.raw_imp['E' + i])[-1])
-            e_len.append(neg_ref.raw_imp['E' + i].size)            
+            e_len.append(neg_ref.raw_imp['E' + i].size)
 
     # Compute min, max and default langth of energy range
     e_min = np.around(np.amax(efirst_list), 1)
@@ -1129,25 +1128,25 @@ def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):
 
 
 def lin_interpolate(x, y, x0):
-        '''
-        Linear interpolation of the value at x0
-        A line is determined considering the couple of points passed in
-        x and y.
-        The value at x0 point is computed.
+    '''
+    Linear interpolation of the value at x0
+    A line is determined considering the couple of points passed in
+    x and y.
+    The value at x0 point is computed.
 
-        Parameters
-        ----------
-        x : array
-            x values of point 1 and point 2.
+    Parameters
+    ----------
+    x : array
+        x values of point 1 and point 2.
 
-        y : array
-            y values of point 1 and point 2.
+    y : array
+        y values of point 1 and point 2.
 
-        x0 : float
-            point where linear interpolation is computed.
+    x0 : float
+        point where linear interpolation is computed.
 
-        Return
-        ------
-        float, interpolated value.
-        '''
-        return y[0] + ((y[1] - y[0]) * (x0 - x[0]) / (x[1] - x[0]))
+    Return
+    ------
+    float, interpolated value.
+    '''
+    return y[0] + ((y[1] - y[0]) * (x0 - x[0]) / (x[1] - x[0]))

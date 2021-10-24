@@ -9,7 +9,10 @@ ScanData : Collect raw data for magnetic field scan experiments and
     provides methods to average them.
 
 FieldScan : Allow computation of XMCD hysteresis on magnetic field scan
-    data.
+    data for on the fly collection experiments.
+
+FieldPtScan: Allow computation of XMCD hysteresis on magnetic field scan
+    data for point by point collection experiments.
 
 Methods
 -------
@@ -82,7 +85,7 @@ class ScanData:
     min_t : list
         Collect the minima of the timescales of data scans.
         Only for Hysteresis point by pont analysis.
-    
+
     max_t : list
         Collect the maxima of the timescales of data scans.
         Only for Hysteresis point by pont analysis.
@@ -119,12 +122,12 @@ class ScanData:
         Contains average of chosen up branch scans computed on common
         field scale.
         Only for Hysteresis on the fly analisys.
-    
+
     dw_aver : array
         Contains average of chosen down branch scans computed on common
         field scale.
         Only for Hysteresis on the fly analisys.
-    
+
     pe_label : list (str)
         Labels for graphs - for scans collected at pre-edge energy.
 
@@ -162,7 +165,7 @@ class ScanData:
         Contains average of chosen up branch scans computed on common
         field scale.
         Only for Hysteresis on the fly analisys.
-    
+
     pe_dw_aver : array
         Contains average of chosen down branch scans computed on common
         field scale.
@@ -178,8 +181,8 @@ class ScanData:
         For hysteresis on the fly analysis.
 
     man_aver_e_scans(guiobj, enrg)
-        Manage the choice of scans to be averaged and return the average of
-        selected scans.
+        Manage the choice of scans to be averaged and return the average
+        of selected scans.
 
     plot_chs_avr(fields, guiobj, edge, up)
         Plot raw data, allow to choose which data will be used for
@@ -209,7 +212,7 @@ class ScanData:
 
         # Only for hysteresis on the fly is currently cosidered the
         # possibility to seprate up from down branches.
-        if guiobj.analysis == 'hyst_fly'
+        if guiobj.analysis == 'hyst_fly':
             self.up = pd.DataFrame()
             self.down = pd.DataFrame()
             self.pe_up = pd.DataFrame()
@@ -324,7 +327,7 @@ class ScanData:
         # Compute average of scans only if there are more than one scan
         # for each branch (each scan contain one branch up and one
         # branch down)
-        if guiobj.interactive:  # Interactive choose of scans        
+        if guiobj.interactive:  # Interactive choose of scans
             # Choose edge scans.
             if len(self.idx) > 1:
                 # Edge Up data
@@ -332,7 +335,7 @@ class ScanData:
                 isok = 0
                 while not isok:
                     up_chsn, up_avgd = self.plot_chs_avr(fields, guiobj,
-                                                        edge=True, up=True)
+                                                         edge=True, up=True)
                     isok = guiobj.confirm_choice()
 
                 # Edge Down data
@@ -340,7 +343,7 @@ class ScanData:
                 isok = 0
                 while not isok:
                     dw_chsn, dw_avgd = self.plot_chs_avr(fields, guiobj,
-                                                        edge=True, up=False)
+                                                         edge=True, up=False)
                     isok = guiobj.confirm_choice()
             else:
                 # If there is just one scan is useless the choose, just
@@ -384,8 +387,8 @@ class ScanData:
                 pe_up_avgd = []
                 pe_dw_chsn = []
                 pe_dw_avgd = []
-        else: 
-        # Not interactive - Consider and average all scans
+        else:
+            # Not interactive - Consider and average all scans
             up_chsn = self.label
             up_avgd = self.aver_h_scans(self.up, fields, up_chsn, guiobj,
                                         title='Edge - Up branch')
@@ -480,7 +483,7 @@ class ScanData:
 
         plt.xlabel('H (T)')
         plt.ylabel(self.dtype)
-        plt.legend()                
+        plt.legend()
         plt.show()
 
         chsn = guiobj.chs_scns(label)
@@ -538,7 +541,7 @@ class ScanData:
             # Univariate spline requires increasing x
             # Data are sorted by field
             ##sorted_data = data.sort_values(by=['H' + idx])
-            
+
             ##x = sorted_data['H' + idx][1:].dropna()
             ##y = sorted_data[idx][1:].dropna()
             x, y = aver_duplicates(data, idx)
@@ -596,14 +599,14 @@ class ScanData:
             aver = pd.DataFrame(columns=['H', 'I', 'dI'])
             # Group data by field values and average them.
             for Hval, dat in self.sel_data.groupby('H'):
-            ## In case the baseline subtraction must be implemented
-            ## this is the place where to put it.
-            ##    if guiobj.bsl_sub:
-            ##        # Subtract baseline and average data
-            ##        pass
-            ##    else:
+                # In case the baseline subtraction must be implemented
+                # this is the place where to put it.
+                # if guiobj.bsl_sub:
+                # Subtract baseline and average data
+                # pass
+                # else:
                 row = pd.Series([Hval, np.nanmean(dat['I'], dtype=np.float64),
-                                np.nanstd(dat['I'])], index=['H', 'I', 'dI'])
+                                 np.nanstd(dat['I'])], index=['H', 'I', 'dI'])
                 aver = aver.append(row, ignore_index=True)
             # Sort data by H
             self.aver = aver.sort_values(by=['H'], ignore_index=True)
@@ -611,14 +614,14 @@ class ScanData:
                 pe_aver = pd.DataFrame(columns=['H', 'I', 'dI'])
                 # Group data by field values and average them.
                 for Hval, dat in self.pe_sel_data.groupby('H'):
-                ## In case the baseline subtraction must be implemented
-                ## this is the place where to put it.
-                ##    if guiobj.bsl_sub:
-                ##        # Subtract baseline and average data
-                ##        pass
-                ##    else:
+                    # In case the baseline subtraction must be implemented
+                    # this is the place where to put it.
+                    # if guiobj.bsl_sub:
+                    # Subtract baseline and average data
+                    # pass
+                    # else:
                     row = pd.Series([Hval, np.nanmean(dat['I'],
-                                    dtype=np.float64), np.nanstd(dat['I'])], 
+                                    dtype=np.float64), np.nanstd(dat['I'])],
                                     index=['H', 'I', 'dI'])
                     pe_aver = pe_aver.append(row, ignore_index=True)
                 # Sort data by H
@@ -630,10 +633,11 @@ class ScanData:
                 # Sort data by time
                 srt = dat.sort_values(by=['t'])
                 # Interpolate data on common time scale
-                interp = itp.interp1d(srt['t'], srt['I'], kind='slinear')
+                interp = itp.interp1d(srt['t'], srt['I'], kind='slinear',
+                    fill_value='extrapolate')
                 # Append interpolated data
-                temp = pd.DataFrame([dat['H'], interp(time_scale), time_scale],
-                                    columns=['H', 'I', 't'])
+                temp = pd.DataFrame({'H': Hval, 'I': interp(time_scale),
+                    't': time_scale})
                 aver = aver.append(temp, ignore_index=True)
             # Sort data by t and H
             self.aver = aver.sort_values(by=['t', 'H'], ignore_index=True)
@@ -644,14 +648,15 @@ class ScanData:
                     # Sort data by time
                     srt = dat.sort_values(by=['t'])
                     # Interpolate data on common time scale
-                    interp = itp.interp1d(srt['t'], srt['I'], kind='slinear')
+                    interp = itp.interp1d(srt['t'], srt['I'], kind='slinear',
+                        fill_value='extrapolate')
                     # Append interpolated data
-                    temp = pd.DataFrame([dat['H'], interp(time_scale),
-                                        time_scale], columns=['H', 'I', 't'])
+                    temp = pd.DataFrame({'H': Hval, 'I': interp(time_scale),
+                                        't': time_scale})
                     pe_aver = pe_aver.append(temp, ignore_index=True)
                 # Sort data by t and H
                 self.pe_aver = pe_aver.sort_values(by=['t', 'H'],
-                                                    ignore_index=True)
+                                                   ignore_index=True)
 
 
 class FieldScan:
@@ -679,16 +684,16 @@ class FieldScan:
 
     cl_down : array
         Average of CL branch down scans.
-    
+
     cr_pe_up :array
         Average of CR branch up scans at pre-edge energy.
-    
+
     cr_pe_down : array
         Average of CR branch down scans at pre-edge energy.
 
     cl_pe_up : array
         Average of CL branch up scans at pre-edge energy.
-    
+
     cl_pe_down: array
         Average of CL branch down scans at pre-edge energy.
 
@@ -738,7 +743,8 @@ class FieldScan:
         magnetic field scale. CR and CL scans are separated in up and
         down branches and averaged. Finally XMCD is calculated.
         To do this scan_average and compt_scanfield method are called. 
-        The FieldScan object created collects all the informations about X-Ray dichroism.
+        The FieldScan object created collects all the informations about
+        X-Ray dichroism.
 
         Parameters
         ----------
@@ -788,7 +794,7 @@ class FieldScan:
 
         log_dt : dict
             Collect data for logfile.
-        
+
         Return
         ------
         Instantiate attributes:
@@ -804,16 +810,16 @@ class FieldScan:
 
         cl_down : array
             Average of CL branch down scans.
-        
+
         cr_pe_up :array
             Average of CR branch up scans at pre-edge energy.
-        
+
         cr_pe_down : array
             Average of CR branch down scans at pre-edge energy.
 
         cl_pe_up : array
             Average of CL branch up scans at pre-edge energy.
-        
+
         cl_pe_down: array
             Average of CL branch down scans at pre-edge energy.
 
@@ -950,7 +956,7 @@ class FieldScan:
         Returns
         -------
         Instantiate attributes:
-        
+
         edg_up : array
             XMCD for scan up branch considering only edge scans.
 
@@ -964,7 +970,7 @@ class FieldScan:
         edg_down_norm : array
             XMCD for scan down branch normalized to 1 considering only
             edge scans.
-        
+
         If pre-edge data are present:
 
         up_w_pe : array
@@ -997,10 +1003,10 @@ class FieldScan:
 
         dw_av_field1 = np.abs(np.average(self.edg_down[:5]))
         dw_av_field2 = np.abs(np.average(self.edg_down[-5:-1]))
-        
+
         self.edg_up_norm = self.edg_up / np.maximum(up_av_field1, up_av_field2)
-        self.edg_down_norm = self.edg_up / np.maximum(dw_av_field1,
-                                                      dw_av_field2)
+        self.edg_down_norm = self.edg_down / np.maximum(dw_av_field1,
+                                                        dw_av_field2)
 
         if self.pre_edge:
             # Normalize branches by pre-edge data
@@ -1011,19 +1017,21 @@ class FieldScan:
 
             # XMCD for branches up and down considering data normalized
             # by pre-edge scans
-            self.up_w_pe = cl_up_over_pe - cr_dw_over_pe
+            self.up_w_pe = cl_up_over_pe - cr_up_over_pe
             self.dw_w_pe = cl_dw_over_pe - cr_dw_over_pe
 
             # XMCD in percentage for branches up and down considering
-            # data normalized by pre-edge scans            
+            # data normalized by pre-edge scans
             self.up_perc = 200 * self.up_w_pe / (cl_up_over_pe +
-                                                    cr_up_over_pe - 2)
+                                                 cr_up_over_pe - 2)
             self.down_perc = 200 * self.dw_w_pe / (cl_dw_over_pe +
-                                                    cr_dw_over_pe - 2)
+                                                   cr_dw_over_pe - 2)
+
 
 class FieldPtScan:
     '''
-    Allow computation of XMCD hysteresis on magnetic field scan data.
+    Allow computation of XMCD hysteresis on magnetic field scan data for
+    point by point collection experiments.
 
     Attributes
     ----------
@@ -1035,8 +1043,17 @@ class FieldPtScan:
         If present also scans collected at pre-edge energy are
         considered.
 
-    xmcd : array
-    
+    xmcd : pandas DataFrame
+        Collect data obtained from computation of XMCD.
+        It consists of H, CR, CL, XMCD columns. If pre-edge scans are
+        present there are also CRpe, CLpe and XMCD_norm. For time
+        averaged analysis also error columns are present.
+
+    subtitle : str
+        Used for graph labelling and output file name. It includes the
+        number of the first and last scans and the window time used for
+        analysis.
+
     Methods
     -------
     time_scale(guiobj, pos, neg, log_dt)
@@ -1053,11 +1070,11 @@ class FieldPtScan:
 
     def __init__(self, guiobj, confobj, pos, neg, log_dt):
         '''
-        At instantiation the field attribute is created with common
-        magnetic field scale. CR and CL scans are separated in up and
-        down branches and averaged. Finally XMCD is calculated.
-        To do this scan_average and compt_scanfield method are called. 
-        The FieldScan object created collects all the informations about X-Ray dichroism.
+        At instantiation the time_scale attribute is created with common
+        time scale. XMCD is calculated on averaged data in scanData 
+        objects. 
+        The FieldScan object created collects all the informations about
+        X-Ray dichroism.
 
         Parameters
         ----------
@@ -1082,9 +1099,7 @@ class FieldPtScan:
 
         self.time_scale(guiobj, pos, neg, log_dt)
 
-        self.scan_average(guiobj, pos, neg, log_dt)
-
-        self.compt_scanfield()
+        self.compt_pt_scan(guiobj, pos, neg)
 
     def time_scale(self, guiobj, pos, neg, log_dt):
         '''
@@ -1119,39 +1134,42 @@ class FieldPtScan:
         st_t, end_t = guiobj.acq_times(pos, neg)
 
         pos.sel_data = pos.raw_imp[(pos.raw_imp['t'] >= st_t) &
-                                    (pos.raw_imp['t'] <= end_t)]
+                                   (pos.raw_imp['t'] <= end_t)]
         neg.sel_data = neg.raw_imp[(neg.raw_imp['t'] >= st_t) &
-                                    (neg.raw_imp['t'] <= end_t)]
+                                   (neg.raw_imp['t'] <= end_t)]
         # Collect the number of time points in the time window for each
         # field
         for Hval, dat in pos.sel_data.groupby('H'):
-            len_t.append(dat['t'])
+            len_t.append(len(dat['t']))
         for Hval, dat in neg.sel_data.groupby('H'):
-            len_t.append(dat['t'])
+            len_t.append(len(dat['t']))
 
         if pos.pre_edge and neg.pre_edge:
             pos.pe_sel_data = pos.pe_raw_imp[(pos.pe_raw_imp['t'] >= st_t) &
-                                            (pos.pe_raw_imp['t'] <= end_t)]
+                                             (pos.pe_raw_imp['t'] <= end_t)]
             neg.pe_sel_data = neg.pe_raw_imp[(neg.pe_raw_imp['t'] >= st_t) &
-                                            (neg.pe_raw_imp['t'] <= end_t)]
+                                             (neg.pe_raw_imp['t'] <= end_t)]
             for Hval, dat in pos.pe_sel_data.groupby('H'):
-                len_t.append(dat['t'])
+                len_t.append(len(dat['t']))
             for Hval, dat in neg.pe_sel_data.groupby('H'):
-                len_t.append(dat['t'])        
-        
-        num_t = np.around(np.average(len_t), 0)
-        step_t = (end_t - st_t) / (num_t -1)
+                len_t.append(len(dat['t']))
+
+        num_t = int(np.around(np.average(len_t), 0))
+        step_t = (end_t - st_t) / (num_t - 1)
 
         log_dt['t_scale'] = [st_t, end_t, num_t, step_t]
 
         self.time_scale = np.linspace(st_t, end_t, num_t)
 
-    def compt_pt_scan(self, guiobj, pos, neg, log_dt):
+    def compt_pt_scan(self, guiobj, pos, neg):
         '''
-        Separate CR and CL scans in up and down branches and average
-        scans.
-        Plot average results for edge and, if present, for pre-edge
-        scans.
+        Compute XMCD for point by point hysteresis analysis.
+        If time average is considered XMCD is computed for each field
+        averaging all data collected by time scan. Standard deviation
+        of the averages are considered as errors and propagated during
+        computation.
+        If split time is considered XMCD is computed for each fiedl and
+        for each point at common time scale.
 
         Parameters
         ----------
@@ -1164,18 +1182,16 @@ class FieldPtScan:
         neg : ScanData obj
             Contains CL scnas.
 
-        log_dt : dict
-            Collect data for logfile.
-        
         Return
         ------
-        Instantiate attributes:
+        Instantiate attributes xmcd attribute with all xmcd computed
+        values.
 
         '''
         # Average pos and neg scanData
         pos.aver_pt_scans(guiobj, self.time_scale)
         neg.aver_pt_scans(guiobj, self.time_scale)
-        
+
         # First create xmcd DataFrame
         if guiobj.analysis == 'hyst_t_aver':
             # Rename columns to join them
@@ -1184,13 +1200,13 @@ class FieldPtScan:
             neg.aver.rename(columns={'H': 'H', 'I': 'CL', 'dI': 'dCL'},
                             inplace=True)
             # Join pos and neg aver using H as reference
-            xmcd = pos.aver.join(neg.aver.set_indext_index('H'), on='H')
+            xmcd = pos.aver.join(neg.aver.set_index('H'), on='H')
 
             if self.pre_edge:
                 pos.pe_aver.rename(columns={'H': 'H', 'I': 'CRpe',
-                                    'dI': 'dCRpe'}, inplace=True)
+                                            'dI': 'dCRpe'}, inplace=True)
                 neg.pe_aver.rename(columns={'H': 'H', 'I': 'CLpe',
-                                    'dI': 'dCLpe'}, inplace=True)
+                                            'dI': 'dCLpe'}, inplace=True)
                 # Join pos and neg pe_aver using H as reference
                 xmcd = xmcd.join(pos.pe_aver.set_index('H'), on='H')
                 xmcd = xmcd.join(neg.pe_aver.set_index('H'), on='H')
@@ -1206,19 +1222,26 @@ class FieldPtScan:
                 pospe_gb = pos.pe_aver.groupby('H')
                 negpe_gb = neg.pe_aver.groupby('H')
 
+                xmcd = pd.DataFrame(columns=['H', 'CR', 'CL', 'CRpe', 'CLpe',
+                                            't'])
                 for Hval, dat in pos_gb:
-                    xmcd = dat.sort_values(by=['t'])
-                    xmcd['CL'] = neg_gb['I'].get_group(Hval).sort_values(
-                                                                    by=['t'])
-                    xmcd['CRpe'] = pospe_gb['I'].get_group(Hval).sort_values(
-                                                                    by=['t'])
-                    xmcd['CLpe'] = negpe_gb['I'].get_group(Hval).sort_values(
-                                                                    by=['t'])
+                    xmcd_p = pos.aver[pos.aver['H'] == Hval].sort_values(
+                        by=['t'])
+                    xmcd_p['CL'] = neg_gb.get_group(Hval).sort_values(
+                        by=['t'])['I']
+                    xmcd_p['CRpe'] = pospe_gb.get_group(Hval).sort_values(
+                        by=['t'])['I']
+                    xmcd_p['CLpe'] = negpe_gb.get_group(Hval).sort_values(
+                        by=['t'])['I']
+                    xmcd = xmcd.append(xmcd_p, ignore_index=True)
             else:
+                xmcd = pd.DataFrame(columns=['H', 'CR', 'CL', 't'])
                 for Hval, dat in pos_gb:
-                    xmcd = dat.sort_values(by=['t'])
-                    xmcd['CL'] = neg_gb['I'].get_group(Hval).sort_values(
-                                                                    by=['t'])            
+                    xmcd_p = pos.aver[pos.aver['H'] == Hval].sort_values(
+                        by=['t'])
+                    xmcd_p['CL'] = neg_gb.get_group(Hval).sort_values(
+                        by=['t'])['I']
+                    xmcd = xmcd.append(xmcd_p, ignore_index=True)
         # Compute XMCD
         xmcd['edge'] = xmcd['CL'] - xmcd['CR']
 
@@ -1238,14 +1261,14 @@ class FieldPtScan:
                 xmcd['Dpre-edge'] = xmcd['dCLpe'] + xmcd['dCRpe']
 
                 dcrcrp = np.abs((np.abs(xmcd['dCR'] / xmcd['CR']) +
-                                np.abs(xmcd['dCRpe'] / xmcd['CRpe'])) * crcrp)
+                                 np.abs(xmcd['dCRpe'] / xmcd['CRpe'])) * crcrp)
                 dclclp = np.abs((np.abs(xmcd['dCL'] / xmcd['CL']) +
-                                np.abs(xmcd['dCLpe'] / xmcd['CLpe'])) * clclp)
+                                 np.abs(xmcd['dCLpe'] / xmcd['CLpe'])) * clclp)
                 denerr = (clclp + crcrp - 2) ** 2
                 xmcd['Dnorm'] = 400 * (((np.abs(crcrp-1) / denerr) * dclclp) +
-                                        ((np.abs(clclp-1) / denerr) * dcrcrp))
+                                       ((np.abs(clclp-1) / denerr) * dcrcrp))
 
-    self.xmcd = xmcd
+        self.xmcd = xmcd
 
 
 def h_scale(guiobj, pos, neg, log_dt):
@@ -1288,7 +1311,7 @@ def h_scale(guiobj, pos, neg, log_dt):
     h_maxs = []  # Maxima of magnetic field scans
     h_mins = []  # Minima of magnetic field scans
     h_len = []  # Number of different fields in each scan
-    
+
     # Collect maxima and minima and count the fields for edge scans
     for i in pos.idx:
         h_maxs.append(np.amax(pos.raw_imp['H' + i]))
@@ -1309,7 +1332,7 @@ def h_scale(guiobj, pos, neg, log_dt):
             h_maxs.append(np.amax(neg.pe_raw_imp['H' + i]))
             h_mins.append(np.amin(neg.pe_raw_imp['H' + i]))
             h_len.append(h_num_points(neg.pe_raw_imp['H' + i].dropna()))
-    
+
     # Compute min, max and default langth of energy range
     # Set decimal place to round the first OoM higher than tolerance in
     # h_num_points
@@ -1327,6 +1350,7 @@ def h_scale(guiobj, pos, neg, log_dt):
     log_dt['h_scale'] = [h_min, h_max, n_points, h_step]
 
     return np.linspace(h_min, h_max, n_points)
+
 
 def h_num_points(h_arr):
     '''
@@ -1365,6 +1389,7 @@ def h_num_points(h_arr):
 
     return n
 
+
 def aver_duplicates(data, idx):
     '''
     Check if in the field column idx there are repeated values. In case
@@ -1389,7 +1414,7 @@ def aver_duplicates(data, idx):
     # Remove NaNs and sort data by field column
     sorted_data = data.dropna().sort_values(by=['H' + idx])
 
-    # Extract unique field values and corresonding indexes of first 
+    # Extract unique field values and corresonding indexes of first
     # unique value occurence
     x, indexes = np.unique(sorted_data['H' + idx], return_index=True)
 
@@ -1397,8 +1422,8 @@ def aver_duplicates(data, idx):
 
     # From one index and the next there are repeated values of fields.
     # This for loop average the XAS value between consecutive indexes.
-    for i in range(len(indices)):
-        if i == len(indices) - 1:
+    for i in range(len(indexes)):
+        if i == len(indexes) - 1:
             y.append(np.average(sorted_data[idx][indexes[i]:]))
         else:
             y.append(np.average(sorted_data[idx][indexes[i]:indexes[i+1]]))

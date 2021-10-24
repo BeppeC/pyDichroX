@@ -1,10 +1,14 @@
+v 1.0.0
+-------
+- Added analysis for hysteresis point by point for Soleil.
+
 v 0.4.1
 -------
-- Corrected bugs.
+- Fixed some bugs on hysteresis analysis.
 
 v 0.4.0
 -------
-- Added hystereis on the fly for Soleil.
+- Added analysis for hystereis on the fly for Soleil.
 
 v 0.3.1
 -------

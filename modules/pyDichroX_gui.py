@@ -87,7 +87,7 @@ class GUI:
 
     ask_T()
         GUI dialogue to ask for sample temperature.
-    
+
     ask_H()
         GUI dialogue to ask for magnetic field.
 
@@ -113,6 +113,10 @@ class GUI:
     num_pnts(num_pts)
         GUI dialogue to set the number of points used for energy scan
         interpolations.
+
+    num_times(log_dt)
+        GUI dialogue to set the number of time steps to be plotted in
+        hysteresis point by point splitted time analysis.
 
     chs_scns(choices)
         GUI dialogue to select the scans to be averaged from a list of
@@ -182,7 +186,7 @@ class GUI:
                 ask_quit(self.title)
             else:
                 break
-        
+
         # Make easier id for hysteresis analysis
         if a_choice == 'XMCD Hysteresis on the fly':
             self.analysis = 'hyst_fly'
@@ -190,7 +194,7 @@ class GUI:
             self.analysis = 'hyst_t_aver'
         elif a_choice == 'XMCD Hysteresis point by point - time split':
             self.analysis = 'hyst_t_split'
-        else
+        else:
             self.analysis = a_choice
 
         self.title = '{} {} analysis'.format(a_choice, self.sense)
@@ -510,7 +514,7 @@ class GUI:
             if self.infile_ref:
                 add_title = "Normalized by reference data."
             else:
-                add_title = "" 
+                add_title = ""
             fig.suptitle(self.title + add_title)
 
             fig.tight_layout()
@@ -664,7 +668,7 @@ class GUI:
 
         if self.analysis in self.type['hyst']:
             msg += "\nInclude both Edge and Pre-edge scans."
-         
+
         f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
                                default=default)
         return f_nms
@@ -691,7 +695,7 @@ class GUI:
     def in_dtst(self, confobj):
         '''
         GUI dialogue to select input files data sets.
-    
+
         Parameters
         ----------
         confobj : configuration object.
@@ -706,8 +710,9 @@ class GUI:
         tuple whose first element is a list including the filenames of
         edge scans and the second being a list including the filenames
         of pre-edge scans:
-        [([dtset1edg1, dtset1edg2, ...], [dtset1pedg1, dtset1pedg2, ...]),
-        ([dtset2edg1, dtset2edg2, ...], [dtset2pedg1, dtset2pedg2, ...]), ...].
+        [([dtset1edg1, dtset1edg2,...], [dtset1pedg1, dtset1pedg2,...]),
+        ([dtset2edg1, dtset2edg2,...], [dtset2pedg1, dtset2pedg2,...]),
+        ...].
         '''
         dataset = []
         # File selection
@@ -725,11 +730,11 @@ class GUI:
         while True:
             if self.add_set():
                 add = self.sel_ifls(confobj)
- 
+
                 if add is None:
                     break
                 else:
-                    dataset.append(add)                
+                    dataset.append(add)
                 # Ask for datalogfile
                 confobj.scanlog_fname(self)
             else:
@@ -756,7 +761,7 @@ class GUI:
         -------
         bool, True to choose again input files, False to quit program.
         '''
-        if self.analysis in self.type['xmcd']:  
+        if self.analysis in self.type['xmcd']:
             if pol:
                 data_type = 'sigma +'
             else:
@@ -780,7 +785,7 @@ class GUI:
                "Do you want to choose files again or do you want to quit?")
 
         return eg.ccbox(msg=msg, title=self.title, choices=('Choose again',
-                        'Quit'), cancel_choice='Quit')
+                                                'Quit'), cancel_choice='Quit')
 
     def ask_logfn(self):
         '''
@@ -797,7 +802,7 @@ class GUI:
 
         logfn = eg.fileopenbox(msg=msg, title=self.title, multiple=False)
 
-        return logfn        
+        return logfn
 
     def no_log(self, fname, action=''):
         '''
@@ -836,6 +841,38 @@ class GUI:
         while True:
             num_points = eg.integerbox(msg, self.title, default=num_pts,
                                        upperbound=100000)
+            if num_points is None:
+                ask_quit(self.title)
+            else:
+                break
+
+        return num_points
+
+    def num_times(self, log_dt):
+        '''
+        GUI dialogue to set the number of time steps to be plotted in
+        hysteresis point by point splitted time analysis.
+
+        Parameters
+        ----------
+        log_dt : dict
+            Collect data for logfile.
+
+        Returns
+        -------
+        int, the number of time steps to be plotted.
+        '''
+        n_pt = log_dt['t_scale'][2]
+        msg = ('Scans contains {} time steps.\n\n'.format(n_pt) + 
+                'Insert number of times step each scan must be plotted')
+
+        default = str(int(np.rint(n_pt * 10 / 100)))
+        lwrbn = 1
+        uprbn = n_pt
+
+        while True:
+            num_points = eg.integerbox(msg, self.title, default=default,
+                                        lowerbound=lwrbn, upperbound=uprbn)
             if num_points is None:
                 ask_quit(self.title)
             else:
@@ -930,8 +967,8 @@ class GUI:
             polarisation type.
         '''
         msg = ('Polarisation of scan number {} is not {}'.format(scn_num,
-               polarisation) + '\n\nScan number {}'.format(scn_num) +
-               ' will not be considered')
+                polarisation) + '\n\nScan number {}'.format(scn_num) +
+                ' will not be considered')
 
         eg.msgbox(msg=msg, title=self.title)
 
@@ -957,23 +994,25 @@ class GUI:
         while True:
             st_t, end_t = self.ask_acq_times()
             msg = ''
-            
+
             t_min = pos.min_t.copy()
             t_min.extend(neg.min_t)
 
             t_max = pos.max_t.copy()
             t_max.extend(neg.max_t)
 
-            t_num = pos.num_t.copy()
-            t_num.extend(neg.num_t)
+            #t_num = pos.num_t.copy()
+            #t_num.extend(neg.num_t)
 
-            # Check that start and end times are consistent with data            
+            # Check that start and end times are consistent with data
+            if st_t < 0:
+                st_t = np.around(np.average(t_min), 1)
             if st_t > np.amin(t_max):
-                msg += ('The start time inserted is outside the acquired time'+
-                    'range.\nPlease chose a value smaller than {} s'.format(
-                    np.amin(t_max)))
+                msg += ('The start time inserted is outside the acquired time' +
+                        'range.\nPlease chose a value smaller than {} s'.format(
+                            np.amin(t_max)))
             if end_t < 0:
-                end_t = np.amin(t_max)  # default value for no input
+                end_t =np.around(np.average(t_max), 1)
             if st_t >= end_t:
                 msg += ('Start time must be smaller than end time.\n' +
                         'Please chose a value smaller than {} s'.format(end_t))
@@ -996,29 +1035,29 @@ class GUI:
             start and end times respectively.
         '''
         msg = ("Enter the START acquisition time you want to consider (sec)" +
-                "\n\nIf nothing is passed 0 is taken as default.")
+               "\n\nIf nothing is passed 0 is taken as default.")
         st_t = eg.enterbox(msg, self.title)
 
         while True:
             errmsg = ''
             if st_t is None or not st_t:
-                st_t = 0
-            else:                
+                st_t = -1
+            else:
                 try:
                     st_t = float(st_t)
                 except:
                     errmsg += ('\n\nPlease insert only numbers for start' +
-                                ' time.')
+                               ' time.')
                 if st_t < 0:
                     errmsg += ('\n\nInsert only positive numbers for start' +
-                                ' time.')
+                               ' time.')
             if not errmsg:
                 break
             st_t = eg.enterbox(msg + errmsg, self.title)
 
         msg = ("Enter the STOP acquisition time you want to consider (sec)" +
-                "\n\nIf nothing is passed last acquired time is taken as" +
-                " default.")
+               "\n\nIf nothing is passed last acquired time is taken as" +
+               " default.")
         end_t = eg.enterbox(msg, self.title)
 
         while True:
@@ -1027,12 +1066,12 @@ class GUI:
                 end_t = -1
             else:
                 try:
-                    end_t = float(end_t)                    
+                    end_t = float(end_t)
                 except:
                     errmsg += ('\n\nPlease insert only numbers for end time.')
                 if end_t < 0:
                     errmsg += ('\n\nInsert only positive numbers for end' +
-                                ' time.')
+                               ' time.')
             if not errmsg:
                 break
             end_t = eg.enterbox(msg + errmsg, self.title)

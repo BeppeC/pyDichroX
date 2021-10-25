@@ -1,10 +1,11 @@
-For the realization of this program I acknowledge and I am gratefeul to (in alphabetical order):
+PyDichroX was written and is maintained by Giuseppe Cucinotta (giuseppe.cucinotta@protonmail.com).
+This program was initially realized with the aim of fulfill the need of sceintists at CETECS Laboratory at University of Florence of treating in an efficient and fast way the XAS data collected during their synchrotron experiments. In particular I acknowledge and I am gratefeul to:
 
-Niccolò Giaconi
-prof. Matteo Mannini
 dr. Lorenzo Poggini
 dr. Giulia Serrano
 dr. Michele Serri
+Niccolò Giaconi
 Andrea Luigi Sorrentino
+prof. Matteo Mannini
 
-The realization of this program would not be possible whitout the collaboration, suggestions, discussion, hints, testing on the field they provided.
+The realization of this program would not have been possible without the collaboration, suggestions, discussion, hints and testing on the field they provided.

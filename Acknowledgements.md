@@ -8,4 +8,6 @@ Niccolò Giaconi
 Andrea Luigi Sorrentino
 prof. Matteo Mannini
 
+I also acknowledge the staff of DEIMOS Beamline (Soleil Synchrotron, Paris (France)), BOREAS Beamline (Alba Synchrotron, Barcelona (Spain)), APE Beamline (Elettra Synchrotron, Trieste (Italy)).
+
 The realization of this program would not have been possible without the collaboration, suggestions, discussion, hints and testing on the field they provided.

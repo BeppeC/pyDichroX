@@ -63,8 +63,7 @@ During analysis, XAS spectra will be interpolated using the number of points ins
 The graphs of the scans are shown and then a dialogue ask which scans select
 to be averaged and used for the analysis. Currently only for energy scan analysis.
 
-- If configuration file is setted in order to accept scans from a reference 
-sample, repeat the same passages before for reference scans. Currently only for energy scan analysis.
+- If configuration file is setted in order to accept scans from a reference sample, repeat the same passages before for reference scans. Currently only for energy scan analysis.
 
 - Energies - Only for energy scans (XMCD, XNXD, XNCD, XNLD)
 A graph with analyzed data is shown togheter with the position of edge energy present in the edge-file and the edge energy found from experimental data.

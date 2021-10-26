@@ -19,10 +19,10 @@ dt_raw_import(confobj, data)
     Based on configuration file select data to import depending on
     sensing.
 
-escan_split(confobj, data):
+escan_split(confobj, data)
     Split energy scan containing multiple scans into single scans.
 
-hscan_imp(confobj, data):
+hscan_imp(confobj, data)
     Select data columns from imported data for hysteresis analysis.
 
 set_scn_num(confobj, f_name, pos, neg)
@@ -33,8 +33,8 @@ separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
     Separate scans and fill positive and negative ScanData objects with
     raw data and labels depending on analysis type.
 
-separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_lbl,
-    scn_num, ispol, lgrws, pos, neg):
+separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_lbl, scn_num,
+    ispol, lgrws, pos, neg)
     Separate magnetic field scans and fill positive and negative
     ScanData objects with raw data and labels depending on polarisation.
 
@@ -42,11 +42,11 @@ output_fls_escan(guiobj, pos, neg, scanobj)
     Organize output data and columns names for energy scans data
     analysis.
 
-output_fls_hscan(guiobj, scanobj)
+output_fls_hscan(scanobj)
     Organize output data and columns names for hysteresis on fly
     analysis.
 
-output_fls_ptbypt(guiobj, scanobj):
+output_fls_ptbypt(guiobj, scanobj)
     Organize output data and columns names for hysteresis on point by
     point analysis.
 
@@ -74,7 +74,7 @@ save_data_hscan(confobj, guiobj, scanobj, log_dt)
     Save output data, logdata and final plots for scan field on the fly
     analysis.
 
-save_data_tscan(confobj, guiobj, scanobj, log_dt):
+save_data_tscan(confobj, guiobj, scanobj, log_dt)
     Save output data, logdata and final plots for scan field point by
     point analysis.
 """
@@ -509,8 +509,8 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                 scn_num = set_scn_num(confobj, f_name, pos, neg)
                 lgrws['scn_num'] = scn_num
 
-                separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw,
-                    scn_num, iscr, lgrws, log_dt, pos, neg)
+                separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, iscr,
+                    lgrws, log_dt, pos, neg)
 
                 log_tbl = log_tbl.append(lgrws, ignore_index=True)                
                 
@@ -889,16 +889,14 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             neg.idx.append(scn_num)
             neg.dtype = 'H +'
 
-def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
-    lgrws, log_dt, pos, neg):
+def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
+    log_dt, pos, neg):
     '''
     Separate magnetic field scans and fill positive and negative
     ScanData objects with raw data and labels depending on polarisation.
 
     Parameters
     ----------
-    confobj : configuration obj.
-
     guiobj : GUI object
         Provides GUI dialogs.
 
@@ -1135,16 +1133,13 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
 
     return out_data, col_nms, col_desc
 
-def output_fls_hscan(guiobj, scanobj):
+def output_fls_hscan(scanobj):
     '''
     Organize output data and columns names for hysteresis on fly
     analysis.
     
     Parameters
     ----------
-    guiobj : GUI object
-        Provide GUI dialogues.
-
     scanobj : FieldScan object
         Contains results of X-Ray dichroism computations.
 
@@ -1796,7 +1791,7 @@ def save_data_hscan(confobj, guiobj, scanobj, log_dt):
     log_dt : dict
         Collect data for logfile.
     '''
-    out_data, col_nms, col_desc = output_fls_hscan(guiobj, scanobj)
+    out_data, col_nms, col_desc = output_fls_hscan(scanobj)
 
     if scanobj.pre_edge:
         f1, f2 = output_plot_hscan(scanobj, log_dt)

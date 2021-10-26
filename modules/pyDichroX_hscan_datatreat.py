@@ -737,7 +737,7 @@ class FieldScan:
         obtain XMCD hysteresis.
     '''
 
-    def __init__(self, guiobj, confobj, h_scale, pos, neg, log_dt):
+    def __init__(self, guiobj, h_scale, pos, neg, log_dt):
         '''
         At instantiation the field attribute is created with common
         magnetic field scale. CR and CL scans are separated in up and
@@ -750,8 +750,6 @@ class FieldScan:
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
-
-        confobj : Configuration object.
 
         h_scale : array
             Common magnetic field scale for data analysis.
@@ -1068,7 +1066,7 @@ class FieldPtScan:
         obtain XMCD hysteresis.
     '''
 
-    def __init__(self, guiobj, confobj, pos, neg, log_dt):
+    def __init__(self, guiobj, pos, neg, log_dt):
         '''
         At instantiation the time_scale attribute is created with common
         time scale. XMCD is calculated on averaged data in scanData 
@@ -1080,8 +1078,6 @@ class FieldPtScan:
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
-
-        confobj : Configuration object.
 
         pos : ScanData obj
             Contains CR scans.

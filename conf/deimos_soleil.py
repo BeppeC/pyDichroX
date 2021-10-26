@@ -1,5 +1,5 @@
 """
-Configurations for Deimos beamline at Soleil Synchrotron, Paris (France)
+Configurations for DEIMOS Beamline at Soleil Synchrotron, Paris (France)
 """
 
 class Configuration():

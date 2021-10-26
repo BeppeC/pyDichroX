@@ -37,11 +37,11 @@ if __name__ == '__main__':
             # Create common magneti field scale
             h_scale = hsdt.h_scale(gui, pos, neg, log_dt)
 
-            h_scan = hsdt.FieldScan(gui, conf, h_scale, pos, neg, log_dt)
+            h_scan = hsdt.FieldScan(gui, h_scale, pos, neg, log_dt)
             io.save_data_hscan(conf, gui, h_scan, log_dt)
 
         elif (gui.analysis=='hyst_t_aver') or (gui.analysis=='hyst_t_split'):
-            t_scan = hsdt.FieldPtScan(gui, conf, pos, neg, log_dt)
+            t_scan = hsdt.FieldPtScan(gui, pos, neg, log_dt)
             io.save_data_tscan(conf, gui, t_scan, log_dt)
             
         else:
@@ -55,14 +55,14 @@ if __name__ == '__main__':
                 # Empty ScanData object, data must not be normalized at
                 # first
                 log_dt_ref_norm = log_dt
-                e_scan = esdt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)
+                e_scan = esdt.EngyScan(gui, e_scale, pos, neg, log_dt)
                 # Compute analysis normalizing pos and neg ScanData
                 gui.infile_ref = True  # For gui messages
                 e_scan_norm = esdt.EngyScan(gui, conf, e_scale, pos_ref,
                     neg_ref, log_dt_ref_norm, pos, neg)
                 gui.infile_ref = False
             else:
-                e_scan = esdt.EngyScan(gui, conf, e_scale, pos, neg, log_dt)
+                e_scan = esdt.EngyScan(gui, e_scale, pos, neg, log_dt)
                 e_scan_norm = []
                 log_dt_ref_norm = ''
 

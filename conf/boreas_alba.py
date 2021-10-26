@@ -1,5 +1,5 @@
 """
-Configurations for Boreas beamline at Alba Synchrotron, Barcelona
+Configurations for BOREAS Beamline at Alba Synchrotron, Barcelona
 (Spain)
 """
 

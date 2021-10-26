@@ -7,6 +7,7 @@ Starting from XAS scans and related logfiles, pyDichroX computes:
 - from energy scans: XMCD, XNXD, XNCD, XNLD spectra;
 - from magnetic field scans taken on the fly: XMCD hysteresis;
 - from time scan acquisitions taken at different magnetic fields: XMCD hysteresis time-averaging the data for each field or reporting XMCD values for each time and field.
+
 N.B. analysis routines of hysteresis data acquired with point by point methods does not discern different scan field branches. To avoid data from different branches to be averaged all together, analysis of different branches must be accomplished separately.
 
 Results of the data analysis are saved to a csv file togheter with the final graphs.

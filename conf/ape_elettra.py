@@ -1,5 +1,5 @@
 """
-Configurations for APE beamline at Elettra Synchrotron, Trieste (Italy)
+Configurations for APE Beamline at Elettra Synchrotron, Trieste (Italy)
 """
 
 import numpy as np

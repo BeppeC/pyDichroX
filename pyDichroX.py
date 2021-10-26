@@ -22,6 +22,8 @@ if __name__ == '__main__':
 
     # Set configurations
     conf = cfgman.open_config()
+
+    edge_fl = pdxgui.sel_edg_fls()
     
     while True:
         # Create GUI object for data analysis
@@ -31,7 +33,8 @@ if __name__ == '__main__':
         gui.chs_analysis()
 
         # Import scan data
-        pos, neg, log_dt, pos_ref, neg_ref = io.open_import_scan(gui, conf)
+        pos, neg, log_dt, pos_ref, neg_ref = io.open_import_scan(gui, conf,
+                                                                edge_fl)
         
         if gui.analysis == 'hyst_fly':
             # Create common magneti field scale

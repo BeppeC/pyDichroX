@@ -16,11 +16,14 @@ ask_continue()
 ask_quit(title, mes)
     GUI dialogue to ask if quit or not the program.
 
-no_config():
+no_config()
     GUI dialogue for no presence of configuration file.
 
-set_config(cfg_list):
+set_config(cfg_list)
     GUI dialogue to select configuration file.
+
+sel_edg_fls()
+    GUI dialogue to select or create edge-list file.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -70,10 +73,7 @@ class GUI:
     chs_analysis()
         GUI dialogue to choose the data analysis to perform.
 
-    sel_edg_fls()
-        GUI dialogue to select or create edge-list file.
-
-    chs_edge()
+    chs_edge(edg_filename)
         Provides a GUI to set the edge and pre-edge energies for energy
         scan analysis.
 
@@ -199,42 +199,7 @@ class GUI:
 
         self.title = '{} {} analysis'.format(a_choice, self.sense)
 
-    def sel_edg_fls(self):
-        '''
-        GUI dialogue to select or create edge-list file.
-
-        Returns
-        -------
-        str, the name of the edge-list file.
-        '''
-        # Current directory and txt files are setted as default.
-        msg = ("Choose to open an existen edge list file or create a new one.")
-        choices = ("Open a file", "Create a new file")
-
-        default = 'edge files/*.txt'
-
-        while True:
-            chs = eg.boolbox(msg, self.title, choices)
-            if chs:
-                msg2 = "Choose the edge list file"
-                f_nm = eg.fileopenbox(msg2, self.title, default=default)
-            elif chs is False:
-                msg2 = ("A new edge list file will be created.\n" +
-                        "Choose the directory and the filename.")
-                f_nm = eg.filesavebox(msg2, self.title, default=default)
-            elif chs is None:
-                ask_quit(self.title, 1)
-                continue
-
-            if f_nm:
-                break
-            else:
-                ask_quit(self.title, 1)
-                continue
-
-        return f_nm
-
-    def chs_edge(self):
+    def chs_edge(self, edg_filename):
         '''
         GUI dialogue to set the edge and pre-edge energies for energy
         scan analysis.
@@ -242,6 +207,11 @@ class GUI:
         present. Otherwise the file is created.
         If the needed edge is missing it can be added and saved to the
         file.
+
+        Parameters
+        ----------
+        edg_filename : str
+            File lisitng edge and pre-edge energies.
 
         Returns
         -------
@@ -258,8 +228,6 @@ class GUI:
         contains the headers of the columns, namely 'Name',
         'Edge Energy', 'Pre-edge Energy' and 'Post-edge Energy'.
         '''
-        # File lisitng edge and pre-edge energies
-        edg_filename = self.sel_edg_fls()
         try:
             edg_lst = pd.read_csv(edg_filename, sep=',')
         except:  # if the file is empty
@@ -290,7 +258,7 @@ class GUI:
         if chsn_edge == 'Add':
             msg = 'Add a new edge.'
             field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
-                         'Post-edge Energy']
+                        'Post-edge Energy']
             field_vals = eg.multenterbox(msg, self.title, field_nms)
 
             # Check that enetered values are valid
@@ -316,15 +284,13 @@ class GUI:
                                ' Post-Edge energy.\n\n')
 
                 if field_vals[0] in edg_lst['Name']:
-                    errmsg += ('\nThere\'s already an Edge named ' +
-                               '{}.\n'.format(field_vals[0]) +
-                               'Please choose another name.')
-
+                    errmsg += ('\nThere\'s already an Edge named {}.\n'.format(
+                                field_vals[0]) + 'Please choose another name.')
                 if not errmsg:
                     break
 
                 field_vals = eg.multenterbox(msg + errmsg, self.title,
-                                             field_nms)
+                                            field_nms)
 
             # Add the new edge to the list
             edg_lst.loc[len(edg_lst)] = field_vals
@@ -333,11 +299,11 @@ class GUI:
             return field_vals
         else:
             # Select row in DataFrame
-            # values.tolist() returns a list of selected rows, each of
-            # them is on turn a list of the values in the rows.
+            # values.tolist() returns a list of selected rows, each of them
+            # is on turn a list of the values in the rows.
             sel_edg = edg_lst[edg_lst['Name'] == chsn_edge]
             sel_edg = sel_edg.values.tolist()[0]
-            return sel_edg
+            return sel_edg    
 
     def set_edges(self, sel_edg, exper_edge, x, y1, y2, y2int):
         '''
@@ -1151,3 +1117,40 @@ def set_config(cfg_list):
             break
 
     return cfg
+
+
+def sel_edg_fls():
+    '''
+    GUI dialogue to select or create edge-list file.
+
+    Returns
+    -------
+    str, the name of the edge-list file.
+    '''
+    title = 'pyDichroX'
+    # Current directory and txt files are setted as default.
+    msg = ("Choose to open an existen edge list file or create a new one.")
+    choices = ("Open a file", "Create a new file")
+
+    default = 'edge files/*.txt'
+
+    while True:
+        chs = eg.boolbox(msg, title, choices)
+        if chs:
+            msg2 = "Choose the edge list file"
+            f_nm = eg.fileopenbox(msg2, title, default=default)
+        elif chs is False:
+            msg2 = ("A new edge list file will be created.\n" +
+                    "Choose the directory and the filename.")
+            f_nm = eg.filesavebox(msg2, title, default=default)
+        elif chs is None:
+            ask_quit(title, 1)
+            continue
+
+        if f_nm:
+            break
+        else:
+            ask_quit(title, 1)
+            continue
+
+    return f_nm

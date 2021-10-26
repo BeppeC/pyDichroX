@@ -98,7 +98,7 @@ import modules.pyDichroX_escan_datatreat as esdt
 import modules.pyDichroX_hscan_datatreat as hsdt
 
 
-def open_import_scan(guiobj, confobj):
+def open_import_scan(guiobj, confobj, edg_filename):
     '''
     Open input files import data and groups them:
     - for energy scan analysis basing on absorption coefficient
@@ -118,6 +118,9 @@ def open_import_scan(guiobj, confobj):
 
     confobj : Configurations object.
 
+    edg_filename : str
+            File lisitng edge and pre-edge energies.
+            
     Returns
     -------
     ScanData object with positive scans (sigma+, CR, H- or LH scans,
@@ -206,7 +209,7 @@ def open_import_scan(guiobj, confobj):
     reference sample are returned.
     '''
     # Set edge and pre-edge energies
-    edge = guiobj.chs_edge()
+    edge = guiobj.chs_edge(edg_filename)
 
     # dictionary collecting log data
     log_dt = {}
@@ -1279,6 +1282,7 @@ def output_fls_ptbypt(guiobj, scanobj):
             # Order data
             scanobj.xmcd = scanobj.xmcd[['H', 'CR', 'dCR', 'CL', 'dCL', 'edge',
                                         'Dedge']]
+        scanobj.xmcd = scanobj.xmcd.sort_values(by=['H'])
     else:
         # Output column names
         col_nms = 'H (T),'
@@ -1316,7 +1320,7 @@ def output_fls_ptbypt(guiobj, scanobj):
         else:
             # Order data
             scanobj.xmcd = scanobj.xmcd[['H', 't', 'CR', 'CL', 'edge']]
-    scanobj.xmcd = scanobj.xmcd.sort_values(by=['t', 'H'])
+        scanobj.xmcd = scanobj.xmcd.sort_values(by=['t', 'H'])
     out_data = scanobj.xmcd.to_numpy()
 
     return out_data, col_nms, col_desc

@@ -445,8 +445,8 @@ class EngyScan:
         of xd_aver spectrum.
     '''
 
-    def __init__(self, guiobj, confobj, e_scale, pos, neg, log_dt,
-                 pos_to_norm=ScanData(), neg_to_norm=ScanData()):
+    def __init__(self, guiobj, e_scale, pos, neg, log_dt,
+        pos_to_norm=ScanData(), neg_to_norm=ScanData()):
         '''
         At instantiation scan_average and compt_xd method are called and
         energy attribute is setted, so upon its creation an EngyScan
@@ -456,8 +456,6 @@ class EngyScan:
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
-
-        confobj : Configuration object
 
         e_scale : array
             Common energy scale for data analysis.

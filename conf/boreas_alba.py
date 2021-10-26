@@ -1,75 +1,83 @@
-# Configurations for Boreas beamline at Alba Synchrotron, Barcelona (Spain)
+"""
+Configurations for BOREAS Beamline at Alba Synchrotron, Barcelona
+(Spain)
+"""
+
 import os
 import numpy as np
 import modules.pyDichroX_gui as pdxgui
 
 class Configuration():
     '''
-    Set program configurations based on data provenance
+    Set program configurations based on data provenance.
 
     Attributes
     ----------
     default_only_ext : str
-        default datafile exension
+        default datafile exension.
 
     default_ext : str
-        default datafile extension (mask)
+        default datafile extension (mask).
 
     interactive : bool
-        if True interactive mode is setted, if False not interactive mode is
-        setted
+        True interactive mode is setted
+        False not interactive mode is setted.
     
     sep : str
-        column separator in datafiles
+        column separator in datafiles.
 
     sense : str
-        type of sensing used
+        type of sensing used.
 
     list_analysis : list
-        list of supported analysis for the beamline
+        list of supported analysis for the beamline.
 
     scanlog_nms : list
-        list of scanlog filenames associated at different dataset
+        list of scanlog filenames associated at different dataset.
 
     scanlog_cnt : int
-        counter to run through scanlog_nms
+        counter to run through scanlog_nms.
 
     norm_curr : bool
         True if it/i0 is not provided by data
-        False if it/i0 is provided by data
+        False if it/i0 is provided by data.
     
     ask_for_T : bool
-        True if no information on sample temperature is provided by datalog file
-        False if sample temperature is provided in datalog file
+        True if no information on sample temperature is provided by
+            datalog file
+        False if sample temperature is provided in datalog file.
 
     ask_for_H : bool
-        True if no information on magnetic field is provided by datalog file
-        False if mangetic field is provided in datalog file
+        True if no information on magnetic field is provided by datalog
+            file
+        False if mangetic field is provided in datalog file.
 
     ref_norm : bool
         True if spectra must be normalized by a reference spectrum
-        False otherwise
+        False otherwise.
 
     energy : str
-        datafile column name for energy data
+        datafile column name for energy data.
 
-    it_escn : str
-        datafile column name for it data in energy scan experiments
+    it : str
+        datafile's column name for not normalized it - TEY data.
 
-    i0_escn : str
-        datafile column name for i0 data in energy scan experiments
+    i0 : str
+        datafile's column name for i0 - TEY data.
 
     phi_sgn : int
-        sign assigned to CR (+1) and CL (-1) for the discrimination of sigma+
-        from sigma-
+        sign assigned to CR (+1) and CL (-1) for the discrimination of
+        sigma+ from sigma-.
 
     Methods
     -------
-    e_scn_cols(f_name='')
-        Assing column names for energy scans based on beamline settings.
+    scn_cols(guiobj, f_name='')
+        Assign column names for columns to be imported based on beamline
+        settings.
 
     cr_cond(x)
-        Set condition to discriminate for right and left circular polarizations.
+        Set condition to discriminate for right and left circular
+        polarizations.
 
     lv_cond(x)
         Set condition to discriminate for vertical and horizontal linear
@@ -86,16 +94,26 @@ class Configuration():
         Not used for Boreas @ Alba.
 
     log_scavenger(dataflnm, guiobj)
-        Search in logfile for energies, field values, temperatures and sample
-        position.
+        Search in logfile for energies, field values, temperatures and
+        sample position.
 
-    logfl_creator(log_dt):
-        Create string with log data to be saved in logfile
+    escan_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for energy
+        scans analysis.
+
+    hscan_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for field
+        scans analysis. - NOT YET PROVIDED FOR BOREAS.
+
+    ptbypt_logfl_creator(log_dt)
+        Create string with log data to be saved in logfile for
+        hysteresis point by point analysis.
+        NOT YET PROVIDED FOR BOREAS.
     '''
 
     def __init__(self):
         '''
-        Instatiate object setting all the attributes
+        Instatiate object setting all the attributes.
         '''
         # Default datafile extensions
         self.default_only_ext = '.dat'
@@ -131,30 +149,38 @@ class Configuration():
         # Normalizaion by reference scans
         self.ref_norm = False
 
-    def e_scn_cols(self, f_name):
+    def scn_cols(self, guiobj, f_name):
         '''
         Assing column names for energy scans based on beamline settings.
 
         Parameters
         ----------
+        guiobj : GUI object
+            Provides GUI dialogs.
+
         f_name : str
             data filename, some beamline have filename in column names,
             NOT Boreas case.
 
         Return
         ------
-        list of column names to be imprted
+        list of column names to be imprted.
         '''
-        self.energy = 'energy_mono_corrected'  # column with energy data
-        self.it_escn = 'adc2_i3'  # it data - TEY
-        self.i0_escn = 'adc2_i1'  # i0 data - TEY
+        if guiobj.analysis in guiobj.type['hyst']:
+            # Yet not considered hysteresis analysis for this beamline
+            pass
+        else:    
+            self.energy = 'energy_mono_corrected'  # energy data column
+            self.it = 'adc2_i3'  # it data - TEY
+            self.i0 = 'adc2_i1'  # i0 data - TEY
 
-        # Energy scan colums list to be imported
-        return [self.energy, self.it_escn, self.i0_escn]
+            # Energy scan colums list to be imported
+            return [self.energy, self.it, self.i0]
 
     def cr_cond(self, x):
         '''
-        Set condition to discriminate for right and left circular polarizations.
+        Set condition to discriminate for right and left circular
+        polarizations.
 
         Parameters
         ----------
@@ -164,7 +190,7 @@ class Configuration():
 
         Returns
         -------
-        bool, True if CR, False if CL
+        bool, True if CR, False if CL.
         '''
         x_trunc = np.trunc(x * 100)
         if x_trunc == 78:
@@ -189,7 +215,7 @@ class Configuration():
 
         Returns
         -------
-        bool, True if LV, False if LH
+        bool, True if LV, False if LH.
         '''
         if np.trunc(x) == 0 :
             return False
@@ -205,11 +231,11 @@ class Configuration():
         Parameters
         ----------
         f_name : str
-            filename
+            filename.
 
         Returns
         -------
-        str, scan-number
+        str, scan-number.
         '''
         scn_num = f_name.rstrip(self.default_only_ext)
 
@@ -218,8 +244,8 @@ class Configuration():
     def scanlog_fname(self, guiobj):
         '''
         Collect logfile associated to scandata.
-        Boreas provide a unique file with datalogs for all the scans in a
-        dataset.
+        Boreas provide a unique file with datalogs for all the scans in
+        a dataset.
 
         Parameters
         ----------
@@ -228,7 +254,8 @@ class Configuration():
 
         Retrun
         ------
-        Fill the class attribute scanlog_nms with the file names of datalogs.
+        Fill the class attribute scanlog_nms with the file names of
+        datalogs.
         '''
         while True:
             self.scanlog_nms.append(guiobj.ask_logfn())
@@ -242,32 +269,32 @@ class Configuration():
     def single_lognm(self, dataflnm):
         '''
         Reconstruct name of datalog file.
-        Used in case of single logfile associated to single datafile, so logfile
-        name is associated to scanfile name.
+        Used in case of single logfile associated to single datafile, so
+        logfile name is associated to scanfile name.
 
         Not used for Boreas @ Alba.
 
         Parameters
         ----------
         dataflnm : str
-            name of datafile associated to logfile
+            name of datafile associated to logfile.
 
         Return
         ------
-        str, name of logfile associated to dataflnm
+        str, name of logfile associated to dataflnm.
         '''
         return 'Not used for Boreas.'
 
     def log_scavenger(self, dataflnm):
         '''
-        Search for energies, field values, temperatures and sample position of a
-        given datafile in related logfile.
+        Search for energies, field values, temperatures and sample
+        position of a given datafile in related logfile.
 
         Parameters
         ----------
         dataflnm : datafile's name.
-            The name of logfile is retrieved just changing in .log the extension
-            of datafile, following SOLEIL convention.
+            The name of logfile is retrieved just changing in .log the
+            extension of datafile, following SOLEIL convention.
 
         Returns
         -------
@@ -291,11 +318,12 @@ class Configuration():
                 logtx = fl.read()
                 # separate paragraphs in logfile
                 parlst = logtx.split('\n\n')
-                # search in paragraphs the section related to current scan
+                # search in paragraphs the section related to current
+                # scan
                 for par in parlst:
                     if ('#S ' + scannum) in par:
-                        # Collects fieldnames preceeded by #O and values
-                        # preceeded by #P
+                        # Collects fieldnames preceeded by '#O' and
+                        # values preceeded by '#P'
                         headnms = []
                         vals = []          
                         for ln in par.split('\n'):
@@ -317,17 +345,17 @@ class Configuration():
         except:            
             raise Exception()
 
-    def logfl_creator(self, log_dt):
+    def escan_logfl_creator(self, log_dt):
         '''
-        Create string with log data to be saved in logfile
+        Create string with log data to be saved in logfile.
 
         Parameters
         ----------
-        log_dt : dictionary with log data
+        log_dt : dictionary with log data.
 
         Returns
         -------
-        str, data formatted to be saved in logfile
+        str, data formatted to be saved in logfile.
         '''
         logtxt = ''
         log_tbl = log_dt['log_tbl']
@@ -377,3 +405,33 @@ class Configuration():
                    ' - int.d pre-edge: {}\n'.format(log_dt['xas_aver_ej_int']))
 
         return logtxt
+
+    def hscan_logfl_creator(self, log_dt):
+        '''
+        Create string with log data to be saved in logfile for field
+        scans analysis.
+
+        Parameters
+        ----------
+        log_dt : dictionary with log data.
+
+        Returns
+        -------
+        Not yet provided for Boreas, currently does nothing.
+        '''
+        pass
+
+    def ptbypt_logfl_creator(self, log_dt):
+        '''
+        Create string with log data to be saved in logfile for
+        hysteresis point by point analysis.
+
+        Parameters
+        ----------
+        log_dt : dictionary with log data.
+
+        Returns
+        -------
+        Not yet provided for Boreas, currently does nothing.
+        '''
+        pass

@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-import modules.pyDichroX_datatreat as dt
+import modules.pyDichroX_escan_datatreat as esdt
 
 
 class GUI:
@@ -45,12 +45,12 @@ class GUI:
     Attributes
     ----------
     type : dict
-        Links each type of measurements (keys) to corresponding analysis type
-        (values)
+        Links each type of measurements (keys) to corresponding analysis
+        type (values).
 
     sense : dict
-        Links the type of detection (TEY or Fluorescence) to corresponding 
-        analysis
+        Links the type of detection (TEY or Fluorescence) to
+        corresponding analysis.
 
     title : str
         Title of windows GUI
@@ -62,8 +62,8 @@ class GUI:
         True for interactive mode false otherwise
 
     infile_ref : bool
-        To select GUI message. True if input files are related to reference
-        sample, False otherwise
+        To select GUI message. True if input files are related to 
+        reference sample, False otherwise.
 
     Methods
     -------    
@@ -74,20 +74,20 @@ class GUI:
         GUI dialogue to select or create edge-list file.
 
     chs_edge()
-        Provides a GUI to set the edge and pre-edge energies for energy scan
-        analysis.
+        Provides a GUI to set the edge and pre-edge energies for energy
+        scan analysis.
 
     set_edges(sel_edg, exper_edge, x, y1, y2, y2int)
-        Allows user set the edge and pre-edge energies from experimental data
-        in order to perform energy calibration and normalizations.
+        Allows user set the edge and pre-edge energies from experimental
+        data in order to perform energy calibration and normalizations.
 
     ask_angle()
-        Provides a GUI to ask for experimental angle of the sample respect the 
-        beam.
+        Provides a GUI to ask for experimental angle of the sample
+        respect the beam.
 
     ask_T()
         GUI dialogue to ask for sample temperature.
-    
+
     ask_H()
         GUI dialogue to ask for magnetic field.
 
@@ -101,8 +101,8 @@ class GUI:
         GUI dialogue to select input files data sets.
 
     not_enough_fls(pol)
-        GUI warning that not enough files for a given polarization have been
-        supplied.
+        GUI warning that not enough files for a given polarization have
+        been supplied.
 
     ask_logfn(self)
         Gui dialogue to ask for datalog filename.
@@ -110,23 +110,36 @@ class GUI:
     no_log(fname, action='')
         Message box indicating a missing logfile.
 
-    e_num_pnts(e_num)
+    num_pnts(num_pts)
         GUI dialogue to set the number of points used for energy scan
         interpolations.
 
+    num_times(log_dt)
+        GUI dialogue to set the number of time steps to be plotted in
+        hysteresis point by point splitted time analysis.
+
     chs_scns(choices)
-        GUI dialogue to select the scans to be averaged from a list of labels.
+        GUI dialogue to select the scans to be averaged from a list of
+        labels.
 
     confirm_choice()
-        Provides a GUI to let user confirms his choice and continue or make
-        a different choice.
+        Provides a GUI to let user confirms his choice and continue or
+        make a different choice.
 
     outfile_name(default_nm)
-        GUI dialogue to choose output file name
+        GUI dialogue to choose output file name.
 
     wrongpol(scn_num, polarisation)
-        GUI dialogue to warn that a file with wrong polarisation has been
-        passed.
+        GUI dialogue to warn that a file with wrong polarisation has
+        been passed.
+
+    acq_times(pos, neg, fieldscn)
+        Set start and end values to define the time window to select
+        data to for hysteresis point by point analysis.
+
+    ask_acq_times()
+        Prompt for starting and ending acquisition times to be 
+        considered in hysteresis point by point analysis.
     '''
 
     def __init__(self, confobj):
@@ -136,9 +149,9 @@ class GUI:
 
         Parameters
         ----------
-        confobj : configuration object
+        confobj : configuration object.
         '''
-        self.type = {'hyst': ['Hysteresis'],  # analysis values for hysteresis
+        self.type = {'hyst': ['hyst_fly', 'hyst_t_aver', 'hyst_t_split'],
                      'xmcd': ['XMCD'],  # analysis values for XMCD
                      'xncd': ['XNCD'],  # analysis values for XNCD
                      'xnld': ['XNLD'],  # analysis values for XNLD
@@ -152,12 +165,12 @@ class GUI:
 
     def chs_analysis(self):
         '''
-        GUI dialogue to choose the data analysis to perform. It also set window
-        title and analysis attributes.
+        GUI dialogue to choose the data analysis to perform. It also
+        sets window's title and analysis attributes.
 
         Returns
         -------
-        set title attribure (str) and analysis attribute (str)
+        set title attribure (str) and analysis attribute (str).
         '''
         self.title = 'pyDichroX'
 
@@ -174,9 +187,17 @@ class GUI:
             else:
                 break
 
-        self.analysis = a_choice
+        # Make easier id for hysteresis analysis
+        if a_choice == 'XMCD Hysteresis on the fly':
+            self.analysis = 'hyst_fly'
+        elif a_choice == 'XMCD Hysteresis point by point - time average':
+            self.analysis = 'hyst_t_aver'
+        elif a_choice == 'XMCD Hysteresis point by point - time split':
+            self.analysis = 'hyst_t_split'
+        else:
+            self.analysis = a_choice
 
-        self.title = '{} {} analysis'.format(self.analysis, self.sense)
+        self.title = '{} {} analysis'.format(a_choice, self.sense)
 
     def sel_edg_fls(self):
         '''
@@ -215,11 +236,12 @@ class GUI:
 
     def chs_edge(self):
         '''
-        GUI dialogue to set the edge and pre-edge energies for energy scan
-        analysis.
-        The edge and pre-edge energies can be choosen from a file, if present.
-        Otherwise the file is created.
-        If the needed edge is missing it can be added and saved to the file.
+        GUI dialogue to set the edge and pre-edge energies for energy
+        scan analysis.
+        The edge and pre-edge energies can be choosen from a file, if
+        present. Otherwise the file is created.
+        If the needed edge is missing it can be added and saved to the
+        file.
 
         Returns
         -------
@@ -233,102 +255,96 @@ class GUI:
         -----
         The file edge_list.txt containing the edges' data must be a
         four-columns csv, with comma ',' separated values. First line
-        contains the headers of the columns, namely 'Name', 'Edge Energy',
-        'Pre-edge Energy' and 'Post-edge Energy'.
+        contains the headers of the columns, namely 'Name',
+        'Edge Energy', 'Pre-edge Energy' and 'Post-edge Energy'.
         '''
-        if self.analysis in self.type['hyst']:
-            # hysteresis analysis does not require edge file
-            return ['not provided', 'not provided', 'not provided',
-                    'not provided']
-        else:
-            # File lisitng edge and pre-edge energies
-            edg_filename = self.sel_edg_fls()
-            try:
-                edg_lst = pd.read_csv(edg_filename, sep=',')
-            except:  # if the file is empty
-                with open(edg_filename, 'w') as f:
-                    # Write file headers with column names
-                    f.write('Name,Edge Energy,Pre-edge Energy,Post-edge Energy')
-                edg_lst = pd.read_csv(edg_filename, sep=',')
+        # File lisitng edge and pre-edge energies
+        edg_filename = self.sel_edg_fls()
+        try:
+            edg_lst = pd.read_csv(edg_filename, sep=',')
+        except:  # if the file is empty
+            with open(edg_filename, 'w') as f:
+                # Write file headers with column names
+                f.write('Name,Edge Energy,Pre-edge Energy,Post-edge Energy')
+            edg_lst = pd.read_csv(edg_filename, sep=',')
 
-            msg = 'Choose the edge you want to use.'
-            # Create list of edges shown to user
-            edges = []
-            for i in edg_lst['Name']:
-                edges.append(i)
-            edges.append('Add')
+        msg = 'Choose the edge you want to use.'
+        # Create list of edges shown to user
+        edges = []
+        for i in edg_lst['Name']:
+            edges.append(i)
+        edges.append('Add')
 
-            chsd_edge = eg.choicebox(msg, self.title, edges)
+        chsn_edge = eg.choicebox(msg, self.title, edges)
 
-            # Check that a choice has been made
+        # Check that a choice has been made
+        while True:
+            errmsg = ''
+            if chsn_edge is None:
+                errmsg = '\nPlease choose an edge or add a new one.'
+            if not errmsg:
+                break
+            chsn_edge = eg.choicebox(msg + errmsg, self.title, edges)
+
+        # If user select Add, a new edge is added to the edge list
+        if chsn_edge == 'Add':
+            msg = 'Add a new edge.'
+            field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
+                         'Post-edge Energy']
+            field_vals = eg.multenterbox(msg, self.title, field_nms)
+
+            # Check that enetered values are valid
             while True:
                 errmsg = ''
-                if chsd_edge is None:
-                    errmsg = '\nPlease choose an edge or add a new one.'
+                for val in field_vals:
+                    if not val.strip():
+                        errmsg += '\n"{}" is a required field.\n\n'.format(val)
+                try:
+                    float(field_vals[1])
+                except:
+                    errmsg += ('\nOnly numerical values are accepted for' +
+                               ' Edge energy.\n\n')
+                try:
+                    float(field_vals[2])
+                except:
+                    errmsg += ('\nOnly numerical values are accepted for' +
+                               ' Pre-Edge energy.\n\n')
+                try:
+                    float(field_vals[3])
+                except:
+                    errmsg += ('\nOnly numerical values are accepted for' +
+                               ' Post-Edge energy.\n\n')
+
+                if field_vals[0] in edg_lst['Name']:
+                    errmsg += ('\nThere\'s already an Edge named ' +
+                               '{}.\n'.format(field_vals[0]) +
+                               'Please choose another name.')
+
                 if not errmsg:
                     break
-                chsd_edge = eg.choicebox(msg + errmsg, self.title, edges)
 
-            # If user select Add, a new edge is added to the edge list
-            if chsd_edge == 'Add':
-                msg = 'Add a new edge.'
-                field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
-                             'Post-edge Energy']
-                field_vals = eg.multenterbox(msg, self.title, field_nms)
+                field_vals = eg.multenterbox(msg + errmsg, self.title,
+                                             field_nms)
 
-                # Check that enetered values are valid
-                while True:
-                    errmsg = ''
-                    for val in field_vals:
-                        if not val.strip():
-                            errmsg += '\n"{}" is a required field.\n\n'.format(
-                                val)
-                    try:
-                        float(field_vals[1])
-                    except:
-                        errmsg += ('\nOnly numerical values are accepted for' +
-                                   ' Edge energy.\n\n')
-                    try:
-                        float(field_vals[2])
-                    except:
-                        errmsg += ('\nOnly numerical values are accepted for' +
-                                   ' Pre-Edge energy.\n\n')
-                    try:
-                        float(field_vals[3])
-                    except:
-                        errmsg += ('\nOnly numerical values are accepted for' +
-                                   ' Post-Edge energy.\n\n')
+            # Add the new edge to the list
+            edg_lst.loc[len(edg_lst)] = field_vals
+            edg_lst.to_csv(edg_filename, index=False, mode='w+')
 
-                    if field_vals[0] in edg_lst['Name']:
-                        errmsg += ('\nThere\'s already an Edge named ' +
-                                   '{}.\n'.format(field_vals[0]) +
-                                   'Please choose another name.')
-
-                    if not errmsg:
-                        break
-
-                    field_vals = eg.multenterbox(msg + errmsg, self.title,
-                                                 field_nms)
-
-                # Add the new edge to the list
-                edg_lst.loc[len(edg_lst)] = field_vals
-                edg_lst.to_csv(edg_filename, index=False, mode='w+')
-
-                return field_vals
-            else:
-                # Select row in DataFrame
-                # values.tolist() returns a list of selected rows, each of them
-                # is on turn a list of the values in the rows.
-                sel_edg = edg_lst[edg_lst['Name'] == chsd_edge]
-                sel_edg = sel_edg.values.tolist()[0]
-                return sel_edg
+            return field_vals
+        else:
+            # Select row in DataFrame
+            # values.tolist() returns a list of selected rows, each of
+            # them is on turn a list of the values in the rows.
+            sel_edg = edg_lst[edg_lst['Name'] == chsn_edge]
+            sel_edg = sel_edg.values.tolist()[0]
+            return sel_edg
 
     def set_edges(self, sel_edg, exper_edge, x, y1, y2, y2int):
         '''
-        Allow setting the edge energy from experimental data, pre-edge energy,
-        post-edge energy and energy range for pre-edge average. It also compute
-        a linear interpolation considering pre-edge and post-edge values to
-        take into account of baseline effects.
+        Allow setting the edge energy from experimental data, pre-edge
+        energy, post-edge energy and energy range for pre-edge average.
+        It also computes a linear interpolation considering pre-edge and
+        post-edge values to take into account of baseline effects.
 
         Parameters
         ----------
@@ -336,22 +352,22 @@ class GUI:
             Contains data of the edges considered
             sel_edg[0] expected edge energy
             sel_edg[1] pre-edge energy
-            sel_edg[2] post-edge energy
+            sel_edg[2] post-edge energy.
 
         exper_edge : float
-            experimental edge energy
+            experimental edge energy.
 
         x : array
-            energy scale of spectrum
+            energy scale of spectrum.
 
         y1 : array
-            xd spectrum data
+            xd spectrum data.
 
         y2 : array
-            xd_average spectrum data
+            xd_average spectrum data.
 
         y2int : UnivariateSpline
-            interpolation of spectrum y2
+            interpolation of spectrum y2.
 
         Returns
         -------
@@ -360,9 +376,9 @@ class GUI:
         - [0] exper_edge : experimental edge energy
         - [1] e_pe : pre-edge energy
         - [2] e_poste : post-edge energy
-        - [3] pe_wdt : number of points representing the half-width energy
-                range used for pre-edge average
-        - [4] cal : bool
+        - [3] pe_wdt : number of points representing the half-width
+                energy range used for pre-edge average
+        - [4] cal : bool.
 
         '''
         # Initializes number of points for half-width averaging interval
@@ -383,8 +399,8 @@ class GUI:
         accepted = ['y', 'yes', 'n', 'no']
         field_nms = [fn_exptd, fn_exper, fn_pe, fn_pse, fn_pewdt, fn_cal]
 
-        init_vals = [sel_edg[0], exper_edge,
-                     sel_edg[1], sel_edg[2], pe_wdt, 'N']
+        init_vals = [sel_edg[0], exper_edge, sel_edg[1], sel_edg[2], pe_wdt,
+                     'N']
 
         chk_ok = False  # While loop control
 
@@ -409,8 +425,8 @@ class GUI:
                                 errmsg += ('Please insert only numbers ' +
                                            'in {}'.format(field_nms[i]))
                                 break
-                        # Check that enetered energy values are included in the
-                        # energy range
+                        # Check that enetered energy values are included
+                        # in the energy range
                         if (i < (len(field_nms) - 2)) and (float(new_vals[i])
                                                            <= x[0]):
                             errmsg += ('Please choose for {}'.format(
@@ -435,7 +451,8 @@ class GUI:
             # Range for pre-edge averaging
             pe_idx = np.argmin(np.abs(x - new_vals[2]))
 
-            lpe_idx = pe_idx - int(new_vals[4])  # Left endpoint range index
+            # Left endpoint range index
+            lpe_idx = pe_idx - int(new_vals[4])
             # If average interval extends over energy range shrink it
             if lpe_idx < 0:
                 lpe_e = x[0]
@@ -443,29 +460,30 @@ class GUI:
             else:
                 lpe_e = x[lpe_idx]
 
-            rpe_idx = pe_idx + int(new_vals[4])  # Right endpoint range index
+            # Right endpoint range index
+            rpe_idx = pe_idx + int(new_vals[4])
             if rpe_idx >= len(x):
                 rpe_e = x[-1]
                 new_vals[4] = len(x) - 1 - pe_idx
             else:
                 rpe_e = x[rpe_idx]
 
-            # Updates init_vals with the setted values - except expected edge
-            # value - for the next loop
+            # Updates init_vals with the setted values - except expected
+            # edge value - for the next loop
             init_vals[1] = new_vals[1]
             init_vals[2] = new_vals[2]
             init_vals[3] = new_vals[3]
             init_vals[4] = new_vals[4]
             init_vals[5] = new_vals[5]
 
-            # Compute linear interpolation of baseline considering pre-edge and
-            # post-edge energies
+            # Compute linear interpolation of baseline considering
+            # pre-edge and post-edge energies
 
             # Pre-edge and post-edge points on interpolated curve.
             x_int = [init_vals[2], init_vals[3]]
             y_int = [y2int(init_vals[2]), y2int(init_vals[3])]
 
-            pe_int = dt.lin_interpolate(x_int, y_int, new_vals[1])
+            pe_int = esdt.lin_interpolate(x_int, y_int, new_vals[1])
 
             # Plot spectrum with position of edge expected and measured
             # together with pre-edges range selected for average
@@ -496,7 +514,7 @@ class GUI:
             if self.infile_ref:
                 add_title = "Normalized by reference data."
             else:
-                add_title = "" 
+                add_title = ""
             fig.suptitle(self.title + add_title)
 
             fig.tight_layout()
@@ -510,12 +528,13 @@ class GUI:
         else:
             new_vals[5] = False
 
-        return [new_vals[1], new_vals[2], new_vals[3], new_vals[4], new_vals[5]]
+        return [new_vals[1], new_vals[2], new_vals[3], new_vals[4],
+                new_vals[5]]
 
     def ask_angle(self):
         '''
-        GUI dialogue to ask for experimental angle of the sample respect to the
-        X-Ray beam.
+        GUI dialogue to ask for experimental angle of the sample respect
+        to the X-Ray beam.
 
         Returns
         -------
@@ -547,9 +566,9 @@ class GUI:
                 break
             new_angle = eg.enterbox(msg + errmsg, self.title, in_ang)
 
-        # Return input angle value (for log purpose) and complementary angle
-        # (the angle between X-Ray beam and the sample sufrace normal) in
-        # radians for XNLD computations
+        # Return input angle value (for log purpose) and complementary
+        # angle (the angle between X-Ray beam and the sample sufrace
+        # normal) in radians for XNLD computations
         return new_angle, np.deg2rad(90 - float(new_angle))
 
     def ask_T(self):
@@ -626,16 +645,16 @@ class GUI:
 
         Parameters
         ----------
-        confobj : configuration object
+        confobj : configuration object.
 
         Returns
         -------
         List (str) with the filenames to be opened.
-        For hysteresis analysis returns a two elements nested list, the first
-        element being a list with edge scans filenames and the second one a
-        list with pre-edge scans filenames.
+        For hysteresis analysis returns a two elements nested list, the
+        first element being a list with edge scans filenames and the
+        second one a list with pre-edge scans filenames.
         '''
-        # default file extension
+        # Default file extension
         default = confobj.default_ext
 
         # Current directory and txt files are setted as default.
@@ -647,26 +666,12 @@ class GUI:
         else:
             msg = ("Choose data files")
 
-        if self.analysis not in self.type['hyst']:            
-            f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
-                                   default=default)
-            return f_nms
+        if self.analysis in self.type['hyst']:
+            msg += "\nInclude both Edge and Pre-edge scans."
 
-        # Hysteresis scans.
-        else:
-            msg = ("Choose edge scans")
-            f_edg_nms = eg.fileopenbox(msg=msg, title=self.title,
-                                       multiple=True, default=default)
-            msg = ("Choose pre-edge scans")
-            f_pedg_nms = eg.fileopenbox(msg=msg, title=self.title,
-                                        multiple=True, default=default)
-
-            # Pre-edge scans are not mandatory, if Cancel is pressed of windows
-            # is closed an empty list is passed
-            if f_pedg_nms is None:
-                f_pedg_nms = []
-
-            return f_edg_nms, f_pedg_nms
+        f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
+                               default=default)
+        return f_nms
 
     def add_set(self):
         '''
@@ -690,39 +695,34 @@ class GUI:
     def in_dtst(self, confobj):
         '''
         GUI dialogue to select input files data sets.
-    
+
         Parameters
         ----------
-        confobj : configuration object
+        confobj : configuration object.
 
         Returns
         -------
-        nested list (str), each element of the list being a list with the
-        filenames of a data set:
+        nested list (str), each element of the list being a list with
+        the filenames of a data set:
         [[dtset11, dtset12, ...], [dtset21, dtset22, ...], ...].
 
-        In case of hysteresis each added dataset is represented by a tuple
-        whose first element is a list including the filenames of edge scans and
-        the second being a list including the filenames of pre-edge scans:
-        [([dtset1edg1, dtset1edg2, ...], [dtset1pedg1, dtset1pedg2, ...]),
-        ([dtset2edg1, dtset2edg2, ...], [dtset2pedg1, dtset2pedg2, ...]), ...].
+        In case of hysteresis each added dataset is represented by a
+        tuple whose first element is a list including the filenames of
+        edge scans and the second being a list including the filenames
+        of pre-edge scans:
+        [([dtset1edg1, dtset1edg2,...], [dtset1pedg1, dtset1pedg2,...]),
+        ([dtset2edg1, dtset2edg2,...], [dtset2pedg1, dtset2pedg2,...]),
+        ...].
         '''
         dataset = []
         # File selection
         while True:
             dataset.append(self.sel_ifls(confobj))
-            if self.analysis not in self.type['hyst']:
-                if None in dataset:
-                    dataset.pop()
-                    ask_quit(self.title, 1)
-                else:
-                    break
+            if None in dataset:
+                dataset.pop()
+                ask_quit(self.title, 1)
             else:
-                if None in dataset[0][0]:
-                    dataset[0][0].pop()
-                    ask_quit(self.title, 2)
-                else:
-                    break
+                break
         # Ask for datalogfile
         confobj.scanlog_fname(self)
 
@@ -731,18 +731,10 @@ class GUI:
             if self.add_set():
                 add = self.sel_ifls(confobj)
 
-                if self.analysis not in self.type['hyst']:  
-                    if add is None:
-                        break
-                    else:
-                        dataset.append(add)
+                if add is None:
+                    break
                 else:
-                    if add[0] is None:
-                        add = ([], add[1])
-                    if not(add[0] or add[1]):
-                        break
                     dataset.append(add)
-                
                 # Ask for datalogfile
                 confobj.scanlog_fname(self)
             else:
@@ -750,10 +742,10 @@ class GUI:
 
         return dataset
 
-    def not_enough_fls(self, pol):
+    def not_enough_fls(self, pol, preedge=False):
         '''
-        GUI warning that not enough files for a given polarization have been
-        supplied.
+        GUI warning that not enough files for a given polarization have
+        been supplied.
 
         Parameters
         ----------
@@ -761,11 +753,15 @@ class GUI:
             True for sigma+, CR and LH
             False for sigma-, CL and LV.
 
+        preedge : bool
+            True for pre-edge scan in hysteresis analysis
+            False otherwise
+
         Returns
         -------
         bool, True to choose again input files, False to quit program.
         '''
-        if self.analysis in self.type['xmcd']:  
+        if self.analysis in self.type['xmcd']:
             if pol:
                 data_type = 'sigma +'
             else:
@@ -781,28 +777,32 @@ class GUI:
             else:
                 data_type = 'CL'
 
+        if preedge:
+            data_type = 'pre-edge ' + data_type
+
         msg = ("You did not provide enough {} ".format(data_type) +
                "files to continue data analysis.\n\n" +
                "Do you want to choose files again or do you want to quit?")
 
         return eg.ccbox(msg=msg, title=self.title, choices=('Choose again',
-                        'Quit'), cancel_choice='Quit')
+                                                'Quit'), cancel_choice='Quit')
 
     def ask_logfn(self):
         '''
         Gui dialogue to ask for datalog filename.
 
-        Used in case a single datalog file is present for an entire dataset.
+        Used in case a single datalog file is present for an entire
+        dataset.
 
         Return
         ------
-        str, datalog filename
+        str, datalog filename.
         '''
         msg = 'Choose datalog file associated with your set of data.'
 
         logfn = eg.fileopenbox(msg=msg, title=self.title, multiple=False)
 
-        return logfn        
+        return logfn
 
     def no_log(self, fname, action=''):
         '''
@@ -820,15 +820,15 @@ class GUI:
 
         eg.msgbox(msg, self.title)
 
-    def e_num_pnts(self, e_num):
+    def num_pnts(self, num_pts):
         '''
-        GUI dialogue to set the number of points used for energy scan
+        GUI dialogue to set the number of points used for scan
         interpolations.
 
         Parameters
         ----------
-        e_num : int
-            Default number
+        num_pts : int
+            Default number.
 
         Returns
         -------
@@ -839,8 +839,40 @@ class GUI:
                "average number of data points.")
 
         while True:
-            num_points = eg.integerbox(msg, self.title, default=e_num,
+            num_points = eg.integerbox(msg, self.title, default=num_pts,
                                        upperbound=100000)
+            if num_points is None:
+                ask_quit(self.title)
+            else:
+                break
+
+        return num_points
+
+    def num_times(self, log_dt):
+        '''
+        GUI dialogue to set the number of time steps to be plotted in
+        hysteresis point by point splitted time analysis.
+
+        Parameters
+        ----------
+        log_dt : dict
+            Collect data for logfile.
+
+        Returns
+        -------
+        int, the number of time steps to be plotted.
+        '''
+        n_pt = log_dt['t_scale'][2]
+        msg = ('Scans contains {} time steps.\n\n'.format(n_pt) + 
+                'Insert number of times step each scan must be plotted')
+
+        default = str(int(np.rint(n_pt * 10 / 100)))
+        lwrbn = 1
+        uprbn = n_pt
+
+        while True:
+            num_points = eg.integerbox(msg, self.title, default=default,
+                                        lowerbound=lwrbn, upperbound=uprbn)
             if num_points is None:
                 ask_quit(self.title)
             else:
@@ -850,7 +882,8 @@ class GUI:
 
     def chs_scns(self, choices):
         '''
-        GUI dialogue to select the scans to be averaged from a list of labels.
+        GUI dialogue to select the scans to be averaged from a list of
+        labels.
 
         Parameters
         ----------
@@ -864,7 +897,7 @@ class GUI:
         if self.infile_ref:
             msg = "Select the reference scans you want to average."
         else:
-            msg = "Select the reference scans you want to average."
+            msg = "Select the cans you want to average."
 
         poss_chs = choices
         choiced = eg.multchoicebox(msg, self.title, poss_chs)
@@ -888,12 +921,12 @@ class GUI:
 
     def confirm_choice(self):
         '''
-        GUI dialogue to confirm a choice and continue or make a different
-        choice.
+        GUI dialogue to confirm a choice and continue or make a
+        different choice.
 
         Returns
         -------
-        eg.boolbox obj
+        eg.boolbox obj.
         '''
         msg = ("Do you confirm your choice?")
         buttons = ["Yes, continue.", "No, make another choice."]
@@ -922,8 +955,8 @@ class GUI:
 
     def wrongpol(self, scn_num, polarisation):
         '''
-        GUI dialogue to warn that a file with wrong polarisation has been
-        passed.
+        GUI dialogue to warn that a file with wrong polarisation has
+        been passed.
 
         Parameters
         ----------
@@ -931,13 +964,119 @@ class GUI:
             scan number
 
         polarisation : str
-            polarisation type
+            polarisation type.
         '''
         msg = ('Polarisation of scan number {} is not {}'.format(scn_num,
-               polarisation) + '\n\nScan number {}'.format(scn_num) +
-               ' will not be considered')
+                polarisation) + '\n\nScan number {}'.format(scn_num) +
+                ' will not be considered')
 
         eg.msgbox(msg=msg, title=self.title)
+
+    def acq_times(self, pos, neg):
+        '''
+        Set start and end values to define the time window to select
+        data to for hysteresis point by point analysis.
+
+        Parameters
+        ----------
+        pos : ScanData obj
+            ScanData obj with CR data.
+
+        neg : ScanData obj
+            ScanData obj with CL data.
+
+        Return
+        ------
+        float, float : start (by default 0) and end (by default the
+        smallest of max times of all scans) times for common time scale
+        definition.
+        '''
+        while True:
+            st_t, end_t = self.ask_acq_times()
+            msg = ''
+
+            t_min = pos.min_t.copy()
+            t_min.extend(neg.min_t)
+
+            t_max = pos.max_t.copy()
+            t_max.extend(neg.max_t)
+
+            #t_num = pos.num_t.copy()
+            #t_num.extend(neg.num_t)
+
+            # Check that start and end times are consistent with data
+            if st_t < 0:
+                st_t = np.around(np.average(t_min), 1)
+            if st_t > np.amin(t_max):
+                msg += ('The start time inserted is outside the acquired time' +
+                        'range.\nPlease chose a value smaller than {} s'.format(
+                            np.amin(t_max)))
+            if end_t < 0:
+                end_t =np.around(np.average(t_max), 1)
+            if st_t >= end_t:
+                msg += ('Start time must be smaller than end time.\n' +
+                        'Please chose a value smaller than {} s'.format(end_t))
+            if not msg:
+                break
+            eg.msgbox(msg, self.title)
+
+        return st_t, end_t
+
+    def ask_acq_times(self):
+        '''
+        Prompt for starting and ending acquisition times to be 
+        considered in hysteresis point by point analysis.
+
+        Return
+        ------
+        float, float
+            starting and ending times inserted by user. If nothing is
+            passed 0 and -1 are the default values passed by deafult for
+            start and end times respectively.
+        '''
+        msg = ("Enter the START acquisition time you want to consider (sec)" +
+               "\n\nIf nothing is passed 0 is taken as default.")
+        st_t = eg.enterbox(msg, self.title)
+
+        while True:
+            errmsg = ''
+            if st_t is None or not st_t:
+                st_t = -1
+            else:
+                try:
+                    st_t = float(st_t)
+                except:
+                    errmsg += ('\n\nPlease insert only numbers for start' +
+                               ' time.')
+                if st_t < 0:
+                    errmsg += ('\n\nInsert only positive numbers for start' +
+                               ' time.')
+            if not errmsg:
+                break
+            st_t = eg.enterbox(msg + errmsg, self.title)
+
+        msg = ("Enter the STOP acquisition time you want to consider (sec)" +
+               "\n\nIf nothing is passed last acquired time is taken as" +
+               " default.")
+        end_t = eg.enterbox(msg, self.title)
+
+        while True:
+            errmsg = ''
+            if end_t is None or not end_t:
+                end_t = -1
+            else:
+                try:
+                    end_t = float(end_t)
+                except:
+                    errmsg += ('\n\nPlease insert only numbers for end time.')
+                if end_t < 0:
+                    errmsg += ('\n\nInsert only positive numbers for end' +
+                               ' time.')
+            if not errmsg:
+                break
+            end_t = eg.enterbox(msg + errmsg, self.title)
+
+        return st_t, end_t
 
 
 def ask_continue():
@@ -960,7 +1099,7 @@ def ask_quit(title, mes=0):
     title : str
         pop-up window's title
     mes : int
-        Identifiers for the message
+        Identifiers for the message.
     '''
     id_msg = {0: '',
               1: 'You didn\'t choose any file\n\n',
@@ -994,11 +1133,11 @@ def set_config(cfg_list):
     Parameters
     ----------
     cfg_list : list
-        list of configuration files
+        list of configuration files.
 
     Returns
     -------
-    Configuration file choosed
+    Configuration file chosen.
     '''
     title = 'pyDichroX'
     msg = 'Select the configuration file.'

@@ -7,6 +7,7 @@ Starting from XAS scans and related logfiles, pyDichroX computes:
 - from energy scans: XMCD, XNXD, XNCD, XNLD spectra;
 - from magnetic field scans taken on the fly: XMCD hysteresis;
 - from time scan acquisitions taken at different magnetic fields: XMCD hysteresis time-averaging the data for each field or reporting XMCD values for each time and field.
+N.B. analysis routines of hysteresis data acquired with point by point methods does not discern different scan field branches. To avoid data from different branches to be averaged all together, analysis of different branches must be accomplished separately.
 
 Results of the data analysis are saved to a csv file togheter with the final graphs.
 Also a log file with information concerning experimental conditions (collected from scans' logfiles) and parameter choices durnig analysis is produced.
@@ -36,8 +37,8 @@ Just run pyDichroX.py.
 Dialogues and interactions through the data analysis are provided by a sequence of pup-up windows, here listed: 
 
 - Chose the analysis type:
-A dialogue asks to choose which type of analysis perform between XMCD, XNXD,
-XNCD, XNLD, Hysteresis on the fly and the two Hysteresis point by point analysis.
+A dialogue asks to choose which type of analysis perform between XMCD, XNXD, XNCD, XNLD, Hysteresis on the fly and the two Hysteresis point by point analysis.
+N.B. analysis routines of hysteresis data acquired with point by point methods does not discern different scan field branches. To avoid data from different branches to be averaged all together, analysis of different branches must be accomplished separately.
 
 - Edge file selection:
 Select the edge-file where edge, preedge and postedge energies of the element of interests are listed. By default edge-files are located in 'edge files' folder.
@@ -92,6 +93,8 @@ dr. Michele Serri
 Niccolò Giaconi
 Andrea Luigi Sorrentino
 prof. Matteo Mannini
+
+I also acknowledge the staff of DEIMOS Beamline (Soleil Synchrotron, Paris (France)), BOREAS Beamline (Alba Synchrotron, Barcelona (Spain)), APE Beamline (Elettra Synchrotron, Trieste (Italy)).
 
 The realization of this program would not have been possible without the collaboration, suggestions, discussion, hints and testing on the field they provided.
 

@@ -16,9 +16,9 @@ Also a log file with information concerning experimental conditions (collected f
 Making use of configuration files wich take care of specific file formats and layouts, pyDichroX can analyse data collected in different beamlines.
 
 Currently pyDichroX analyses data from:
-- Deimos beamline @ Soleil Synchrotron, Paris (France) - XMCD, XNXD, XNCD, XNLD, Hystersis on the fly, Hysteresis point by point
-- Boreas beamline @ Alba Synchrotron, Barcelona (Spain) - XMCD, XNXD, XNCD, XNLD
-- APE beamline @ Elettra Synchrotron, Trieste (Italy) - XNCD, XNLD
+- DEIMOS Beamline @ Soleil Synchrotron, Paris (France) - XMCD, XNXD, XNCD, XNLD, Hystersis on the fly, Hysteresis point by point
+- BOREAS Beamline @ Alba Synchrotron, Barcelona (Spain) - XMCD, XNXD, XNCD, XNLD
+- APE Beamline @ Elettra Synchrotron, Trieste (Italy) - XNCD, XNLD
 
 
 REQUIREMENTS
@@ -39,6 +39,7 @@ Dialogues and interactions through the data analysis are provided by a sequence 
 
 - Chose the analysis type:
 A dialogue asks to choose which type of analysis perform between XMCD, XNXD, XNCD, XNLD, Hysteresis on the fly and the two Hysteresis point by point analysis.
+
 N.B. analysis routines of hysteresis data acquired with point by point methods does not discern different scan field branches. To avoid data from different branches to be averaged all together, analysis of different branches must be accomplished separately.
 
 - Edge file selection:

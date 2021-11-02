@@ -68,6 +68,10 @@ class GUI:
         To select GUI message. True if input files are related to 
         reference sample, False otherwise.
 
+    bsl_int : bool
+        Select method to process baseline. If True ALS method is used,
+        if False a linear approximation is adopted.
+
     Methods
     -------    
     chs_analysis()
@@ -121,6 +125,10 @@ class GUI:
     chs_scns(choices)
         GUI dialogue to select the scans to be averaged from a list of
         labels.
+
+    ask_bsl_interp()
+        GUI dialogue to choose which method use to process baseline
+        between linear approximation and peak screened ALS method.
 
     confirm_choice()
         Provides a GUI to let user confirms his choice and continue or
@@ -885,6 +893,37 @@ class GUI:
 
         return choiced
 
+    def ask_bsl_interp(self):
+        '''
+        GUI dialogue to choose which method use to process baseline
+        between linear approximation and peak screened ALS method.
+
+        Return
+        ------
+        Set the boolean attribute bsl_int.
+        '''
+        msg = ("Select the method used to process baselines in order " +
+                "to extrapolate the edge jumps")
+        choices = [("Linear approximation using pre-edge and post-edge " +
+            "energies"), ("Baseline interpolation peak screened ALS method")]
+
+        choice = eg.choicebox(msg, self.title, choices)
+
+        while True:
+            errmsg = ""
+            if choice is None:  # If Cancel is pressed exit program
+                ask_quit(self.title)
+            if not choice:
+                ask_quit(self.title)
+            if not errmsg:
+                break
+            choice = eg.choicebox(msg + errmsg, self.title, choices)
+        
+        if choice == choices[0]:
+            self.bsl_int = False
+        else:
+            self.bsl_int = True
+
     def confirm_choice(self):
         '''
         GUI dialogue to confirm a choice and continue or make a
@@ -894,7 +933,7 @@ class GUI:
         -------
         eg.boolbox obj.
         '''
-        msg = ("Do you confirm your choice?")
+        msg = "Do you confirm your choice?"
         buttons = ["Yes, continue.", "No, make another choice."]
 
         # It returns in turn bool True for 'Yes' and False for 'No'

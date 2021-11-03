@@ -37,6 +37,7 @@ import easygui as eg
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.widgets import TextBox
 
 import modules.pyDichroX_escan_datatreat as esdt
 
@@ -359,6 +360,39 @@ class GUI:
         # of pre-edge energy to 4.
         pe_wdt = 4
 
+        fig, ax1 = plt.subplots()
+
+        if self.infile_ref:
+            add_title = "Normalized by reference data."
+        else:
+            add_title = ""
+        fig.suptitle("Choose energies\n\n" + self.title + add_title)
+
+        ax1.set_xlabel('E (eV)')
+        ax1.set_ylabel(self.analysis + ' (a.u.)',
+                       color='black')
+        ax1.tick_params(axis='y', labelcolor='black')
+        ax1.plot(x, y1, color='black')
+
+        ax1.axvline(x=sel_edg[0], color='blue', label='Expected edge')
+
+        ax2 = ax1.twinx()  # second axes that shares the same x-axis
+        ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
+        ax2.plot(x, y2, color='pink')
+        ax2.axvline(x=sel_edg[0], color='blue')
+
+        boxedg = fig.add_axes([0.1, 0.05, 0.1, 0.75])
+        boxpe = fig.add_axes([0.3, 0.05, 0.1, 0.75])
+        boxpewdt = fig.add_axes([0.5, 0.05, 0.05, 0.75])
+        boxpste = fig.add_axes([0.7, 0.05, 0.1, 0.75])
+
+        text_box_ed = TextBox(boxedg, 'Edge')
+        text_box_pe = TextBox(boxpe, 'Pre-edge')
+        text_box_pewd = TextBox(boxpewdt, 'Pre-edge width')
+        text_box_pste = TextBox(boxpste, 'Post-edge')
+
+
+
         msg = 'Set values for edge and pre-edge energies.'
         # Field names for enterbox
         fn_exptd = 'Expected edge energy'
@@ -504,6 +538,10 @@ class GUI:
 
         return [new_vals[1], new_vals[2], new_vals[3], new_vals[4],
                 new_vals[5]]
+
+    def set_energy(self):
+ARRIVATO QUI
+
 
     def ask_angle(self):
         '''

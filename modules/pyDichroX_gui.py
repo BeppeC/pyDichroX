@@ -16,11 +16,14 @@ ask_continue()
 ask_quit(title, mes)
     GUI dialogue to ask if quit or not the program.
 
-no_config():
+no_config()
     GUI dialogue for no presence of configuration file.
 
-set_config(cfg_list):
+set_config(cfg_list)
     GUI dialogue to select configuration file.
+
+sel_edg_fls()
+    GUI dialogue to select or create edge-list file.
 """
 
 # Copyright (C) Giuseppe Cucinotta.
@@ -34,6 +37,7 @@ import easygui as eg
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.widgets import TextBox
 
 import modules.pyDichroX_escan_datatreat as esdt
 
@@ -65,15 +69,16 @@ class GUI:
         To select GUI message. True if input files are related to 
         reference sample, False otherwise.
 
+    bsl_int : bool
+        Select method to process baseline. If True ALS method is used,
+        if False a linear approximation is adopted.
+
     Methods
     -------    
     chs_analysis()
         GUI dialogue to choose the data analysis to perform.
 
-    sel_edg_fls()
-        GUI dialogue to select or create edge-list file.
-
-    chs_edge()
+    chs_edge(edg_filename)
         Provides a GUI to set the edge and pre-edge energies for energy
         scan analysis.
 
@@ -121,6 +126,10 @@ class GUI:
     chs_scns(choices)
         GUI dialogue to select the scans to be averaged from a list of
         labels.
+
+    ask_bsl_interp()
+        GUI dialogue to choose which method use to process baseline
+        between linear approximation and peak screened ALS method.
 
     confirm_choice()
         Provides a GUI to let user confirms his choice and continue or
@@ -199,42 +208,7 @@ class GUI:
 
         self.title = '{} {} analysis'.format(a_choice, self.sense)
 
-    def sel_edg_fls(self):
-        '''
-        GUI dialogue to select or create edge-list file.
-
-        Returns
-        -------
-        str, the name of the edge-list file.
-        '''
-        # Current directory and txt files are setted as default.
-        msg = ("Choose to open an existen edge list file or create a new one.")
-        choices = ("Open a file", "Create a new file")
-
-        default = 'edge files/*.txt'
-
-        while True:
-            chs = eg.boolbox(msg, self.title, choices)
-            if chs:
-                msg2 = "Choose the edge list file"
-                f_nm = eg.fileopenbox(msg2, self.title, default=default)
-            elif chs is False:
-                msg2 = ("A new edge list file will be created.\n" +
-                        "Choose the directory and the filename.")
-                f_nm = eg.filesavebox(msg2, self.title, default=default)
-            elif chs is None:
-                ask_quit(self.title, 1)
-                continue
-
-            if f_nm:
-                break
-            else:
-                ask_quit(self.title, 1)
-                continue
-
-        return f_nm
-
-    def chs_edge(self):
+    def chs_edge(self, edg_filename):
         '''
         GUI dialogue to set the edge and pre-edge energies for energy
         scan analysis.
@@ -242,6 +216,11 @@ class GUI:
         present. Otherwise the file is created.
         If the needed edge is missing it can be added and saved to the
         file.
+
+        Parameters
+        ----------
+        edg_filename : str
+            File lisitng edge and pre-edge energies.
 
         Returns
         -------
@@ -258,8 +237,6 @@ class GUI:
         contains the headers of the columns, namely 'Name',
         'Edge Energy', 'Pre-edge Energy' and 'Post-edge Energy'.
         '''
-        # File lisitng edge and pre-edge energies
-        edg_filename = self.sel_edg_fls()
         try:
             edg_lst = pd.read_csv(edg_filename, sep=',')
         except:  # if the file is empty
@@ -290,7 +267,7 @@ class GUI:
         if chsn_edge == 'Add':
             msg = 'Add a new edge.'
             field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
-                         'Post-edge Energy']
+                        'Post-edge Energy']
             field_vals = eg.multenterbox(msg, self.title, field_nms)
 
             # Check that enetered values are valid
@@ -316,15 +293,13 @@ class GUI:
                                ' Post-Edge energy.\n\n')
 
                 if field_vals[0] in edg_lst['Name']:
-                    errmsg += ('\nThere\'s already an Edge named ' +
-                               '{}.\n'.format(field_vals[0]) +
-                               'Please choose another name.')
-
+                    errmsg += ('\nThere\'s already an Edge named {}.\n'.format(
+                                field_vals[0]) + 'Please choose another name.')
                 if not errmsg:
                     break
 
                 field_vals = eg.multenterbox(msg + errmsg, self.title,
-                                             field_nms)
+                                            field_nms)
 
             # Add the new edge to the list
             edg_lst.loc[len(edg_lst)] = field_vals
@@ -333,11 +308,11 @@ class GUI:
             return field_vals
         else:
             # Select row in DataFrame
-            # values.tolist() returns a list of selected rows, each of
-            # them is on turn a list of the values in the rows.
+            # values.tolist() returns a list of selected rows, each of them
+            # is on turn a list of the values in the rows.
             sel_edg = edg_lst[edg_lst['Name'] == chsn_edge]
             sel_edg = sel_edg.values.tolist()[0]
-            return sel_edg
+            return sel_edg    
 
     def set_edges(self, sel_edg, exper_edge, x, y1, y2, y2int):
         '''
@@ -384,6 +359,39 @@ class GUI:
         # Initializes number of points for half-width averaging interval
         # of pre-edge energy to 4.
         pe_wdt = 4
+
+        fig, ax1 = plt.subplots()
+
+        if self.infile_ref:
+            add_title = "Normalized by reference data."
+        else:
+            add_title = ""
+        fig.suptitle("Choose energies\n\n" + self.title + add_title)
+
+        ax1.set_xlabel('E (eV)')
+        ax1.set_ylabel(self.analysis + ' (a.u.)',
+                       color='black')
+        ax1.tick_params(axis='y', labelcolor='black')
+        ax1.plot(x, y1, color='black')
+
+        ax1.axvline(x=sel_edg[0], color='blue', label='Expected edge')
+
+        ax2 = ax1.twinx()  # second axes that shares the same x-axis
+        ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
+        ax2.plot(x, y2, color='pink')
+        ax2.axvline(x=sel_edg[0], color='blue')
+
+        boxedg = fig.add_axes([0.1, 0.05, 0.1, 0.75])
+        boxpe = fig.add_axes([0.3, 0.05, 0.1, 0.75])
+        boxpewdt = fig.add_axes([0.5, 0.05, 0.05, 0.75])
+        boxpste = fig.add_axes([0.7, 0.05, 0.1, 0.75])
+
+        text_box_ed = TextBox(boxedg, 'Edge')
+        text_box_pe = TextBox(boxpe, 'Pre-edge')
+        text_box_pewd = TextBox(boxpewdt, 'Pre-edge width')
+        text_box_pste = TextBox(boxpste, 'Post-edge')
+
+
 
         msg = 'Set values for edge and pre-edge energies.'
         # Field names for enterbox
@@ -530,6 +538,10 @@ class GUI:
 
         return [new_vals[1], new_vals[2], new_vals[3], new_vals[4],
                 new_vals[5]]
+
+    def set_energy(self):
+ARRIVATO QUI
+
 
     def ask_angle(self):
         '''
@@ -919,6 +931,37 @@ class GUI:
 
         return choiced
 
+    def ask_bsl_interp(self):
+        '''
+        GUI dialogue to choose which method use to process baseline
+        between linear approximation and peak screened ALS method.
+
+        Return
+        ------
+        Set the boolean attribute bsl_int.
+        '''
+        msg = ("Select the method used to process baselines in order " +
+                "to extrapolate the edge jumps")
+        choices = [("Linear approximation using pre-edge and post-edge " +
+            "energies"), ("Baseline interpolation peak screened ALS method")]
+
+        choice = eg.choicebox(msg, self.title, choices)
+
+        while True:
+            errmsg = ""
+            if choice is None:  # If Cancel is pressed exit program
+                ask_quit(self.title)
+            if not choice:
+                ask_quit(self.title)
+            if not errmsg:
+                break
+            choice = eg.choicebox(msg + errmsg, self.title, choices)
+        
+        if choice == choices[0]:
+            self.bsl_int = False
+        else:
+            self.bsl_int = True
+
     def confirm_choice(self):
         '''
         GUI dialogue to confirm a choice and continue or make a
@@ -928,7 +971,7 @@ class GUI:
         -------
         eg.boolbox obj.
         '''
-        msg = ("Do you confirm your choice?")
+        msg = "Do you confirm your choice?"
         buttons = ["Yes, continue.", "No, make another choice."]
 
         # It returns in turn bool True for 'Yes' and False for 'No'
@@ -1151,3 +1194,40 @@ def set_config(cfg_list):
             break
 
     return cfg
+
+
+def sel_edg_fls():
+    '''
+    GUI dialogue to select or create edge-list file.
+
+    Returns
+    -------
+    str, the name of the edge-list file.
+    '''
+    title = 'pyDichroX'
+    # Current directory and txt files are setted as default.
+    msg = ("Choose to open an existen edge list file or create a new one.")
+    choices = ("Open a file", "Create a new file")
+
+    default = 'edge files/*.txt'
+
+    while True:
+        chs = eg.boolbox(msg, title, choices)
+        if chs:
+            msg2 = "Choose the edge list file"
+            f_nm = eg.fileopenbox(msg2, title, default=default)
+        elif chs is False:
+            msg2 = ("A new edge list file will be created.\n" +
+                    "Choose the directory and the filename.")
+            f_nm = eg.filesavebox(msg2, title, default=default)
+        elif chs is None:
+            ask_quit(title, 1)
+            continue
+
+        if f_nm:
+            break
+        else:
+            ask_quit(title, 1)
+            continue
+
+    return f_nm

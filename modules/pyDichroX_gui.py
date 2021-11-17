@@ -350,26 +350,25 @@ class GUI:
                 f.write('Name,Edge Energy,Pre-edge Energy,Post-edge Energy')
             edg_lst = pd.read_csv(edg_filename, sep=',')
 
-        msg = 'Choose the edge you want to use.'
+        msg = 'Choose the edge you want to use or insert a new one.'
         # Create list of edges shown to user
         edges = []
         for i in edg_lst['Name']:
             edges.append(i)
-        edges.append('Add')
+        edges.append('Add a new edge')
 
         chsn_edge = eg.choicebox(msg, self.title, edges)
 
         # Check that a choice has been made
         while True:
-            errmsg = ''
             if chsn_edge is None:
-                errmsg = '\nPlease choose an edge or add a new one.'
-            if not errmsg:
+                ask_quit(self.title)
+                chsn_edge = eg.choicebox(msg, self.title, edges)
+            else:
                 break
-            chsn_edge = eg.choicebox(msg + errmsg, self.title, edges)
 
         # If user select Add, a new edge is added to the edge list
-        if chsn_edge == 'Add':
+        if chsn_edge == 'Add new edge':
             msg = 'Add a new edge.'
             field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
                         'Post-edge Energy']

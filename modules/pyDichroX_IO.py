@@ -296,7 +296,7 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
     coefficient for circularly polirized light or based on value of
     linear polarization for linearly polarized light.
 
-    Collect experimental data for compiling output logfile.
+    Collect experimental data for compiling output lile.
 
     Parameters
     ----------
@@ -1110,8 +1110,7 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
         col_desc += '({}_av +  {}_av) / 2,'.format(neg.dtype, pos.dtype)
     col_desc += '{}_av/PE_av,'.format(pos.dtype)
     col_desc += '{}_av/PE_av,'.format(neg.dtype)
-    if guiobj.analysis in guiobj.type['xnld']:
-      
+    if guiobj.analysis in guiobj.type['xnld']:      
         col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis) +
             ' ({0}oPE - {1}oPE) / ({1}_EJNor'.format(neg.dtype, pos.dtype) +
             ' + (2cos^2 - sin^2) * {}_EJNor),'.format(neg.dtype))
@@ -1127,12 +1126,14 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
     if guiobj.analysis in guiobj.type['xnld']:
         col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis) +
             ' ({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(neg.dtype,
-            pos.dtype) + ' + (2cos^2 - sin^2) * {}_EJNor_int)'.format(
+            pos.dtype) + ' + (2cos^2 - sin^2) * {}_EJNor_int),'.format(
             neg.dtype))
     else:
         col_desc += ('Normalized {} 200 * '.format(guiobj.analysis) +
             '({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(neg.dtype,
-            pos.dtype) + ' + {}_EJNor_int)'.format(neg.dtype))
+            pos.dtype) + ' + {}_EJNor_int),'.format(neg.dtype))
+    col_desc += '{0}_int{1} normalized by EJ of average {0}'.format(
+        guiobj.analysis, ref)
 
     return out_data, col_nms, col_desc
 
@@ -1415,12 +1416,20 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     ax4.set_ylabel('{}{}_int (%)'.format(guiobj.analysis, ref))
     ax4.set_xlabel('E (eV)')
     ax4.legend()
-    f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(log_dt['exper_edge'],
-        log_dt['setted_pedg']) + ' PostEdge : {:.2f},'.format(
-        log_dt['setted_postedg']) + ' Edge-jump : {:.4f}\n'.format(
-        log_dt['xas_aver_ej_int']) +
-        r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
-        log_dt['field'], log_dt['angle']))
+    if guiobj.bsl_int:
+        f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
+            log_dt['exper_edge'], log_dt['setted_pedg']) +
+            r' $\lambda$ : {:.2f},'.format(log_dt['lambda']/1E7) +
+            ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int']) +
+            r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
+            log_dt['field'], log_dt['angle']))
+    else:
+        f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
+            log_dt['exper_edge'], log_dt['setted_pedg']) +
+            ' Post-Edge : {:.2f},'.format(log_dt['setted_postedg']) +
+            ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int']) +
+            r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
+            log_dt['field'], log_dt['angle']))
     plt.show()
 
     return f1, f2
@@ -1725,7 +1734,7 @@ def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
     # Not normalized by reference data and plots
     out_data, col_nms, col_desc = output_fls_escan(guiobj, pos, neg, scanobj)
     f1, f2 = output_plot_escan(guiobj, pos, neg, scanobj, log_dt)
-    logtxt = confobj.escan_logfl_creator(log_dt)
+    logtxt = confobj.escan_logfl_creator(guiobj, log_dt)
 
     if confobj.ref_norm:
         guiobj.infile_ref = True  # For graphs and columns labelling
@@ -1740,7 +1749,7 @@ def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
         logtxt += '\n\n'
         logtxt +='Logs for reference scans and normalized data by refererence.'
         logtxt += '\n\n'
-        logtxt += confobj.escan_logfl_creator(log_dt_ref)
+        logtxt += confobj.escan_logfl_creator(guiobj, log_dt_ref)
 
     default_nm = ('{}_{}_scan_{}-{}_{}K_{}T_{}_{}.dat'.format(
         log_dt['Edge_name'], guiobj.analysis,

@@ -407,13 +407,16 @@ class Configuration():
         except:            
             raise Exception()
 
-    def escan_logfl_creator(self, log_dt):
+    def escan_logfl_creator(self, guiobj, log_dt):
         '''
         Create string with log data to be saved in logfile for energy
         scans analysis.
 
         Parameters
         ----------
+        guiobj : GUI object
+            Provide GUI dialogues.
+
         log_dt : dictionary with log data.
 
         Returns
@@ -457,7 +460,11 @@ class Configuration():
         logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
             log_dt['exper_edge'], log_dt['Edge_en'])
         logtxt += 'Pre-edge energy : {} eV\n'.format(log_dt['setted_pedg'])
-        logtxt += 'Post-edge energy : {} eV\n'.format(log_dt['setted_postedg'])
+        if guiobj.bsl_int:
+            logtxt += 'Smooth parameter : {:f}\n'.format(log_dt['lambda']/1E7)
+        else:
+            logtxt += 'Post-edge energy : {} eV\n'.format(
+                                                    log_dt['setted_postedg'])
         logtxt += 'Recalibration : {}\n'.format(log_dt['recal'])
         logtxt += 'Offset : {} eV'.format(log_dt['offset'])
 

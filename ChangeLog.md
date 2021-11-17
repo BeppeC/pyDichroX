@@ -1,3 +1,9 @@
+v 2.0.0
+-------
+- Added new baseline extrapolation in addtion to linear one for the computation of edge jump.
+Now it is possible to choose between linear and asymmetrically reweighted penalized least squares regression (2nd derivative constrained weighted regression) following the algorithm proposed by S.-J. Baek, A Park, Y.-J. Ahna and J. Choo (Analyst, 2015, 140, 250–257 DOI: 10.1039/c4an01061b).
+- Graph window for the input of edge, pre-edge, post-edge energies and other parameters for baseline treatment is now interactive.
+
 v 1.0.0
 -------
 - Added analysis for hysteresis point by point for Soleil.

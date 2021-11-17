@@ -37,7 +37,11 @@ import easygui as eg
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.widgets import TextBox
+import scipy.interpolate as itp
+from matplotlib.widgets import TextBox, Button
+from scipy.special import expit
+from scipy import sparse
+from scipy.sparse.linalg import spsolve
 
 import modules.pyDichroX_escan_datatreat as esdt
 
@@ -68,10 +72,76 @@ class GUI:
     infile_ref : bool
         To select GUI message. True if input files are related to 
         reference sample, False otherwise.
+    
+    ------- Attributes for graphs in edges selection ------
+    escale : array
+        Energy scale, for graphs.
+    
+    y1int : UnivariateSpline.
+        Interpolation of spectra to be plotted in edge choice.
+
+    y2int : UnivariateSpline.
+        Interpolation of spectra to be plotted in edge choice.
+    
+    st_e_vals : list
+        Collect edge, pre-edge and post-edge energies dafult starting
+        values.
+        [0] : float, expected edge energy
+        [1] : float, experimental edge energy
+        [2] : float, pre-edge energy
+        [3] : float, post-edge energy / float, smooth param for arpls
+        [4] : int, pre-edge width
+        [5] : bool, tag for energy scale recalibration
+        [6] : array, positive spectra for arpls
+        [7] : array, negative spectra for arpls
+        [8] : pandas DataFrame, logdatatable for arpls
+
+    e_vals : list
+        Same as st_e_vals but collecting updated values
+
+    bsl : 2d line
+        Linear interpolation of baseline.
+
+    intedg : 2d plot
+        Interpolated value of baseline at edge energy.
+
+    exel : line obj
+        vline for edge energy.
+
+    pewl : vspan obj
+        highligt pre-edge range in plot.
+
+    pel : line obj
+        vline for pre-edge energy.
+
+    psel : line obj
+        vline for post-edge energy.
+
+    bsliso : line obj
+        baseline of average XAS data.
+    
+    text_box_ed : TextBox obj
+        TextBox widget used to set edge energy.
+
+    text_box_pe : TextBox obj
+        TextBox widget used to set pre-edge energy.
+
+    text_box_pewd : TextBox obj
+        TextBox widget used to set pre-edge width energy.
+    
+    text_box_pste : TextBox obj
+        TextBox widget used to set post-edge energy.
+
+    text_box_lam : TextBox obj
+        TextBox widget used to set lambda smoothing parameter.
+
+    bnrec : Button obj
+        Button widget used to set recalibration energy scale choice.
 
     bsl_int : bool
         Select method to process baseline. If True ALS method is used,
         if False a linear approximation is adopted.
+
 
     Methods
     -------    
@@ -82,9 +152,44 @@ class GUI:
         Provides a GUI to set the edge and pre-edge energies for energy
         scan analysis.
 
-    set_edges(sel_edg, exper_edge, x, y1, y2, y2int)
+    set_edges_lin(sel_edg, exper_edge, x, y1, y2, y1int, y2int)
         Allows user set the edge and pre-edge energies from experimental
         data in order to perform energy calibration and normalizations.
+
+    arpls_bsl(y, lam)
+        Create baseline for spectra using the asymmetrically reweighted
+        penalized least squares regression.
+
+    comp_bsl(pos, neg, log_dt)
+        Create arpls baseline for positive and negative spectra and then
+        compute baseline for xd and averaged XAS spectra.
+
+    set_edge_energy(edg_e)
+        Update edge energy line on graphs based on input in TextBox.
+
+    set_pedge_energy(pedg_e)
+        Update pre-edge energy line on graphs based on input in TextBox.
+
+    set_psedge_energy(psedg_e):
+        Update post-edge energy line on graphs based on input in
+        TextBox.
+
+    set_pew_energy(pew_e)
+        Update pre-edge average range highlighted region based on energy
+        width input in TextBox.
+
+    set_lam_par(lam)
+        Update baseline on graphs based on smoothing parametr input in
+        TextBox.
+
+    recal(event)
+        Action associated to click on recalibrate button.
+
+    reset_en(event)
+        Reset TextBox and graphs to energy starting values.
+
+    finish_but(event)
+        Close the figure on pressing the button Finish.
 
     ask_angle()
         Provides a GUI to ask for experimental angle of the sample
@@ -314,7 +419,7 @@ class GUI:
             sel_edg = sel_edg.values.tolist()[0]
             return sel_edg    
 
-    def set_edges(self, sel_edg, exper_edge, x, y1, y2, y2int):
+    def set_edges_lin(self, sel_edg, exper_edge, x, y1, y2, y1int, y2int):
         '''
         Allow setting the edge energy from experimental data, pre-edge
         energy, post-edge energy and energy range for pre-edge average.
@@ -341,6 +446,9 @@ class GUI:
         y2 : array
             xd_average spectrum data.
 
+        y1int : UnivariateSpline
+            interpolation of spectrum y1.
+
         y2int : UnivariateSpline
             interpolation of spectrum y2.
 
@@ -358,9 +466,18 @@ class GUI:
         '''
         # Initializes number of points for half-width averaging interval
         # of pre-edge energy to 4.
+        self.escale = x
+        self.y2int = y2int
+        self.y1int = y1int
         pe_wdt = 4
+        # List with energy starting values
+        self.st_e_vals = [sel_edg[0], exper_edge, sel_edg[1], sel_edg[2],
+                            pe_wdt, False]
+        # List with updated energy values
+        self.e_vals = self.st_e_vals.copy()
 
         fig, ax1 = plt.subplots()
+        fig.subplots_adjust(bottom=0.25)
 
         if self.infile_ref:
             add_title = "Normalized by reference data."
@@ -369,179 +486,717 @@ class GUI:
         fig.suptitle("Choose energies\n\n" + self.title + add_title)
 
         ax1.set_xlabel('E (eV)')
-        ax1.set_ylabel(self.analysis + ' (a.u.)',
-                       color='black')
+        ax1.set_ylabel(self.analysis + ' (a.u.)', color='black')
         ax1.tick_params(axis='y', labelcolor='black')
-        ax1.plot(x, y1, color='black')
-
-        ax1.axvline(x=sel_edg[0], color='blue', label='Expected edge')
+        ax1.plot(self.escale, y1, color='black')        
 
         ax2 = ax1.twinx()  # second axes that shares the same x-axis
+        ax2.spines['right'].set_color('pink')
+        ax2.tick_params(axis='y', colors='pink')
+        ax2.yaxis.label.set_color('pink')
         ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
-        ax2.plot(x, y2, color='pink')
-        ax2.axvline(x=sel_edg[0], color='blue')
+        ax2.plot(self.escale, y2, color='pink')
+        
+        # Refernce lines for energies
+        # Made them as attributes to pass to textbox update function
+        ax1.axvline(x=self.e_vals[0], color='blue', linestyle='dashed',
+                    label='Expected edge')
 
-        boxedg = fig.add_axes([0.1, 0.05, 0.1, 0.75])
-        boxpe = fig.add_axes([0.3, 0.05, 0.1, 0.75])
-        boxpewdt = fig.add_axes([0.5, 0.05, 0.05, 0.75])
-        boxpste = fig.add_axes([0.7, 0.05, 0.1, 0.75])
+        self.exel = ax1.axvline(x=self.e_vals[1], color='seagreen',
+                                linestyle='dashed', label='Experimental edge')
 
-        text_box_ed = TextBox(boxedg, 'Edge')
-        text_box_pe = TextBox(boxpe, 'Pre-edge')
-        text_box_pewd = TextBox(boxpewdt, 'Pre-edge width')
-        text_box_pste = TextBox(boxpste, 'Post-edge')
+        # Range for pre-edge averaging
+        pe_idx = np.argmin(np.abs(self.escale - self.e_vals[2]))
 
+        # Left endpoint range index
+        lpe_idx = pe_idx - int(self.e_vals[4])
+        # If average interval extends over energy range shrink it
+        if lpe_idx < 0:
+            lpe_e = self.escale[0]
+            self.e_vals[4] = pe_idx
+        else:
+            lpe_e = self.escale[lpe_idx]
 
+        # Right endpoint range index
+        rpe_idx = pe_idx + int(self.e_vals[4])
+        if rpe_idx >= len(self.escale):
+            rpe_e = self.escale[-1]
+            self.e_vals[4] = len(self.escale) - 1 - pe_idx
+        else:
+            rpe_e = self.escale[rpe_idx]
 
-        msg = 'Set values for edge and pre-edge energies.'
-        # Field names for enterbox
-        fn_exptd = 'Expected edge energy'
-        fn_exper = 'Experimental edge energy'
-        fn_pe = 'Pre-edge energy'
-        fn_pse = 'Post-edge energy'
-        fn_pewdt = ('Number of points of half-width interval for ' +
-                    'pre-edge average')
-        fn_cal = ('Recalbrate energy scale (Y(y) / N(n)) \n' +
-                  'Choose \'Y\' if you want recalibrate the energy scale ' +
-                  'with the expected edge energy.')
-        accepted = ['y', 'yes', 'n', 'no']
-        field_nms = [fn_exptd, fn_exper, fn_pe, fn_pse, fn_pewdt, fn_cal]
+        self.pewl = ax1.axvspan(lpe_e, rpe_e, color='mistyrose')
 
-        init_vals = [sel_edg[0], exper_edge, sel_edg[1], sel_edg[2], pe_wdt,
-                     'N']
+        self.pel = ax1.axvline(x=self.e_vals[2], color='coral',
+                                linestyle='dashed', label='Pre-edge energy')
+        self.psel = ax1.axvline(x=self.e_vals[3], color='plum',
+                                linestyle='dashed', label='Post-edge energy')
+        # Compute linear interpolation of baseline considering pre-edge
+        # and post-edge energies
 
-        chk_ok = False  # While loop control
+        # Pre-edge and post-edge points on interpolated curve.
+        x_int = [self.e_vals[2], self.e_vals[3]]
+        y_int_iso = [self.y2int(self.e_vals[2]), self.y2int(self.e_vals[3])]
+        y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
-        while not chk_ok:
-            new_vals = eg.multenterbox(msg, self.title, field_nms, init_vals)
+        edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
 
-            # Check input fields are ok
-            while True:
-                errmsg = ''
-                if new_vals is None:
-                    ask_quit(self.title)
+        self.bsl, = ax1.plot(x_int, y_int, color='indianred',
+            linestyle='dashdot', label='linear baseline')
+        self.bsliso, = ax2.plot(x_int, y_int_iso, color='indianred',
+            linestyle='dashdot')
+        self.intedg, = ax2.plot(self.e_vals[1], edg_int, marker='x',
+                                color='indianred')
+        # Position of text boxes
+        boxedg = fig.add_axes([0.1, 0.09, 0.1, 0.05])
+        boxpe = fig.add_axes([0.32, 0.09, 0.1, 0.05])
+        boxpewdt = fig.add_axes([0.62, 0.09, 0.05, 0.05])
+        boxpste = fig.add_axes([0.8, 0.09, 0.1, 0.05])
+        # Update graphs based on input
+        self.text_box_ed = TextBox(boxedg, 'Edge')
+        self.text_box_ed.set_val(np.around(self.st_e_vals[1], decimals=2))
+        self.text_box_ed.on_submit(self.set_edge_energy)
+        self.text_box_pe = TextBox(boxpe, 'Pre-edge')
+        self.text_box_pe.set_val(self.st_e_vals[2])
+        self.text_box_pe.on_submit(self.set_pedge_energy)
+        self.text_box_pewd = TextBox(boxpewdt, 'Pre-edge width\n# of points')
+        self.text_box_pewd.set_val(self.st_e_vals[4])
+        self.text_box_pewd.on_submit(self.set_pew_energy)
+        self.text_box_pste = TextBox(boxpste, 'Post-edge')
+        self.text_box_pste.set_val(self.st_e_vals[3])
+        self.text_box_pste.on_submit(self.set_psedge_energy)
+
+        # Recalibrate button
+        axrec = fig.add_axes([0.1, 0.02, 0.12, 0.05])
+        self.bnrec = Button(axrec, 'Recal OFF')
+        self.bnrec.on_clicked(self.recal)
+        # Reset button
+        axreset = fig.add_axes([0.4, 0.02, 0.1, 0.05])
+        bnreset = Button(axreset, 'Reset')
+        bnreset.on_clicked(self.reset_en)
+        # Finish button
+        axfinish = fig.add_axes([0.7, 0.02, 0.1, 0.05])
+        bnfinish = Button(axfinish, 'Finish')
+        bnfinish.on_clicked(self.finish_but)
+
+        ax1.legend()
+        plt.show()
+
+        return [self.e_vals[1], self.e_vals[2], self.e_vals[3], self.e_vals[4],
+                self.e_vals[5]]
+
+    def set_edges_arpls(self, sel_edg, exper_edge, x, y1, y2, y1int, y2int,
+                        pos, neg, log_dt):
+        '''
+        Allow setting the edge energy from experimental data, pre-edge
+        energy, post-edge energy and energy range for pre-edge average.
+        It also computes a linear interpolation considering pre-edge and
+        post-edge values to take into account of baseline effects.
+
+        Parameters
+        ----------
+        sel_edg : list
+            Contains data of the edges considered
+            sel_edg[0] expected edge energy
+            sel_edg[1] pre-edge energy
+
+        exper_edge : float
+            experimental edge energy.
+
+        x : array
+            energy scale of spectrum.
+
+        y1 : array
+            xd spectrum data.
+
+        y2 : array
+            xd_average spectrum data.
+
+        y1int : UnivariateSpline
+            interpolation of spectrum y1.
+
+        y2int : UnivariateSpline
+            interpolation of spectrum y2.
+
+        pos : 
+
+        neg :
+
+        Returns
+        -------
+        list :
+        [new_vals[1], new_vals[2], new_vals[4], pe_int, new_vals[5]]
+        - [0] exper_edge : experimental edge energy
+        - [1] e_pe : pre-edge energy
+        - [2] smooth parameter
+        - [3] pe_wdt : number of points representing the half-width
+                energy range used for pre-edge average
+        - [4] cal : bool
+        - [5] univariate spline object with interpolation of average xd
+                baseline.
+
+        '''
+        # Initializes number of points for half-width averaging interval
+        # of pre-edge energy to 4.
+        self.escale = x
+        self.y2int = y2int
+        self.y1int = y1int
+        # Starting values of pre-edge width and smoothing parameters
+        pe_wdt = 4
+        lam = 1E7
+        # List with energy starting values
+        self.st_e_vals = [sel_edg[0], exper_edge, sel_edg[1], lam, pe_wdt,
+                            False, pos, neg, log_dt]
+        # List with updated energy values
+        self.e_vals = self.st_e_vals.copy()
+
+        fig, ax1 = plt.subplots()
+        fig.subplots_adjust(bottom=0.25)
+
+        if self.infile_ref:
+            add_title = "Normalized by reference data."
+        else:
+            add_title = ""
+        fig.suptitle("Choose energies and baseline smooth parameter\n\n" +
+                        self.title + add_title)
+
+        ax1.set_xlabel('E (eV)')
+        ax1.set_ylabel(self.analysis + ' (a.u.)', color='black')
+        ax1.tick_params(axis='y', labelcolor='black')
+        ax1.plot(self.escale, y1, color='black')        
+
+        ax2 = ax1.twinx()  # second axes that shares the same x-axis
+        ax2.spines['right'].set_color('pink')
+        ax2.tick_params(axis='y', colors='pink')
+        ax2.yaxis.label.set_color('pink')
+        ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
+        ax2.plot(self.escale, y2, color='pink')
+        
+        # Refernce lines for energies
+        # Made them as attributes to pass to textbox update function
+        ax1.axvline(x=self.e_vals[0], color='blue', linestyle='dashed',
+                    label='Expected edge')
+
+        self.exel = ax1.axvline(x=self.e_vals[1], color='seagreen',
+                                linestyle='dashed', label='Experimental edge')
+
+        # Range for pre-edge averaging
+        pe_idx = np.argmin(np.abs(self.escale - self.e_vals[2]))
+
+        # Left endpoint range index
+        lpe_idx = pe_idx - int(self.e_vals[4])
+        # If average interval extends over energy range shrink it
+        if lpe_idx < 0:
+            lpe_e = self.escale[0]
+            self.e_vals[4] = pe_idx
+        else:
+            lpe_e = self.escale[lpe_idx]
+
+        # Right endpoint range index
+        rpe_idx = pe_idx + int(self.e_vals[4])
+        if rpe_idx >= len(self.escale):
+            rpe_e = self.escale[-1]
+            self.e_vals[4] = len(self.escale) - 1 - pe_idx
+        else:
+            rpe_e = self.escale[rpe_idx]
+
+        self.pewl = ax1.axvspan(lpe_e, rpe_e, color='mistyrose')
+
+        self.pel = ax1.axvline(x=self.e_vals[2], color='coral',
+                                linestyle='dashed', label='Pre-edge energy')
+        # Compute baselines
+        pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(pos, neg, log_dt)        
+
+        self.bsl, = ax1.plot(self.escale, xdbsl, color='indianred',
+            linestyle='dashdot', label='baseline')
+        self.bsliso, = ax2.plot(self.escale, isobsl, color='indianred',
+            linestyle='dashdot')
+        
+        # Position of text boxes
+        boxedg = fig.add_axes([0.1, 0.09, 0.1, 0.05])
+        boxpe = fig.add_axes([0.32, 0.09, 0.1, 0.05])
+        boxpewdt = fig.add_axes([0.62, 0.09, 0.05, 0.05])
+        boxlam = fig.add_axes([0.85, 0.09, 0.07, 0.05])
+        # Update graphs based on input
+        self.text_box_ed = TextBox(boxedg, 'Edge')
+        self.text_box_ed.set_val(np.around(self.st_e_vals[1], decimals=2))
+        self.text_box_ed.on_submit(self.set_edge_energy)
+        self.text_box_pe = TextBox(boxpe, 'Pre-edge')
+        self.text_box_pe.set_val(self.st_e_vals[2])
+        self.text_box_pe.on_submit(self.set_pedge_energy)
+        self.text_box_pewd = TextBox(boxpewdt, 'Pre-edge width\n# of points')
+        self.text_box_pewd.set_val(self.st_e_vals[4])
+        self.text_box_pewd.on_submit(self.set_pew_energy)
+        self.text_box_lam = TextBox(boxlam, 'Baseline\nsmoothing par')
+        # For readability smoothing parameter is divided by 1E7
+        self.text_box_lam.set_val(self.e_vals[3] / 1e7)        
+        self.text_box_lam.on_submit(self.set_lam_par)
+
+        # Recalibrate button
+        axrec = fig.add_axes([0.1, 0.02, 0.12, 0.05])
+        self.bnrec = Button(axrec, 'Recal OFF')
+        self.bnrec.on_clicked(self.recal)
+        # Reset button
+        axreset = fig.add_axes([0.4, 0.02, 0.1, 0.05])
+        bnreset = Button(axreset, 'Reset')
+        bnreset.on_clicked(self.reset_en)
+        # Finish button
+        axfinish = fig.add_axes([0.7, 0.02, 0.1, 0.05])
+        bnfinish = Button(axfinish, 'Finish')
+        bnfinish.on_clicked(self.finish_but)
+
+        ax1.legend()
+        plt.show()
+
+        pos.bsl, neg.bsl, xdbsl, isobsl = self.comp_bsl(self.e_vals[6],
+                                                self.e_vals[7], self.e_vals[8])
+
+        avbsl = itp.UnivariateSpline(self.escale, isobsl, k=3, s=0)
+        
+        return [self.e_vals[1], self.e_vals[2], self.e_vals[3], self.e_vals[4],
+                self.e_vals[5], avbsl]
+
+    def arpls_bsl(self, y, lam):
+        '''
+        Create baseline for spectra using the .
+
+        Parameters
+        ----------
+        y : array
+            Data of spectrum
+
+        lam : float
+            Smooth parameter
+
+        Return
+        ------
+        array, baseline extracted from y data with arpls method.
+
+        Notes
+        -----
+        A logistic function is used to compute the weights to
+        discriminate points to be considered in the baselins from points
+        belonging to the peaks.
+        "Logistic function gives nearly the same weight to the signal
+        below or above a baseline when the difference between the signal
+        and the baseline is smaller than the estimated noise mean. It
+        gradually reduces the weight as the level of the signal
+        increases. If a signal is in the 3sigma from the estimated noise
+        mean which covers 99.7% of noise on Gaussian assumption, small
+        weight is still given.
+        Finally, zero weight is given when a signal is much higher than
+        the baseline as it can be regarded as a part of the peak. In the
+        extreme case the standard deviation is nearly zero, it becomes a
+        shifted and reversed unit step function which smoothes and
+        estimates a baseline while leaving the peak larger than noise
+        mean untouched.
+        '''
+        # Converging paramter
+        tol = 1E-6
+
+        l = len(y)
+        D = sparse.diags([1,-2,1],[0,-1,-2], shape=(l,l-2))
+        lamDD = lam * D.dot(D.transpose())
+        # Starting weights all one
+        w = np.ones(l)
+        W = sparse.spdiags(w, 0, l, l)
+
+        while True:
+            W.setdiag(w)
+            Z = W + lamDD
+            z = spsolve(Z, w * y)
+            # Difference between baseline and data - modified from
+            # original version using absolute values in order to take
+            # account of negative peaks
+            d = np.array(np.abs(y) - np.abs(z))
+            # Consider only negative differences
+            dn = d[d < 0]
+            m = np.mean(dn)
+            s = np.std(dn)
+            x = - 2 * (d - ( 2 * s - m)) / s
+            # Weight logistic function
+            wt = expit(x)
+            # Check i converging condition is met
+            if ((np.sqrt(w.dot(w)) - np.sqrt(wt.dot(wt))) < tol):
+                break
+            else:
+                w = wt
+        return z
+
+    def comp_bsl(self, pos, neg, log_dt):
+        '''
+        Create arpls baseline for positive and negative spectra and then
+        compute baseline for xd and averaged XAS spectra.
+
+        Parameters
+        ----------
+        pos : array
+            positive spectrum data.
+
+        neg : array
+            negative spectrum data.
+
+        log_dt : pandas DataFrame
+            DataFrame with log data.
+
+        Return
+        ------
+        arrays with positive, negative, xd and averaged XAS baselines
+        respectively
+        '''
+        # Compute interpolation of baseline for positive and negative
+        # averaged spectra taken singularly
+        pbsl = self.arpls_bsl(pos.aver, self.e_vals[3])
+        nbsl = self.arpls_bsl(neg.aver, self.e_vals[3])
+        # Baseline for xd
+        xdbsl = nbsl - pbsl
+        # Baseline for averaged XAS
+        if self.analysis in self.type['xnld']:
+            # If XNLD the angle must be considered for weighted mean
+            # computation
+            theta = log_dt['bm_angle']  # retrive angle from log table
+
+            # Numerator and denominator terms of angle weight
+            ang_w_n = 2 * (np.cos(theta))**2 - (np.sin(theta))**2
+            ang_w_d = 3 * (np.cos(theta))**2
+
+            bsliso = (pbsl + (ang_w_n * nbsl)) / ang_w_d
+        else:
+            bsliso = (pbsl + nbsl) / 2
+
+        # Return univariate object for positive and negative baselines
+        pbsl = itp.UnivariateSpline(self.escale, pbsl, k=3, s=0)
+        nbsl = itp.UnivariateSpline(self.escale, nbsl, k=3, s=0)
+        return pbsl, nbsl, xdbsl, bsliso
+
+    def set_edge_energy(self, edg_e):
+        '''
+        Update edge energy line on graphs based on input in TextBox.
+
+        Parameters
+        ----------
+        edg_e : str
+            user input for edge energy. 
+        '''
+        # Check that a number is passed
+        while True:
+            try:
+                edg_e = float(edg_e)
+            except:
+                # Leave previous value if the input is not a number
+                edg_e = self.e_vals[1]
+                msg = 'Enter a float number for edge energy.'
+                title = self.title
+                eg.msgbox(msg=msg, title=title)
+            else:
+                if (edg_e <= self.escale[0]) or (edg_e >= self.escale[-1]):
+                    msg = 'Enter an edge value whithin the energy scale range.'
+                    title = self.title
+                    eg.msgbox(msg=msg, title=title)
+                    # Leave previous value if the input is outside the
+                    # energy range
+                    edg_e = self.e_vals[1]
                 else:
-                    for i in range(len(field_nms)):
-                        if not new_vals[i].strip():
-                            errmsg += ('{} is a required field\n\n'.format(
-                                       field_nms[i]))
-                            break
-                        if i < (len(field_nms) - 1):
-                            try:
-                                float(new_vals[i])
-                            except:
-                                errmsg += ('Please insert only numbers ' +
-                                           'in {}'.format(field_nms[i]))
-                                break
-                        # Check that enetered energy values are included
-                        # in the energy range
-                        if (i < (len(field_nms) - 2)) and (float(new_vals[i])
-                                                           <= x[0]):
-                            errmsg += ('Please choose for {}'.format(
-                                field_nms[i]) + ' a value included' +
-                                ' in the considered energy range')
-                        if (i < (len(field_nms) - 2)) and (float(new_vals[i])
-                                                           >= x[-1]):
-                            errmsg += ('Please choose for {}'.format(
-                                field_nms[i]) + ' a value included' +
-                                ' in the considered energy range')
-                        if (i == len(field_nms) - 1) and (new_vals[i].lower()
-                                                          not in accepted):
-                            errmsg += ('Please insert only \'Y\', \'y\', ' +
-                                       '\'N\' or \'n\' in Recalbrate field.')
-                    if not errmsg:
-                        break
-                new_vals = eg.multenterbox(msg + errmsg, self.title,
-                                           field_nms, init_vals)
+                    # Update edge value
+                    self.e_vals[1] = edg_e
+                    break
+        # Update graph
+        self.exel.set_xdata(self.e_vals[1])
 
-            for i in range(len(field_nms) - 2):
-                new_vals[i] = float(new_vals[i])
-            # Range for pre-edge averaging
-            pe_idx = np.argmin(np.abs(x - new_vals[2]))
+        if not self.bsl_int:
+            # Linear baseline
+            # Pre-edge and post-edge points on interpolated curve.
+            x_int = [self.e_vals[2], self.e_vals[3]]
+            y_int_iso = [self.y2int(self.e_vals[2]),
+                        self.y2int(self.e_vals[3])]
+            y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
-            # Left endpoint range index
-            lpe_idx = pe_idx - int(new_vals[4])
-            # If average interval extends over energy range shrink it
-            if lpe_idx < 0:
-                lpe_e = x[0]
-                new_vals[4] = pe_idx
+            edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
+
+            self.intedg.set_xdata(self.e_vals[1])
+            self.intedg.set_ydata(edg_int)
+
+        plt.draw()
+
+    def set_pedge_energy(self, pedg_e):
+        '''
+        Update pre-edge energy line on graphs based on input in TextBox.
+
+        Parameters
+        ----------
+        pedg_e : str
+            user input for edge energy. 
+        '''
+        # Check that a number is passed
+        while True:
+            try:
+                pedg_e = float(pedg_e)
+            except:
+                # Leave previous value if the input is not a number
+                pedg_e = self.e_vals[2]
+                msg = 'Enter a float number for pre-edge energy.'
+                title = self.title
+                eg.msgbox(msg=msg, title=title)
             else:
-                lpe_e = x[lpe_idx]
+                if (pedg_e <= self.escale[0]) or (pedg_e >= self.escale[-1]):
+                    msg = ('Enter a pre-edge value whithin the energy scale' +
+                            ' range.')
+                    title = self.title
+                    eg.msgbox(msg=msg, title=title)
+                    # Leave previous value if the input is outside the
+                    # energy range
+                    pedg_e = self.e_vals[2]
+                else:
+                    # Update edge value
+                    self.e_vals[2] = pedg_e
+                    break
+        # Update graph
+        self.pel.set_xdata(self.e_vals[2])
+        self.set_pew_energy(self.e_vals[4])
 
-            # Right endpoint range index
-            rpe_idx = pe_idx + int(new_vals[4])
-            if rpe_idx >= len(x):
-                rpe_e = x[-1]
-                new_vals[4] = len(x) - 1 - pe_idx
+        if not self.bsl_int:
+            # Linear baseline
+            # Pre-edge and post-edge points on interpolated curve.
+            x_int = [self.e_vals[2], self.e_vals[3]]
+            y_int_iso = [self.y2int(self.e_vals[2]),
+                        self.y2int(self.e_vals[3])]
+            y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
+
+            edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
+
+            self.bsl.set_xdata(x_int)
+            self.bsl.set_ydata(y_int)
+            self.bsliso.set_xdata(x_int)
+            self.bsliso.set_ydata(y_int_iso)
+            self.intedg.set_xdata(self.e_vals[1])
+            self.intedg.set_ydata(edg_int)        
+
+        plt.draw()
+
+    def set_psedge_energy(self, psedg_e):
+        '''
+        Update post-edge energy line on graphs based on input in
+        TextBox.
+
+        Parameters
+        ----------
+        psedg_e : str
+            user input for edge energy. 
+        '''
+        # Check that a number is passed
+        while True:
+            try:
+                psedg_e = float(psedg_e)
+            except:
+                # Leave previous value if the input is not a number
+                psedg_e = self.e_vals[3]
+                msg = 'Enter a float number for post-edge energy.'
+                title = self.title
+                eg.msgbox(msg=msg, title=title)
             else:
-                rpe_e = x[rpe_idx]
+                if (psedg_e <= self.escale[0]) or (psedg_e >= self.escale[-1]):
+                    msg = ('Enter a post-edge value whithin the energy scale' +
+                            ' range.')
+                    title = self.title
+                    eg.msgbox(msg=msg, title=title)
+                    # Leave previous value if the input is outside the
+                    # energy range
+                    psedg_e = self.e_vals[3]
+                else:
+                    # Update edge value
+                    self.e_vals[3] = psedg_e
+                    break
+        # Update graph
+        self.psel.set_xdata(self.e_vals[3])
 
-            # Updates init_vals with the setted values - except expected
-            # edge value - for the next loop
-            init_vals[1] = new_vals[1]
-            init_vals[2] = new_vals[2]
-            init_vals[3] = new_vals[3]
-            init_vals[4] = new_vals[4]
-            init_vals[5] = new_vals[5]
+        # Pre-edge and post-edge points on interpolated curve.
+        x_int = [self.e_vals[2], self.e_vals[3]]
+        y_int_iso = [self.y2int(self.e_vals[2]), self.y2int(self.e_vals[3])]
+        y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
-            # Compute linear interpolation of baseline considering
-            # pre-edge and post-edge energies
+        edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
+
+        self.bsl.set_xdata(x_int)
+        self.bsl.set_ydata(y_int)
+        self.bsliso.set_xdata(x_int)
+        self.bsliso.set_ydata(y_int_iso)
+        self.intedg.set_xdata(self.e_vals[1])
+        self.intedg.set_ydata(edg_int)
+
+        plt.draw()
+
+    def set_pew_energy(self, pew_e):
+        '''
+        Update pre-edge average range highlighted region based on energy
+        width input in TextBox.
+
+        Parameters
+        ----------
+        pew_e : str
+            user input for pre-edge width. 
+        '''
+        # Check that a number is passed
+        while True:
+            try:
+                pew_e = int(pew_e)
+            except:
+                # Leave previous value if the input is not a number
+                pew_e = self.e_vals[4]
+                msg = 'Enter an integer number for pre-edge energy width.'
+                title = self.title
+                eg.msgbox(msg=msg, title=title)
+            else:
+                # Range for pre-edge averaging
+                pe_idx = np.argmin(np.abs(self.escale - self.e_vals[2]))
+
+                # Left endpoint range index
+                lpe_idx = pe_idx - pew_e
+                if lpe_idx < 0:
+                    lpe_e = self.escale[0]
+                    self.e_vals[4] = pe_idx
+                else:
+                    lpe_e = self.escale[lpe_idx]
+                    self.e_vals[4] = pew_e
+                # Right endpoint range index
+                rpe_idx = pe_idx + int(self.e_vals[4])
+                if rpe_idx >= len(self.escale):
+                    rpe_e = self.escale[-1]
+                    self.e_vals[4] = min(self.e_vals[4], (len(self.escale) - 
+                                                                1 - pe_idx))
+                else:
+                    rpe_e = self.escale[rpe_idx]
+                    self.e_vals[4] = min(self.e_vals[4], pew_e)
+                break
+        # Update graph
+        self.pewl.set_xy([[lpe_e, 0],[lpe_e, 1],[rpe_e, 1],[rpe_e, 0]])
+
+        plt.draw()
+
+    def set_lam_par(self, lam):
+        '''
+        Update baseline on graphs based on smoothing parametr input in
+        TextBox.
+
+        Parameters
+        ----------
+        lam : str
+            user input for smoothing lambda parameter. 
+        '''
+        # Check that a number is passed
+        while True:
+            try:
+                lam = float(lam)
+            except:
+                # Leave previous value if the input is not a number
+                lam = self.e_vals[3] / 1e7
+                msg = 'Enter a float number for smoothing parameter.'
+                title = self.title
+                eg.msgbox(msg=msg, title=title)
+            else:
+                # Update edge value
+                self.e_vals[3] = lam * 1e7
+                break
+        # Update baselines
+        pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(self.e_vals[6],
+                                                self.e_vals[7], self.e_vals[8])
+        self.bsl.set_xdata(self.escale)
+        self.bsl.set_ydata(xdbsl)
+        self.bsliso.set_xdata(self.escale)
+        self.bsliso.set_ydata(isobsl)
+
+        plt.draw()
+
+    def recal(self, event):
+        '''
+        Action associated to click on recalibrate button.
+        When clicked change the label on button and set the value on
+        recalibrate field in self.eval
+        '''
+        # Change the label of button together with recal value in e_vals
+        if self.bnrec.label.get_text() == 'Recal OFF':
+            self.bnrec.label.set_text('Recal ON')
+            self.e_vals[5] = True
+        else:
+            self.bnrec.label.set_text('Recal OFF')
+            self.e_vals[5] = False
+
+        plt.draw()
+
+    def reset_en(self, event):
+        '''
+        Reset TextBox and graphs to energy starting values.
+        '''
+        # Reset energy values to starting ones
+        self.e_vals = self.st_e_vals.copy()
+
+        self.text_box_ed.set_val(np.around(self.e_vals[1], decimals=2))
+        self.text_box_pe.set_val(self.e_vals[2])
+        self.text_box_pewd.set_val(self.e_vals[4])
+        if self.bsl_int:
+            self.text_box_lam.set_val(self.e_vals[3]/1E7)
+        else:
+            self.text_box_pste.set_val(self.e_vals[3])
+
+        # Range for pre-edge averaging
+        pe_idx = np.argmin(np.abs(self.escale - self.e_vals[2]))
+
+        pew_e = self.e_vals[4]
+
+        # Left endpoint range index
+        lpe_idx = pe_idx - pew_e
+        if lpe_idx < 0:
+            lpe_e = self.escale[0]
+            self.e_vals[4] = pe_idx
+        else:
+            lpe_e = self.escale[lpe_idx]
+        # Right endpoint range index
+        rpe_idx = pe_idx + int(self.e_vals[4])
+        if rpe_idx >= len(self.escale):
+            rpe_e = self.escale[-1]
+            self.e_vals[4] = min(self.e_vals[4], (len(self.escale) - 1 -
+                                                    pe_idx))
+        else:
+            rpe_e = self.escale[rpe_idx]
+            self.e_vals[4] = min(self.e_vals[4], pew_e)
+
+        # Update graph
+        self.exel.set_xdata(self.e_vals[1])
+        self.pel.set_xdata(self.e_vals[2])
+
+        if self.bsl_int:
+            pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(self.e_vals[6],
+                                                self.e_vals[7], self.e_vals[8])
+            self.bsl.set_xdata(self.escale)
+            self.bsl.set_ydata(xdbsl)
+            self.bsliso.set_xdata(escale)
+            self.bsliso.set_ydata(isobsl)
+        else:
+            self.psel.set_xdata(self.e_vals[3])
 
             # Pre-edge and post-edge points on interpolated curve.
-            x_int = [init_vals[2], init_vals[3]]
-            y_int = [y2int(init_vals[2]), y2int(init_vals[3])]
+            x_int = [self.e_vals[2], self.e_vals[3]]
+            y_int_iso = [self.y2int(self.e_vals[2]),
+                        self.y2int(self.e_vals[3])]
+            y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
-            pe_int = esdt.lin_interpolate(x_int, y_int, new_vals[1])
+            edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
 
-            # Plot spectrum with position of edge expected and measured
-            # together with pre-edges range selected for average
-            fig, ax1 = plt.subplots()
-            ax1.set_xlabel('E (eV)')
-            ax1.set_ylabel(self.analysis + ' (a.u.)',
-                           color='black')
-            ax1.tick_params(axis='y', labelcolor='black')
-            ax1.plot(x, y1, color='black')
-            ax1.axvline(x=new_vals[1], color='red', label='Experimental edge')
-            ax1.axvline(x=new_vals[0], color='blue', label='Expected edge')
-            ax1.axvspan(lpe_e, rpe_e, color='mistyrose')
-            ax1.axvline(x=new_vals[2], color='coral', label='Pre-edge energy')
-            ax1.axvline(x=new_vals[3], color='plum', label='Post-edge energy')
+            self.bsl.set_xdata(x_int)
+            self.bsl.set_ydata(y_int)
+            self.bsliso.set_xdata(x_int)
+            self.bsliso.set_ydata(y_int_iso)
+            self.intedg.set_xdata(self.e_vals[1])
+            self.intedg.set_ydata(edg_int)
 
-            ax1.axhline(y=0, color='black')
-            ax1.legend()
-            # Plot averaged xas spectrum in a second y-axis
-            ax2 = ax1.twinx()  # second axes that shares the same x-axis
-            ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
-            ax2.plot(x, y2, color='pink')
-            ax2.plot(x_int, y_int, color='deepskyblue')
-            ax2.plot(new_vals[1], pe_int, marker='x', color='deepskyblue',
-                     label='Linear baseline and pre-edge interpolated')
-            ax2.tick_params(axis='y', labelcolor='pink')
-            ax2.legend()
+        self.pewl.set_xy([[lpe_e, 0],[lpe_e, 1],[rpe_e, 1],[rpe_e, 0]])
 
-            if self.infile_ref:
-                add_title = "Normalized by reference data."
-            else:
-                add_title = ""
-            fig.suptitle(self.title + add_title)
+        plt.draw()
 
-            fig.tight_layout()
-            plt.show()
-
-            # Loop control
-            chk_ok = self.confirm_choice()
-
-        if new_vals[5] in accepted[:2]:
-            new_vals[5] = True
-        else:
-            new_vals[5] = False
-
-        return [new_vals[1], new_vals[2], new_vals[3], new_vals[4],
-                new_vals[5]]
-
-    def set_energy(self):
-ARRIVATO QUI
-
+    def finish_but(self, event):
+        '''
+        Close the figure on pressing the button Finish.
+        '''
+        plt.close()
 
     def ask_angle(self):
         '''
@@ -948,14 +1603,16 @@ ARRIVATO QUI
         choice = eg.choicebox(msg, self.title, choices)
 
         while True:
-            errmsg = ""
+            noerr = True
             if choice is None:  # If Cancel is pressed exit program
                 ask_quit(self.title)
-            if not choice:
+                noerr = False
+            elif not choice:
                 ask_quit(self.title)
-            if not errmsg:
+                noerr = False
+            if noerr:
                 break
-            choice = eg.choicebox(msg + errmsg, self.title, choices)
+            choice = eg.choicebox(msg, self.title, choices)
         
         if choice == choices[0]:
             self.bsl_int = False

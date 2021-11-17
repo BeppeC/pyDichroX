@@ -69,8 +69,8 @@ to be averaged and used for the analysis. Currently only for energy scan analysi
 
 - Energies - Only for energy scans (XMCD, XNXD, XNCD, XNLD)
 A graph with analyzed data is shown togheter with the position of edge energy present in the edge-file and the edge energy found from experimental data.
-The average of the XAS spectra is also shown with a linear baseline based on pre and post-edge energies. Final data will be normalized based edge jump computed using both the pre-edge energy setted and linear baseline.
-Another pop-up window allows to change edge, pre-edge and post-edge energies.
+The average of the XAS spectra is also shown with a baseline based on selected method: linear baseline based on pre and post-edge energies or ArpLS interpolated baseline (based on asymmetrically reweighted penalized least squares regression following the algorithm proposed by S.-J. Baek, A Park, Y.-J. Ahna and J. Choo Analyst, 2015, 140, 250–257 DOI: 10.1039/c4an01061b) where the smoothing parameter is required. Final data will be normalized based edge jump computed using both the pre-edge energy setted and chosed baseline.
+Textboxes allow to change edge, pre-edge, post-edge energies and other parameters for baseline which is automoatically updated as the values are entered.
 
 - Save data
 In the end the final normalized data are shown and output file name is asked.

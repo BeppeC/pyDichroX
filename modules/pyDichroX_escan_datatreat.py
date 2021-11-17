@@ -31,6 +31,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate as itp
 import scipy.optimize as opt
+from scipy import sparse
+from scipy.special import expit
+from scipy.sparse.linalg import spsolve
 
 
 class ScanData:
@@ -73,6 +76,9 @@ class ScanData:
         Pre-edge value obtained from linear interpolation considering
         pre-edge and post-edge energies.
 
+    bsl : Univariate spline object
+        spline interpolation of ArpLS baseline 
+
     norm : array
         Averaged data normalized by value at pre-edge energy.
 
@@ -101,7 +107,7 @@ class ScanData:
     aver_e_scans(enrg, chsn, guiobj)
         Performe the average of data scans.
 
-    edge_norm(enrg, e_edge, e_pe, pe_rng, pe_int)
+    edge_norm(guiobj, enrg, e_edge, e_pe, pe_rng, pe_int)
         Normalize energy scan data by value at pre-edge energy and
         compute edge-jump.
     '''
@@ -240,17 +246,25 @@ class ScanData:
 
         return avgd
 
-    def edge_norm(self, enrg, e_edge, e_pe, e_poste, pe_rng):
+    def edge_norm(self, guiobj, enrg, e_edge, e_pe, e_poste, pe_rng):
         '''
         Normalize energy scan data by the value at pre-edge energy.
         Also compute the  energy jump defined as the difference between
         the value at the edge and pre-edge energies respectively.
-        This computations are implemented employing both a pre-edge
-        value obtained from data (averaging in the region 
-        e_pe +/- pe_rng) and an interpolated pre-edge value.
 
+        This computations are implemented also considering baseline.
+        If linear baseline is selected edge jump is computed considering
+        the the height of data at edge energy from the stright line
+        passing from pre-edge and post edge data.
+        If asymmetrically reweighted penalized least squares baseline is
+        selected the edge jump is calculated considering as the distance
+        at edge energy between the averaged spectrum and baseline.
+        
         Parameters
         ----------
+        guiobj: GUI object
+            Provides GUI dialogs.
+
         enrg : array
             Energy values of scan.
 
@@ -298,8 +312,8 @@ class ScanData:
         To reduce noise effects the value of scan at pre-edge energy is
         obtained computing an average over an energy range of width
         pe_rng and centered at e_pe pre-edge energy.
-        The value of scan at edge energy is obtained by linear spline
-        interpolation of data (itp.UnivariateSpline with k=1 and s=0).
+        The value of scan at edge energy is obtained by cubic spline
+        interpolation of data (itp.UnivariateSpline with k=3 and s=0).
         '''
         # Index of the nearest element to pre-edge energy
         pe_idx = np.argmin((np.abs(enrg - e_pe)))
@@ -312,23 +326,30 @@ class ScanData:
 
         # Cubic spline interpolation of energy scan
         y_int = itp.UnivariateSpline(enrg, self.aver, k=3, s=0)
-
-        # Interpolation of pre-edge energy
-        x = [e_pe, e_poste]
-        y = [y_int(e_pe), y_int(e_poste)]
-        self.pe_av_int = lin_interpolate(x, y, e_edge)
-
-        # Normalization by pre-edge value
-        self.norm = self.aver / self.pe_av
-        self.norm_int = self.aver / self.pe_av_int
-
         # value at edge energy from interpolation
         y_edg = y_int(e_edge)
 
-        # Edge-jumps computations
+        # Edge-jumps computations - no baseline
         self.ej = y_edg - self.pe_av
         self.ej_norm = self.ej / self.pe_av
+        # Normalization by pre-edge value
+        self.norm = self.aver / self.pe_av
 
+        # Edge-jumps computations - consider baseline
+        if guiobj.bsl_int:
+            # ArpLS baseline
+            # Interpolation of pre-edge energy
+            self.pe_av_int = self.bsl(e_edge)
+        else:
+            # Linear baseline
+            # Interpolation of pre-edge energy
+            x = [e_pe, e_poste]
+            y = [y_int(e_pe), y_int(e_poste)]
+            self.pe_av_int = lin_interpolate(x, y, e_edge)
+
+        # Normalization by pre-edge value
+        self.norm_int = self.aver / self.pe_av_int
+        
         self.ej_int = y_edg - self.pe_av_int
         self.ej_norm_int = self.ej_int / self.pe_av_int
 
@@ -359,6 +380,9 @@ class EngyScan:
     pe_int : float
         Interpolated value of pre-edge considering pre- and post-edge
         energies using a linear approximation.
+
+    avbsl : Univariate spline object
+        ArpLS baseline of average xd.
 
     offest : float
         Offset given by the difference between expected and experimental
@@ -446,7 +470,7 @@ class EngyScan:
     '''
 
     def __init__(self, guiobj, e_scale, pos, neg, log_dt,
-        pos_to_norm=ScanData(), neg_to_norm=ScanData()):
+                pos_to_norm=ScanData(), neg_to_norm=ScanData()):
         '''
         At instantiation scan_average and compt_xd method are called and
         energy attribute is setted, so upon its creation an EngyScan
@@ -480,6 +504,13 @@ class EngyScan:
             are present pass empty ScanData object.
         '''
         self.energy = e_scale
+
+        if guiobj.interactive:
+            # Ask for process baseline method
+            guiobj.ask_bsl_interp()
+        else:
+            # For non interactive linear baseline is the default
+            guiobj.bsl_int = False
 
         self.scan_average(guiobj, pos, neg, log_dt, pos_to_norm, neg_to_norm)
 
@@ -581,7 +612,7 @@ class EngyScan:
             Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD).     
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).
 
         log_dt : dict
             Collect data for logfile.
@@ -616,13 +647,13 @@ class EngyScan:
         # Computes not normalized X-Ray Dichroism
         self.compt_xd(guiobj, pos, neg, log_dt)
 
-        self.edges(guiobj, log_dt)
+        self.edges(guiobj, pos, neg, log_dt)
 
         # Normalize spectra
-        pos.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
-                      self.pe_wdt)
-        neg.edge_norm(self.energycal, self.exper_edge, self.e_pe, self.e_poste,
-                      self.pe_wdt)
+        pos.edge_norm(guiobj, self.energycal, self.exper_edge, self.e_pe,
+                    self.e_poste, self.pe_wdt)
+        neg.edge_norm(guiobj, self.energycal, self.exper_edge, self.e_pe,
+                    self.e_poste, self.pe_wdt)
 
         log_dt['pos_ej'] = pos.ej
         log_dt['pos_ej_int'] = pos.ej_int
@@ -632,7 +663,7 @@ class EngyScan:
         # Compute percentage X-Ray Dichroism normalized for edge-jump
         self.compt_xd_pc(guiobj, pos, neg)
         self.compt_pe_corr(guiobj, pos, neg)
-        self.comp_xd_pc_av_ej(log_dt)
+        self.comp_xd_pc_av_ej(guiobj, log_dt)
 
     def compt_xd(self, guiobj, pos, neg, log_dt):
         '''
@@ -693,7 +724,7 @@ class EngyScan:
         else:
             self.xd_aver = (pos.aver + neg.aver) / 2
 
-    def edges(self, guiobj, log_dt):
+    def edges(self, guiobj, pos, neg, log_dt):
         '''
         Set values of edge energy, pre-edge energy, pre-edge energy
         range (used to compute average of spectra at pre-edge energy)
@@ -712,6 +743,12 @@ class EngyScan:
         ----------
         guiobj : GUI object
             Provides GUI dialogs.
+
+        pos : ScanData obj
+            Positive scans (CR for XMCD and XNCD, LH for XNLD).
+
+        neg : ScanData obj
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).
 
         log_dt : dict
             Collect data for logfile.
@@ -769,16 +806,19 @@ class EngyScan:
         else:
             pe_e = float(log_dt['PreEdge_en'])
 
-        # Check that post edge energy is included in the considered
-        # energy range
-        if float(log_dt['PostEdge_en']) <= self.energy[0]:
-            pste_e = self.energy[1]
-        elif float(log_dt['PostEdge_en']) >= self.energy[-1]:
-            pste_e = self.energy[-2]
-        else:
-            pste_e = float(log_dt['PostEdge_en'])
+        sel_edg = [log_dt['Edge_en'], pe_e]
 
-        sel_edg = [log_dt['Edge_en'], pe_e, pste_e]
+        if not guiobj.bsl_int:
+            # Only for baseline linear interpolation post-edge is
+            # Check that post edge energy is included in the considered
+            # energy range
+            if float(log_dt['PostEdge_en']) <= self.energy[0]:
+                pste_e = self.energy[1]
+            elif float(log_dt['PostEdge_en']) >= self.energy[-1]:
+                pste_e = self.energy[-2]
+            else:
+                pste_e = float(log_dt['PostEdge_en'])
+            sel_edg.append(pste_e)
 
         y = self.xd
         y_aver = self.xd_aver
@@ -787,24 +827,35 @@ class EngyScan:
         # opt.minimize_scalar serch for function minimum so negative
         # absolute value of interpolated data is considered.
         y_int_for_edge = itp.UnivariateSpline(self.energy, -abs(y), k=3, s=0)
+        # Interpolation of average and xd spectra
+        y_int_aver = itp.UnivariateSpline(self.energy, y_aver, k=3, s=0)
+        y_int = itp.UnivariateSpline(self.energy, y, k=3, s=0)
         # Bounds for  minimum search - 5 eV window is considered
         u_bnd = log_dt['Edge_en'] + 2.5
         l_bnd = log_dt['Edge_en'] - 2.5
         min_y = opt.minimize_scalar(y_int_for_edge, bounds=(l_bnd, u_bnd),
                                     method='bounded')
-        y_int = itp.UnivariateSpline(self.energy, y_aver, k=3, s=0)
-
         if guiobj.interactive:
             # x value which minimize y is passed as experimental edge
             # energy
-            edgs = guiobj.set_edges(sel_edg, min_y.x, self.energy, y, y_aver,
-                                    y_int)
-
-            self.exper_edge = edgs[0]
-            self.e_pe = edgs[1]
-            self.e_poste = edgs[2]
-            self.pe_wdt = int(edgs[3])
-            recal = edgs[4]
+            if guiobj.bsl_int:
+                edgs = guiobj.set_edges_arpls(sel_edg, min_y.x, self.energy, y,
+                        y_aver, y_int, y_int_aver, pos, neg, log_dt)
+                self.exper_edge = edgs[0]
+                self.e_pe = edgs[1]
+                self.e_poste = None  # not needed in the following
+                self.pe_wdt = int(edgs[3])
+                recal = edgs[4]
+                self.avbsl = edgs[5]
+            else:
+                # Linear interpolation of baseline
+                edgs = guiobj.set_edges_lin(sel_edg, min_y.x, self.energy, y,
+                                            y_aver, y_int, y_int_aver)
+                self.exper_edge = edgs[0]
+                self.e_pe = edgs[1]
+                self.e_poste = edgs[2]
+                self.pe_wdt = int(edgs[3])
+                recal = edgs[4]
         else:
             # If not interactive for exper_edge the result of
             # minimization is considered
@@ -827,7 +878,10 @@ class EngyScan:
         # Log data related to edge and pre-edge energy setted
         log_dt['exper_edge'] = self.exper_edge
         log_dt['setted_pedg'] = self.e_pe
-        log_dt['setted_postedg'] = self.e_poste
+        if guiobj.bsl_int:
+            log_dt['lambda'] = edgs[2]
+        else:
+            log_dt['setted_postedg'] = self.e_poste
         log_dt['recal'] = recal
         log_dt['offset'] = self.offset
 
@@ -969,7 +1023,7 @@ class EngyScan:
         self.pos_corr_int = pos.aver * av_pe_int / pos.pe_av_int
         self.neg_corr_int = neg.aver * av_pe_int / neg.pe_av_int
 
-    def comp_xd_pc_av_ej(self, log_dt):
+    def comp_xd_pc_av_ej(self, guiobj, log_dt):
         '''
         Compute percentage of X-Ray Dichroism normalized for edge-jump
         of xd_aver spectrum. It is computed employing the weighted
@@ -981,6 +1035,9 @@ class EngyScan:
 
         Parameters
         ----------
+        guiobj : GUI obj
+            Provides GUI dialogs.
+
         log_dt : dict
             Collect data for logfile.
 
@@ -1020,12 +1077,16 @@ class EngyScan:
         edg_val_xd_aver = xd_aver_inter(self.exper_edge)
         pedg_val_xd_aver = xd_aver_inter(self.e_pe)
 
-        # Compute linear interpolation of pre-edge for average xd
-        pstedg_val_xd_aver = xd_aver_inter(self.e_poste)
+        if guiobj.bsl_int:
+            # Compute value at egde of ArPLS baseline of average xd
+            pedg_val_xd_aver_int = self.avbsl(self.exper_edge)
+        else:
+            # Compute linear interpolation of pre-edge for average xd
+            pstedg_val_xd_aver = xd_aver_inter(self.e_poste)
 
-        x = [self.e_pe, self.e_poste]
-        y = [pedg_val_xd_aver, pstedg_val_xd_aver]
-        pedg_val_xd_aver_int = lin_interpolate(x, y, self.exper_edge)
+            x = [self.e_pe, self.e_poste]
+            y = [pedg_val_xd_aver, pstedg_val_xd_aver]
+            pedg_val_xd_aver_int = lin_interpolate(x, y, self.exper_edge)
 
         # xd percentage normalized for edge-jump of xd_aver
         self.xd_pc_av_ej = (100 * (self.neg_corr - self.pos_corr) /

@@ -23,7 +23,7 @@ Currently pyDichroX analyses data from:
 
 REQUIREMENTS
 ------------
-- Python 3
+- Python >= 3.9
 - numpy
 - scipy
 - pandas

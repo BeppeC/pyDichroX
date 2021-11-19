@@ -62,8 +62,7 @@ All the further set of data will be averaged together.
 During analysis, XAS spectra will be interpolated using the number of points inserted. By default the number of points in the scans is setted.
 
 - Chose XAS spectra to average
-The graphs of the scans are shown and then a dialogue ask which scans select
-to be averaged and used for the analysis. Currently only for energy scan analysis.
+The graphs of the scans are shown. Scans selected by means of checking boxs are averaged and the average computed will be used for successive analysis. Currently only for energy scan analysis.
 
 - If configuration file is setted in order to accept scans from a reference sample, repeat the same passages before for reference scans. Currently only for energy scan analysis.
 

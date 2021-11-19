@@ -1,3 +1,7 @@
+v 2.1.0
+-------
+- New interactive window for select energy scan data to be average by means of check buttons.
+
 v 2.0.0
 -------
 - Added new baseline extrapolation in addtion to linear one for the computation of edge jump.

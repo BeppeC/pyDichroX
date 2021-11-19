@@ -385,6 +385,11 @@ class Configuration():
         for i in log_dt['neg_chs']:
             logtxt += '{}, '.format(i)
         logtxt += '\n\n'
+        if guiobj.bsl_int:
+            logtxt += 'Baseline interpolated with ArpLS method\n\n'
+        else:
+            logtxt += ('Baseline linearly interpolated considering values at' +
+                    ' pre-edge and post-edge energies\n\n')
         logtxt += 'Edge used : {}\n'.format(log_dt['Edge_name'])
         logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
             log_dt['exper_edge'], log_dt['Edge_en'])

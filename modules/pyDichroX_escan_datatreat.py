@@ -34,6 +34,7 @@ import scipy.optimize as opt
 from scipy import sparse
 from scipy.special import expit
 from scipy.sparse.linalg import spsolve
+from matplotlib.widgets import CheckButtons, Button
 
 
 class ScanData:
@@ -51,6 +52,24 @@ class ScanData:
 
     raw_imp : pandas DataFrame
         Collect imported raw data.
+
+    energy : array
+        common energy scale for average of scans.
+
+    lines : list (2d line objects)
+        Collect lines object of raw scan for plotting.
+
+    blins : list (2d line objects)
+        Collect lines object of raw scan for plotting.
+
+    avg_ln : 2d line objects
+        Lines object of average of scans.
+
+    plab : list (str)
+        Collect the list of labels plotted in graphs for choosing scans.
+
+    checkbx : CheckButtons obj
+        Widget for choosing plots.
 
     aver : array
         Data average of selected scans from raw_imp.
@@ -107,6 +126,20 @@ class ScanData:
     aver_e_scans(enrg, chsn, guiobj)
         Performe the average of data scans.
 
+    check_but(label)
+        When check buttons are checked switch the visibility of
+        corresponding line.
+
+    averbut(event)
+        When average button is pressed calls aver_e_scans to compute
+        average on selected scans.
+
+    reset(event)
+        Reset graph to starting conditions.
+
+    finish_but(self, event)
+        Close the figure on pressing the button Finish.
+
     edge_norm(guiobj, enrg, e_edge, e_pe, pe_rng, pe_int)
         Normalize energy scan data by value at pre-edge energy and
         compute edge-jump.
@@ -142,48 +175,139 @@ class ScanData:
         chsn_scns : list
             Labels of chosen scans for the analysis (for log purpose).
         '''
+        self.energy = enrg
+        self.chsn_scns = []
+        self.aver = 0
+
         if guiobj.interactive:  # Interactive choose of scans
-            # Loop until choice is confirmed
-            isok = 0
-            while not isok:
-                # Plot all raw data
-                plt.figure(1)
-                if guiobj.infile_ref:
-                    plt.title('Reference sample scans')
-                for i in self.idx:
-                    e_col = 'E' + i
-                    plt.plot(self.raw_imp[e_col], self.raw_imp[i],
-                             label=self.label[self.idx.index(i)])
-                plt.xlabel('E (eV)')
-                plt.ylabel(self.dtype)
-                plt.legend()
-                plt.show()
+            fig, ax = plt.subplots(figsize=(10, 6))
+            fig.subplots_adjust(right=0.75)
 
-                # Dialogue to choose data to be averaged
-                chsn = guiobj.chs_scns(self.label)
+            ax.set_xlabel('E (eV)')
+            ax.set_ylabel(self.dtype)
 
-                # Compute average of chosen scans
-                avgd = self.aver_e_scans(enrg, chsn, guiobj)
+            if guiobj.infile_ref:
+                fig.suptitle('Choose reference sample scans')
+            else:
+                fig.suptitle('Choose sample scans')
+            # Initialize list which will contains line obj of scans
+            # lines contain colored lines for choose
+            # blines contain dark lines to be showed with average
+            self.lines = []
+            self.blines = []
+            # Populate list with line objs
+            for i in self.idx:
+                e_col = 'E' + i
+                # Show lines and not blines
+                self.lines.append(ax.plot(self.raw_imp[e_col], self.raw_imp[i],
+                                    label=self.label[self.idx.index(i)])[0])
+                self.blines.append(ax.plot(self.raw_imp[e_col],
+                         self.raw_imp[i], color='dimgrey', visible=False)[0])
+            # Initialize chsn_scs and average line with all scans and
+            # set it invisible
+            for line in self.lines:
+                    if line.get_visible():
+                        self.chsn_scns.append(line.get_label())
+            self.aver_e_scans()
+            self.avg_ln, = ax.plot(self.energy, self.aver, color='red', lw=2,
+                                    visible=False)
+            # Create box for checkbutton
+            chax = fig.add_axes([0.755, 0.32, 0.24, 0.55], facecolor='0.95')
+            self.plab = [str(line.get_label()) for line in self.lines]
+            visibility = [line.get_visible() for line in self.lines]
+            self.checkbx = CheckButtons(chax, self.plab, visibility)
+            # Customizations of checkbuttons
+            rxy = []
+            bxh = 0.05
+            for r in self.checkbx.rectangles:
+                r.set(height=bxh)
+                r.set(width=bxh)
+                rxy.append(r.get_xy())
+            for i in range(len(rxy)):
+                self.checkbx.lines[i][0].set_xdata([rxy[i][0], rxy[i][0] + bxh])
+                self.checkbx.lines[i][0].set_ydata([rxy[i][1], rxy[i][1] + bxh])
+                self.checkbx.lines[i][1].set_xdata([rxy[i][0] + bxh, rxy[i][0]])
+                self.checkbx.lines[i][1].set_ydata([rxy[i][1], rxy[i][1] + bxh])
 
-                # Ask for confirmation
-                isok = guiobj.confirm_choice()
+            for l in self.checkbx.labels:
+                l.set(fontsize='medium')
+                l.set_verticalalignment('center')
+                l.set_horizontalalignment('left')
+
+            self.checkbx.on_clicked(self.check_but)
+
+            # Create box for average reset and finish buttons
+            averbox = fig.add_axes([0.77, 0.2, 0.08, 0.08])
+            bnaver = Button(averbox, 'Average')
+            bnaver.on_clicked(self.averbut)
+            rstbox = fig.add_axes([0.89, 0.2, 0.08, 0.08])
+            bnrst = Button(rstbox, 'Reset')
+            bnrst.on_clicked(self.reset)
+            finbox = fig.add_axes([0.82, 0.07, 0.12, 0.08])
+            bnfinish = Button(finbox, 'Finish')
+            bnfinish.on_clicked(self.finish_but)
+
+            ax.legend()
+            plt.show()
+
+            # If average is not pressed automatically compute average on
+            # selected scans
+            if self.chsn_scns == []:
+                for line in self.lines:
+                    if line.get_visible():
+                        self.chsn_scns.append(line.get_label())
+                self.aver_e_scans()
         else:
             # Not-interactive mode: all scans except 'Dummy Scans' are
             # evaluated
-            chsn = []
-
             for lbl in self.label:
                 # Check it is not a 'Dummy Scan' and append
                 # corresponding scan number in chosen scan list
                 if not ('Dummy' in lbl):
-                    chsn.append(self.idx[self.label.index(lbl)])
+                    self.chsn_scns.append(self.idx[self.label.index(lbl)])
 
-            avgd = self.aver_e_scans(enrg, chsn, guiobj)
+            self.aver_e_scans()
 
-        self.aver = avgd
-        self.chsn_scns = chsn  # Collect chosen scans for log purpose
+    def check_but(self, label):
+        '''
+        When check buttons are checked switch the visibility of
+        corresponding line.
+        Also update self.chsn_scns with labels of visible scans.
+        '''
+        index = self.plab.index(label)
+        self.lines[index].set_visible(not self.lines[index].get_visible())
+        # Update chsn_scns
+        self.chsn_scns = []
+        for line in self.lines:
+            if line.get_visible():
+                self.chsn_scns.append(line.get_label())
+        plt.draw()
 
-    def aver_e_scans(self, enrg, chsn, guiobj):
+    def averbut(self, event):
+        '''
+        When average button is pressed calls aver_e_scans to compute
+        average on selected scans.
+        Update self.chsn_scns and self.aver.
+        '''
+        # Initialize list of chosed scans
+        self.chsn_scns = []
+        # Set visible only chosen scans in blines and append to
+        # chsn_scns
+        for i in range(len(self.lines)):
+            if self.lines[i].get_visible():
+                self.lines[i].set(visible=False)
+                self.chsn_scns.append(self.lines[i].get_label())
+                self.blines[i].set(visible=True)
+        
+        self.aver_e_scans()
+
+        # Update average line and make it visible
+        self.avg_ln.set_ydata(self.aver)
+        self.avg_ln.set(visible=True)
+
+        plt.draw()
+
+    def aver_e_scans(self):
         '''
         Perform the average of data scans. 
         If interactive mode, data scans and their average are shown
@@ -214,37 +338,46 @@ class ScanData:
         '''
         intrp = []
 
-        if guiobj.interactive:
-            plt.figure(1)
-            if guiobj.infile_ref:
-                plt.title('Reference sample scans')
+        for i in self.idx:
+            e_col = 'E' + i
+            if self.label[self.idx.index(i)] in self.chsn_scns:
+                # chosen data
+                x = self.raw_imp['E' + i][1:]
+                y = self.raw_imp[i][1:]
 
-        for scn in chsn:
-            # chosen data
-            x = self.raw_imp['E' + scn][1:]
-            y = self.raw_imp[scn][1:]
-
-            if guiobj.interactive:
-                # Plot data
-                plt.plot(x, y, color='black')
-
-            # Compute linear spline interpolation
-            y_int = itp.UnivariateSpline(x, y, k=1, s=0)
-            # Evaluate interpolation of scan data on enrg energy scale
-            # and append to previous interpolations
-            intrp.append(y_int(enrg))
+                # Compute linear spline interpolation
+                y_int = itp.UnivariateSpline(x, y, k=1, s=0)
+                # Evaluate interpolation of scan data on enrg energy scale
+                # and append to previous interpolations
+                intrp.append(y_int(self.energy))
 
         # Average all inteprolated scans
-        avgd = np.average(intrp, axis=0)
+        self.aver = np.average(intrp, axis=0)
 
-        if guiobj.interactive:
-            plt.plot(enrg, avgd, color='r', label='Average')
-            plt.xlabel('E (eV)')
-            plt.ylabel(self.dtype)
-            plt.legend()
-            plt.show()
+    def reset(self, event):
+        '''
+        Reset graph for schoosing scans to starting conditions.
+        Show all scans and set checked all buttons.
+        '''
+        # Clear graph
+        self.avg_ln.set(visible=False)
 
-        return avgd
+        stauts = self.checkbx.get_status()
+        for i, stat in enumerate(stauts):
+            if not stat:
+                self.checkbx.set_active(i)
+        # Show all spectra
+        for i in range(len(self.lines)):
+            self.lines[i].set(visible=True)
+            self.blines[i].set(visible=False)
+
+        plt.draw()
+
+    def finish_but(self, event):
+        '''
+        Close the figure on pressing the button Finish.
+        '''
+        plt.close()
 
     def edge_norm(self, guiobj, enrg, e_edge, e_pe, e_poste, pe_rng):
         '''

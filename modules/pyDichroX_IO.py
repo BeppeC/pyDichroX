@@ -1132,7 +1132,7 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
         col_desc += ('Normalized {} 200 * '.format(guiobj.analysis) +
             '({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(neg.dtype,
             pos.dtype) + ' + {}_EJNor_int),'.format(neg.dtype))
-    col_desc += '{0}_int{1} normalized by EJ of average {0}'.format(
+    col_desc += '{0}_int{1} normalized by EJ of average {0}\n'.format(
         guiobj.analysis, ref)
 
     return out_data, col_nms, col_desc

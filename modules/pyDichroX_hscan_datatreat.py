@@ -209,6 +209,8 @@ class ScanData:
         self.pe_label = []
         self.pe_idx = []
         self.pe_raw_imp = pd.DataFrame()
+        # Initialize False setted True by separate_hscans in io
+        self.pre_edge = False
 
         # Only for hysteresis on the fly is currently cosidered the
         # possibility to seprate up from down branches.

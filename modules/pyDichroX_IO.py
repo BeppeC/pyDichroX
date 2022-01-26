@@ -936,7 +936,7 @@ def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
     '''
     # Energy tolerance in eV. To discriminate between edge and pre-edge
     # scans
-    e_tol = 0.8
+    e_tol = 2
 
     # label for graphs
     scn_lbl = scn_num

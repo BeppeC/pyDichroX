@@ -368,7 +368,7 @@ class GUI:
                 break
 
         # If user select Add, a new edge is added to the edge list
-        if chsn_edge == 'Add new edge':
+        if chsn_edge == 'Add a new edge':
             msg = 'Add a new edge.'
             field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
                         'Post-edge Energy']

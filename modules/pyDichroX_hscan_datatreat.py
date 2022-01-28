@@ -490,7 +490,7 @@ class ScanData:
 
         chsn = guiobj.chs_scns(label)
 
-        avgd = aver_h_scans(data, fields, chsn, guiobj, title)
+        avgd = self.aver_h_scans(data, fields, chsn, guiobj, title)
 
         return chsn, avgd
 

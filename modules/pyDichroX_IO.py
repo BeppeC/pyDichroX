@@ -408,7 +408,8 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                         separate_escans(guiobj, confobj, e_raw[i], dt_raw[i],
                                     scn_lbl, scn_num, iscr, lgrws, pos, neg)
 
-                    log_tbl = log_tbl.append(lgrws, ignore_index=True)                    
+                    log_tbl = pd.concat([log_tbl, pd.DataFrame(lgrws,
+                        index=[0])], ignore_index=True)
 
             # increase counter for cumulative scanlogs if present
             confobj.scanlog_cnt += 1
@@ -515,7 +516,8 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                 separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, iscr,
                     lgrws, log_dt, pos, neg)
 
-                log_tbl = log_tbl.append(lgrws, ignore_index=True)                
+                log_tbl = pd.concat([log_tbl, pd.DataFrame(lgrws, index=[0])],
+                    ignore_index=True)                
                 
             # increase counter for cumulative scanlogs if present
             confobj.scanlog_cnt += 1
@@ -651,7 +653,7 @@ def escan_split(confobj, data):
     # compute first derivative on x and round it
     e_raw_der_round = np.around(e_raw_der(x), 0)
     # compute statistical mode
-    der_mode = stats.mode(e_raw_der_round).mode
+    der_mode = stats.mode(e_raw_der_round, keepdims=True).mode
 
     st_idx = 0  # Energy scan start index
 

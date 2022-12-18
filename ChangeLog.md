@@ -1,3 +1,7 @@
+v 2.1.1
+-------
+- For energy scans analysis in plot window for choosing edge and pre-edge energies also the preview of XAS averaged with removed baseline is shown, useful for low-dichroism signal data. Only for linear baseline data treatment.
+
 v 2.1.0
 -------
 - New interactive window for select energy scan data to be average by means of check buttons.

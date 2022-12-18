@@ -119,6 +119,9 @@ class GUI:
 
     bsliso : line obj
         baseline of average XAS data.
+
+    isonbsl : line obj
+        acvraged XAS baseline subtracted
     
     text_box_ed : TextBox obj
         TextBox widget used to set edge energy.
@@ -495,6 +498,9 @@ class GUI:
         ax2.yaxis.label.set_color('pink')
         ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
         ax2.plot(self.escale, y2, color='pink')
+
+        ax3 = ax1.twinx() # 3rd axes that shares the same x-axis
+        ax3.axis('off')
         
         # Refernce lines for energies
         # Made them as attributes to pass to textbox update function
@@ -546,6 +552,14 @@ class GUI:
             linestyle='dashdot')
         self.intedg, = ax2.plot(self.e_vals[1], edg_int, marker='x',
                                 color='indianred')
+        # Averaged xd with lin baseline subtraction
+        pst_idx = np.argmin(np.abs(self.escale - self.e_vals[3]))
+        sub_bsl = self.escale[pe_idx:pst_idx+1]
+        self.isonbsl, = ax3.plot(sub_bsl, 
+            self.y2int(sub_bsl) - esdt.lin_interpolate(x_int, y_int_iso,
+            sub_bsl), color='grey', linestyle='dashdot',
+            label='Averagd XAS no baseline')
+
         # Position of text boxes
         boxedg = fig.add_axes([0.1, 0.09, 0.1, 0.05])
         boxpe = fig.add_axes([0.32, 0.09, 0.1, 0.05])
@@ -579,6 +593,7 @@ class GUI:
         bnfinish.on_clicked(self.finish_but)
 
         ax1.legend()
+        ax3.legend()
         plt.show()
 
         return [self.e_vals[1], self.e_vals[2], self.e_vals[3], self.e_vals[4],
@@ -963,12 +978,20 @@ class GUI:
 
             edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
 
+            # Averaged xd with lin baseline subtraction
+            pe_idx = np.argmin(np.abs(self.escale - self.e_vals[2]))
+            pst_idx = np.argmin(np.abs(self.escale - self.e_vals[3]))
+            sub_bsl = self.escale[pe_idx:pst_idx+1]
+
             self.bsl.set_xdata(x_int)
             self.bsl.set_ydata(y_int)
             self.bsliso.set_xdata(x_int)
             self.bsliso.set_ydata(y_int_iso)
             self.intedg.set_xdata(self.e_vals[1])
-            self.intedg.set_ydata(edg_int)        
+            self.intedg.set_ydata(edg_int)
+            self.isonbsl.set_xdata(sub_bsl)
+            self.isonbsl.set_ydata(self.y2int(sub_bsl) -
+                esdt.lin_interpolate(x_int, y_int_iso, sub_bsl))
 
         plt.draw()
 
@@ -1015,12 +1038,21 @@ class GUI:
 
         edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
 
+        # Averaged xd with lin baseline subtraction
+        pe_idx = np.argmin(np.abs(self.escale - self.e_vals[2]))
+        pst_idx = np.argmin(np.abs(self.escale - self.e_vals[3]))
+        sub_bsl = self.escale[pe_idx:pst_idx+1]
+
         self.bsl.set_xdata(x_int)
         self.bsl.set_ydata(y_int)
         self.bsliso.set_xdata(x_int)
         self.bsliso.set_ydata(y_int_iso)
         self.intedg.set_xdata(self.e_vals[1])
         self.intedg.set_ydata(edg_int)
+
+        self.isonbsl.set_xdata(sub_bsl)
+        self.isonbsl.set_ydata(self.y2int(sub_bsl) -
+            esdt.lin_interpolate(x_int, y_int_iso, sub_bsl))
 
         plt.draw()
 

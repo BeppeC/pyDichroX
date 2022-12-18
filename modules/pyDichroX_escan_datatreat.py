@@ -1341,4 +1341,5 @@ def lin_interpolate(x, y, x0):
     ------
     float, interpolated value.
     '''
-    return y[0] + ((y[1] - y[0]) * (x0 - x[0]) / (x[1] - x[0]))
+    lin_spl_int = itp.UnivariateSpline(x, y, k=1, s=0)
+    return(lin_spl_int(x0))

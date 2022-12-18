@@ -86,7 +86,7 @@ ACKNOWLEDGEMENTS
 ----------------
 PyDichroX was written and is maintained by Giuseppe Cucinotta (giuseppe.cucinotta@protonmail.com).
 
-This program was initially realized with the aim of fulfill the need of sceintists at CETECS Laboratory at University of Florence of treating in an efficient and fast way the XAS data collected during their synchrotron experiments. In particular I acknowledge and I am gratefeul to:
+This program was initially realized with the aim of fulfill the need of scientists at CETECS Laboratory at University of Florence of treating in an efficient and fast way the XAS data collected during their synchrotron experiments. In particular I acknowledge and I am gratefeul to:
 
 
 dr. Lorenzo Poggini
@@ -97,7 +97,7 @@ dr. Michele Serri
 
 Niccolò Giaconi
 
-Andrea Luigi Sorrentino
+dr. Andrea Luigi Sorrentino
 
 prof. Matteo Mannini
 

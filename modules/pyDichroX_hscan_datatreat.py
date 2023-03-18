@@ -19,6 +19,11 @@ Methods
 h_scale(guiobj, pos, neg, log_dt)
     Create the magnetic field scale used for data analysis.
 
+h_scale_sp_bracnh(guiobj, pos, neg, log_dt)
+    Create the magnetic field scales used for data analysis - for data
+    acquisitions where hysteresis branch are splitted for positive and
+    negative fields values.
+
 h_num_points(h_arr)
     Count the number of different fields present in h_arr.
 
@@ -52,6 +57,25 @@ class ScanData:
     idx : list (str)
         Scan indexes - for scans collected at edge energy.
 
+    up_idx : list (str)
+        Scan indexes - for up scans collected at edge energy - used only
+        for splitted branch analysis to create common field scale.
+
+    dw_idx : list (str)
+        Scan indexes - for down scans collected at edge energy
+        - used only for splitted branch analysis to create common field
+        scale.
+
+    pe_up_idx : list (str)
+        Scan indexes - for up scans collected at pre-edge energy
+        - used only for splitted branch analysis to create common field
+        scale.
+
+    pe_dw_idx : list (str)
+        Scan indexes - for down scans collected at pre-edge energy
+        - used only for splitted branch analysis to create common field
+        scale.
+
     raw_imp : pandas DataFrame
         Collect imported raw data at edge energy.
         For hysteresis on the fly analysis it consist of a couple of
@@ -73,6 +97,54 @@ class ScanData:
     pre_edge : bool
         True if pre-edge data are present.
         Only for Hysteresis on the fly analisys.
+
+    up_hp : bool
+        Variable to check if up scans with postive fields are present
+        Only for splitted branches.
+
+    up_hn : bool
+        Variable to check if up scans with negative fields are present
+        Only for splitted branches.
+
+    down_hp : bool
+        Variable to check if down scans with postive fields are present
+        Only for splitted branches.
+
+    down_hn : bool
+        Variable to check if down scans with negative fields are present
+        Only for splitted branches.
+
+    pe_up_hp : bool
+        Variable to check if pe up scans with postive fields are present
+        Only for splitted branches.
+
+    pe_up_hn : bool
+        Variable to check if pe up scans with negative fields are
+        present - Only for splitted branches.
+
+    pe_down_hp : bool
+        Variable to check if pe down scans with postive fields are
+        present - Only for splitted branches.
+
+    pe_down_hn : bool
+        Variable to check if pe down scans with negative fields are
+        present - Only for splitted branches.
+
+    up_label : list (str)
+        Labels for graphs - for scans collected at edge energy up scans
+        Only for splitted branch.
+
+    dw_label : list (str)
+        Labels for graphs - for scans collected at edge energy down
+        scans - Only for splitted branch.
+
+    pe_up_label : list (str)
+        Labels for graphs - for scans collected at pre-edge energy up
+        scans - Only for splitted branch.
+
+    pe_dw_label : list (str)
+        Labels for graphs - for scans collected at pre-edge energy down
+        scans - Only for splitted branch.
 
     sel_data : pandas DataFrame
         Collect data at edge energy inside the chosen time window.
@@ -180,19 +252,19 @@ class ScanData:
         Separate input data in up branches and down branches.
         For hysteresis on the fly analysis.
 
-    man_aver_e_scans(guiobj, enrg)
+    man_aver_e_scans(guiobj, confobj, fields)
         Manage the choice of scans to be averaged and return the average
         of selected scans.
 
-    plot_chs_avr(fields, guiobj, edge, up)
+    plot_chs_avr(fields, guiobj, confobj, edge, up)
         Plot raw data, allow to choose which data will be used for
         analysis and average them.
 
-    aver_h_scans(data, fields, chsn, guiobj, title)
+    aver_h_scans(data, fields, chsn, guiobj, confobj, title)
         Perform the average of data scans.
     '''
 
-    def __init__(self, guiobj):
+    def __init__(self, guiobj, confobj):
         '''
         Initialize attributes label, idx, raw_imp, up, down and pre-edge
         corresponding pe_label, pe_idx, pe_raw_imp, pe_up, pe_down.
@@ -201,6 +273,8 @@ class ScanData:
         ---------
         guiobj : GUI object
             Provides GUI dialogs.
+
+        confobj : Configurations object.
         '''
         self.label = []
         self.idx = []
@@ -219,6 +293,26 @@ class ScanData:
             self.down = pd.DataFrame()
             self.pe_up = pd.DataFrame()
             self.pe_down = pd.DataFrame()
+
+            if confobj.spl_brnch:
+                self.up_hp = False
+                self.up_hn = False
+                self.down_hp = False
+                self.down_hn = False
+                self.pe_up_hp = False
+                self.pe_up_hn = False
+                self.pe_down_hp = False
+                self.pe_down_hn = False
+
+                self.up_idx = []
+                self.dw_idx = []
+                self.pe_up_idx = []
+                self.pe_dw_idx = []
+
+                self.up_label = []
+                self.dw_label = []
+                self.pe_up_label = []
+                self.pe_dw_label = []
         else:
             self.min_t = []
             self.max_t = []
@@ -226,7 +320,8 @@ class ScanData:
     def up_n_down(self):
         '''
         Separate input data in up branches and down branches.
-        For Hysteresis on the fly analysis.
+        For Hysteresis on the fly analysis with complete branches
+        acquisition.
 
         Return
         ------
@@ -304,7 +399,7 @@ class ScanData:
                     self.pe_down = pd.concat([self.pe_down, dw], axis=1)
                     self.pe_up = pd.concat([self.pe_up, up], axis=1)
 
-    def man_aver_h_scans(self, guiobj, fields):
+    def man_aver_h_scans(self, guiobj, confobj, fields):
         '''
         Manage the choice of scans to be averaged and return the average
         of selected scans.
@@ -313,6 +408,8 @@ class ScanData:
         ----------
         guiobj : GUI object
             Provides GUI dialogs.
+
+        confobj : configuration object.
 
         fields : array
             Magnetic field values at which average is calculated.
@@ -330,14 +427,21 @@ class ScanData:
         # for each branch (each scan contain one branch up and one
         # branch down)
         if guiobj.interactive:  # Interactive choose of scans
+            # for splitted branch in order to chose there must be more
+            # than 2 scans, one for positive and one for negative fields
+            if confobj.spl_brnch:
+                min_num_sc = 4
+            else:
+                min_num_sc = 1
             # Choose edge scans.
-            if len(self.idx) > 1:
+            if len(self.idx) > min_num_sc:
                 # Edge Up data
                 # Loop until choice is confirmed
                 isok = 0
                 while not isok:
                     up_chsn, up_avgd = self.plot_chs_avr(fields, guiobj,
-                                                         edge=True, up=True)
+                                                         confobj, edge=True,
+                                                         up=True)
                     isok = guiobj.confirm_choice()
 
                 # Edge Down data
@@ -345,44 +449,58 @@ class ScanData:
                 isok = 0
                 while not isok:
                     dw_chsn, dw_avgd = self.plot_chs_avr(fields, guiobj,
-                                                         edge=True, up=False)
+                                                         confobj, edge=True,
+                                                         up=False)
                     isok = guiobj.confirm_choice()
             else:
-                # If there is just one scan is useless the choose, just
-                # interpolate it with the common field scale.
-                up_chsn = self.label
+                # If there is just the minimun number of scans is
+                # useless the choose, just interpolate it with the
+                # common field scale.
+                if confobj.spl_brnch:
+                    up_chsn = self.up_label
+                    dw_chsn = self.dw_label
+                else:
+                    up_chsn = self.label
+                    dw_chsn = self.label
                 up_avgd = self.aver_h_scans(self.up, fields, up_chsn, guiobj,
-                                            title='Edge - Up branch')
-                dw_chsn = self.label
+                                            confobj, title='Edge - Up branch')
                 dw_avgd = self.aver_h_scans(self.down, fields, dw_chsn, guiobj,
-                                            title='Edge - Down branch')
+                                        confobj, title='Edge - Down branch')
             # Choose pre-edge scans
             if self.pre_edge:
-                if len(self.pe_idx) > 1:
+                if len(self.pe_idx) > min_num_sc:
                     # pre-edge Up data
                     # Loop until choice is confirmed
                     isok = 0
                     while not isok:
-                        pe_up_chsn, pe_up_avgd = self.plot_chs_avr(fields,
-                                                guiobj, edge=False, up=True)
+                        pe_up_chsn, pe_up_avgd = self.plot_chs_avr(
+                            fields, guiobj, confobj, edge=False, up=True)
                         isok = guiobj.confirm_choice()
 
                     # pre-edge Down data
                     # Loop until choice is confirmed
                     isok = 0
                     while not isok:
-                        pe_dw_chsn, pe_dw_avgd = self.plot_chs_avr(fields,
-                                                guiobj, edge=False, up=False)
+                        pe_dw_chsn, pe_dw_avgd = self.plot_chs_avr(
+                            fields, guiobj, confobj, edge=False, up=False)
                         isok = guiobj.confirm_choice()
                 else:  # There is just one pre-edge scan
-                    # If there is just one scan is useless the choose, just
-                    # interpolate it with the common field scale.
-                    pe_up_chsn = self.pe_label
-                    pe_up_avgd = self.aver_h_scans(self.pe_up, fields,
-                            pe_up_chsn, guiobj, title='Pre-Edge - Up branch')
-                    pe_dw_chsn = self.pe_label
-                    pe_dw_avgd = self.aver_h_scans(self.pe_down, fields,
-                            pe_dw_chsn, guiobj, title='Pre-Edge - Down branch')
+                   # If there is just the minimun number of scans is
+                    # useless the choose, just interpolate it with the
+                    # common field scale.
+                    if confobj.spl_brnch:
+                        pe_up_chsn = self.pe_up_label
+                        pe_dw_chsn = self.pe_dw_label
+                    else:
+                        pe_up_chsn = self.pe_label
+                        pe_dw_chsn = self.pe_label
+
+                    pe_up_avgd = self.aver_h_scans(
+                        self.pe_up, fields, pe_up_chsn, guiobj, confobj,
+                        title='Pre-Edge - Up branch')
+                    pe_dw_avgd = self.aver_h_scans(
+                        self.pe_down, fields, pe_dw_chsn, guiobj, confobj,
+                        title='Pre-Edge - Down branch')
             else:
                 # If no pre-edge scans just return empty lists
                 pe_up_chsn = []
@@ -391,19 +509,31 @@ class ScanData:
                 pe_dw_avgd = []
         else:
             # Not interactive - Consider and average all scans
-            up_chsn = self.label
+            if confobj.spl_brnch:
+                up_chsn = self.up_label
+                dw_chsn = self.dw_label
+            else:
+                up_chsn = self.label
+                dw_chsn = self.label
+
             up_avgd = self.aver_h_scans(self.up, fields, up_chsn, guiobj,
-                                        title='Edge - Up branch')
-            dw_chsn = self.label
+                                        confobj, title='Edge - Up branch')
             dw_avgd = self.aver_h_scans(self.down, fields, dw_chsn, guiobj,
-                                        title='Edge - Down branch')
+                                        confobj, title='Edge - Down branch')
             if self.pre_edge:
-                pe_up_chsn = self.pe_label
-                pe_up_avgd = self.aver_h_scans(self.pe_up, fields, pe_up_chsn,
-                                        guiobj, title='Pre-Edge - Up branch')
-                pe_dw_chsn = self.pe_label
-                pe_dw_avgd = self.aver_h_scans(self.pe_down, fields,
-                            pe_dw_chsn, guiobj, title='Pre-Edge - Down branch')
+                if confobj.spl_brnch:
+                    pe_up_chsn = self.pe_up_label
+                    pe_dw_chsn = self.pe_dw_label
+                else:
+                    pe_up_chsn = self.pe_label
+                    pe_dw_chsn = self.pe_label
+
+                pe_up_avgd = self.aver_h_scans(
+                    self.pe_up, fields, pe_up_chsn, guiobj, confobj,
+                    title='Pre-Edge - Up branch')
+                pe_dw_avgd = self.aver_h_scans(
+                    self.pe_down, fields, pe_dw_chsn, guiobj, confobj,
+                    title='Pre-Edge - Down branch')
             else:
                 # If no pre-edge scans just return empty lists
                 pe_up_chsn = []
@@ -421,7 +551,7 @@ class ScanData:
         self.pe_dw_chsn = pe_dw_chsn
         self.pe_dw_aver = pe_dw_avgd
 
-    def plot_chs_avr(self, fields, guiobj, edge, up):
+    def plot_chs_avr(self, fields, guiobj, confobj, edge, up):
         '''
         Plot raw data, allow to choose which data will be used for
         analysis and average them.
@@ -434,6 +564,8 @@ class ScanData:
 
         guiobj : GUI object
             Provides GUI dialogs.
+
+        confobj : configuration object.
 
         edge : bool
             True for edge scans treatment
@@ -452,8 +584,17 @@ class ScanData:
         plt.figure(1)
         if edge:
             # Plot configurations for edge scans
-            label = self.label
-            idx = self.idx
+            # if splitted branch up and down have different idx
+            if confobj.spl_brnch:
+                if up:
+                    label = self.up_label
+                    idx = self.up_idx
+                else:
+                    label = self.dw_label
+                    idx = self.dw_idx
+            else:
+                label = self.label
+                idx = self.idx
             if up:
                 # Plot configuration for up branches
                 title = 'Edge ' + self.dtype + ' Up'
@@ -466,8 +607,17 @@ class ScanData:
                 data = self.down
         else:
             # Plot configurations for pre-edge scans
-            label = self.pe_label
-            idx = self.pe_idx
+            # if splitted branch up and down have different idx
+            if confobj.spl_brnch:
+                if up:
+                    label = self.pe_up_label
+                    idx = self.pe_up_idx
+                else:
+                    label = self.pe_dw_label
+                    idx = self.pe_dw_idx
+            else:
+                label = self.pe_label
+                idx = self.pe_idx
             if up:
                 # Plot configurations for up branches
                 title = 'Pre-Edge ' + self.dtype + ' Up'
@@ -490,11 +640,11 @@ class ScanData:
 
         chsn = guiobj.chs_scns(label)
 
-        avgd = self.aver_h_scans(data, fields, chsn, guiobj, title)
+        avgd = self.aver_h_scans(data, fields, chsn, guiobj, confobj, title)
 
         return chsn, avgd
 
-    def aver_h_scans(self, data, fields, chsn, guiobj, title):
+    def aver_h_scans(self, data, fields, chsn, guiobj, confobj, title):
         '''
         Perform the average of data scans. 
         If interactive mode, data scans and their average are shown
@@ -514,6 +664,8 @@ class ScanData:
         guiobj: GUI object
             Provides GUI dialogs.
 
+        confobj : configuration object.
+
         title : str
             graph title.
 
@@ -529,7 +681,14 @@ class ScanData:
         common field scale.
         The interpolated data are eventually averaged.
         '''
-        intrp = []
+        # If splitted branches interpolated variable consider one array
+        # for positive field branch - index 0 - and one for negative
+        # field - index 1 -
+        if confobj.spl_brnch:
+            intrp = [[], []]
+        # If no splitted branches just one array for interpolated data
+        else:
+            intrp = []
 
         if guiobj.interactive:
             plt.figure(1)
@@ -538,14 +697,10 @@ class ScanData:
         for scn in chsn:
             # Retrive scan number from label, remove PE- for pre-edge
             idx = scn.removeprefix('PE-')
-            # chosen data
 
             # Univariate spline requires increasing x
-            # Data are sorted by field
-            ##sorted_data = data.sort_values(by=['H' + idx])
-
-            ##x = sorted_data['H' + idx][1:].dropna()
-            ##y = sorted_data[idx][1:].dropna()
+            # x and y are data averaged in order to remove duplicates in
+            # field values
             x, y = aver_duplicates(data, idx)
 
             if guiobj.interactive:
@@ -554,15 +709,35 @@ class ScanData:
 
             # Compute linear spline interpolation
             y_int = itp.UnivariateSpline(x, y, k=1, s=0)
+
             # Evaluate interpolation of field scan data on common field
             # scale and append to previous interpolations
-            intrp.append(y_int(fields))
+
+            # if splitted branches append interpolated half branches
+            # scan in appropriate array
+            if confobj.spl_brnch:
+                # positive field branc
+                if np.amax(data['H' + idx]) > 0:
+                    intrp[1].append(y_int(fields[1]))
+                # negative field branch
+                else:
+                    intrp[0].append(y_int(fields[0]))
+            # if no splitted branches just append interpolations
+            else:
+                intrp.append(y_int(fields))
 
         # Average all inteprolated scans
-        avgd = np.average(intrp, axis=0)
+        if confobj.spl_brnch:
+            avgd = np.concatenate((np.average(intrp[0], axis=0),
+                                   np.average(intrp[1], axis=0)))
+        else:
+            avgd = np.average(intrp, axis=0)
 
         if guiobj.interactive:
-            plt.plot(fields, avgd, color='r', label='Average')
+            if confobj.spl_brnch:
+                plt.plot(fields[2], avgd, color='r', label='Average')
+            else:
+                plt.plot(fields, avgd, color='r', label='Average')
             plt.xlabel('H (T)')
             plt.ylabel(self.dtype)
             plt.legend()
@@ -622,9 +797,9 @@ class ScanData:
                     # Subtract baseline and average data
                     # pass
                     # else:
-                    row = pd.Series([Hval, np.nanmean(dat['I'],
-                                    dtype=np.float64), np.nanstd(dat['I'])],
-                                    index=['H', 'I', 'dI'])
+                    row = pd.Series(
+                        [Hval, np.nanmean(dat['I'], dtype=np.float64),
+                        np.nanstd(dat['I'])], index=['H', 'I', 'dI'])
                     pe_aver = pe_aver.append(row, ignore_index=True)
                 # Sort data by H
                 self.pe_aver = pe_aver.sort_values(by=['H'], ignore_index=True)
@@ -636,10 +811,10 @@ class ScanData:
                 srt = dat.sort_values(by=['t'])
                 # Interpolate data on common time scale
                 interp = itp.interp1d(srt['t'], srt['I'], kind='slinear',
-                    fill_value='extrapolate')
+                                      fill_value='extrapolate')
                 # Append interpolated data
                 temp = pd.DataFrame({'H': Hval, 'I': interp(time_scale),
-                    't': time_scale})
+                                     't': time_scale})
                 aver = aver.append(temp, ignore_index=True)
             # Sort data by t and H
             self.aver = aver.sort_values(by=['t', 'H'], ignore_index=True)
@@ -651,10 +826,10 @@ class ScanData:
                     srt = dat.sort_values(by=['t'])
                     # Interpolate data on common time scale
                     interp = itp.interp1d(srt['t'], srt['I'], kind='slinear',
-                        fill_value='extrapolate')
+                                          fill_value='extrapolate')
                     # Append interpolated data
                     temp = pd.DataFrame({'H': Hval, 'I': interp(time_scale),
-                                        't': time_scale})
+                                         't': time_scale})
                     pe_aver = pe_aver.append(temp, ignore_index=True)
                 # Sort data by t and H
                 self.pe_aver = pe_aver.sort_values(by=['t', 'H'],
@@ -672,8 +847,11 @@ class FieldScan:
 
     fields : array
         Common magnetic field scale for CR and CL scans data treatement.
-        If present also scans collected at pre-edge energy are
-        considered.
+
+    flds : array
+        Final common magnetic filed scale for CR and CL scans.
+        If no splitted branch is equal to field otherwise it is the
+        union of positive and negative fields half-branches.
 
     cr_up : array
         Average of CR branch up scans.
@@ -730,7 +908,7 @@ class FieldScan:
 
     Methods
     -------
-    scan_average(guiobj, pos, neg, log_dt)
+    scan_average(guiobj, confobj, pos, neg, log_dt)
         Separate CR and CL scans in up and down branches and average
         scans.
 
@@ -739,7 +917,7 @@ class FieldScan:
         obtain XMCD hysteresis.
     '''
 
-    def __init__(self, guiobj, h_scale, pos, neg, log_dt):
+    def __init__(self, guiobj, confobj, h_scale, pos, neg, log_dt):
         '''
         At instantiation the field attribute is created with common
         magnetic field scale. CR and CL scans are separated in up and
@@ -752,6 +930,8 @@ class FieldScan:
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
+
+        confobj : configuration object.
 
         h_scale : array
             Common magnetic field scale for data analysis.
@@ -770,11 +950,11 @@ class FieldScan:
         self.pre_edge = False
         self.fields = h_scale
 
-        self.scan_average(guiobj, pos, neg, log_dt)
+        self.scan_average(guiobj, confobj, pos, neg, log_dt)
 
         self.compt_scanfield()
 
-    def scan_average(self, guiobj, pos, neg, log_dt):
+    def scan_average(self, guiobj, confobj, pos, neg, log_dt):
         '''
         Separate CR and CL scans in up and down branches and average
         scans.
@@ -785,6 +965,8 @@ class FieldScan:
         ----------
         guiobj : GUI obj
             Provides GUI dialogs.
+
+        confobj : configuration object.
 
         pos : ScanData obj
             Contains CR scans.
@@ -823,6 +1005,11 @@ class FieldScan:
         cl_pe_down: array
             Average of CL branch down scans at pre-edge energy.
 
+        flds : array
+            Final common magnetic filed scale for CR and CL scans.
+            If no splitted branch is equal to field otherwise it is the
+            union of positive and negative fields half-branches.
+
         Add keys to log_dt
 
         pos_up_chsn : list (str) with CR branch up chosen scans
@@ -840,8 +1027,8 @@ class FieldScan:
         '''
         # Separate up and down branches and compute the  average of
         # scans
-        pos.man_aver_h_scans(guiobj, self.fields)
-        neg.man_aver_h_scans(guiobj, self.fields)
+        pos.man_aver_h_scans(guiobj, confobj, self.fields)
+        neg.man_aver_h_scans(guiobj, confobj, self.fields)
 
         # Fill log data with chosen scans
         log_dt['pos_up_chsn'] = pos.up_chsn
@@ -858,10 +1045,15 @@ class FieldScan:
         self.cl_up = neg.up_aver
         self.cl_down = neg.dw_aver
 
+        if confobj.spl_brnch:
+            self.flds = self.fields[2]
+        else:
+            self.flds = self.fields
+
         plt.figure(1)
         plt.title('Up and Down branches')
         plt.subplot(221)
-        plt.plot(self.fields, self.cr_up, label='CR Up')
+        plt.plot(self.flds, self.cr_up, label='CR Up')
         plt.ylabel('I (a.u.)')
         plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
@@ -869,7 +1061,7 @@ class FieldScan:
         plt.legend()
 
         plt.subplot(222)
-        plt.plot(self.fields, self.cr_down, label='CR Down')
+        plt.plot(self.flds, self.cr_down, label='CR Down')
         plt.ylabel('I (a.u.)')
         plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
@@ -877,7 +1069,7 @@ class FieldScan:
         plt.legend()
 
         plt.subplot(223)
-        plt.plot(self.fields, self.cl_up, label='CL Up')
+        plt.plot(self.flds, self.cl_up, label='CL Up')
         plt.ylabel('I (a.u.)')
         plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
@@ -885,7 +1077,7 @@ class FieldScan:
         plt.legend()
 
         plt.subplot(224)
-        plt.plot(self.fields, self.cl_down, label='CL Down')
+        plt.plot(self.flds, self.cl_down, label='CL Down')
         plt.ylabel('I (a.u.)')
         plt.xlabel('H (T)')
         plt.axhline(y=0, color='darkgray')
@@ -905,7 +1097,7 @@ class FieldScan:
             plt.figure(2)
             plt.title('Up and Down pre-edge branches')
             plt.subplot(221)
-            plt.plot(self.fields, self.cr_pe_up, label='CR pre-edge Up')
+            plt.plot(self.flds, self.cr_pe_up, label='CR pre-edge Up')
             plt.ylabel('I (a.u.)')
             plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
@@ -913,7 +1105,7 @@ class FieldScan:
             plt.legend()
 
             plt.subplot(222)
-            plt.plot(self.fields, self.cr_pe_down, label='CR pre-edge Down')
+            plt.plot(self.flds, self.cr_pe_down, label='CR pre-edge Down')
             plt.ylabel('I (a.u.)')
             plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
@@ -921,7 +1113,7 @@ class FieldScan:
             plt.legend()
 
             plt.subplot(223)
-            plt.plot(self.fields, self.cl_pe_up, label='CL pre-edge Up')
+            plt.plot(self.flds, self.cl_pe_up, label='CL pre-edge Up')
             plt.ylabel('I (a.u.)')
             plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
@@ -929,7 +1121,7 @@ class FieldScan:
             plt.legend()
 
             plt.subplot(224)
-            plt.plot(self.fields, self.cl_pe_down, label='CL pre-edge Down')
+            plt.plot(self.flds, self.cl_pe_down, label='CL pre-edge Down')
             plt.ylabel('I (a.u.)')
             plt.xlabel('H (T)')
             plt.axhline(y=0, color='darkgray')
@@ -1022,10 +1214,10 @@ class FieldScan:
 
             # XMCD in percentage for branches up and down considering
             # data normalized by pre-edge scans
-            self.up_perc = 200 * self.up_w_pe / (cl_up_over_pe +
-                                                 cr_up_over_pe - 2)
-            self.down_perc = 200 * self.dw_w_pe / (cl_dw_over_pe +
-                                                   cr_dw_over_pe - 2)
+            self.up_perc = 200 * self.up_w_pe / (cl_up_over_pe
+                                                 + cr_up_over_pe - 2)
+            self.down_perc = 200 * self.dw_w_pe / (cl_dw_over_pe
+                                                   + cr_dw_over_pe - 2)
 
 
 class FieldPtScan:
@@ -1131,10 +1323,10 @@ class FieldPtScan:
         len_t = []
         st_t, end_t = guiobj.acq_times(pos, neg)
 
-        pos.sel_data = pos.raw_imp[(pos.raw_imp['t'] >= st_t) &
-                                   (pos.raw_imp['t'] <= end_t)]
-        neg.sel_data = neg.raw_imp[(neg.raw_imp['t'] >= st_t) &
-                                   (neg.raw_imp['t'] <= end_t)]
+        pos.sel_data = pos.raw_imp[(pos.raw_imp['t'] >= st_t)
+                                   & (pos.raw_imp['t'] <= end_t)]
+        neg.sel_data = neg.raw_imp[(neg.raw_imp['t'] >= st_t)
+                                   & (neg.raw_imp['t'] <= end_t)]
         # Collect the number of time points in the time window for each
         # field
         for Hval, dat in pos.sel_data.groupby('H'):
@@ -1143,10 +1335,10 @@ class FieldPtScan:
             len_t.append(len(dat['t']))
 
         if pos.pre_edge and neg.pre_edge:
-            pos.pe_sel_data = pos.pe_raw_imp[(pos.pe_raw_imp['t'] >= st_t) &
-                                             (pos.pe_raw_imp['t'] <= end_t)]
-            neg.pe_sel_data = neg.pe_raw_imp[(neg.pe_raw_imp['t'] >= st_t) &
-                                             (neg.pe_raw_imp['t'] <= end_t)]
+            pos.pe_sel_data = pos.pe_raw_imp[(pos.pe_raw_imp['t'] >= st_t)
+                                             & (pos.pe_raw_imp['t'] <= end_t)]
+            neg.pe_sel_data = neg.pe_raw_imp[(neg.pe_raw_imp['t'] >= st_t)
+                                             & (neg.pe_raw_imp['t'] <= end_t)]
             for Hval, dat in pos.pe_sel_data.groupby('H'):
                 len_t.append(len(dat['t']))
             for Hval, dat in neg.pe_sel_data.groupby('H'):
@@ -1221,7 +1413,7 @@ class FieldPtScan:
                 negpe_gb = neg.pe_aver.groupby('H')
 
                 xmcd = pd.DataFrame(columns=['H', 'CR', 'CL', 'CRpe', 'CLpe',
-                                            't'])
+                                             't'])
                 for Hval, dat in pos_gb:
                     xmcd_p = pos.aver[pos.aver['H'] == Hval].sort_values(
                         by=['t'])
@@ -1258,18 +1450,20 @@ class FieldPtScan:
                 xmcd['Dedge'] = xmcd['dCL'] + xmcd['dCR']
                 xmcd['Dpre-edge'] = xmcd['dCLpe'] + xmcd['dCRpe']
 
-                dcrcrp = np.abs((np.abs(xmcd['dCR'] / xmcd['CR']) +
-                                 np.abs(xmcd['dCRpe'] / xmcd['CRpe'])) * crcrp)
-                dclclp = np.abs((np.abs(xmcd['dCL'] / xmcd['CL']) +
-                                 np.abs(xmcd['dCLpe'] / xmcd['CLpe'])) * clclp)
+                dcrcrp = np.abs(
+                    (np.abs(xmcd['dCR'] / xmcd['CR']) + np.abs(xmcd['dCRpe']
+                    / xmcd['CRpe'])) * crcrp)
+                dclclp = np.abs(
+                    (np.abs(xmcd['dCL'] / xmcd['CL']) + np.abs(xmcd['dCLpe']
+                    / xmcd['CLpe'])) * clclp)
                 denerr = (clclp + crcrp - 2) ** 2
-                xmcd['Dnorm'] = 400 * (((np.abs(crcrp-1) / denerr) * dclclp) +
-                                       ((np.abs(clclp-1) / denerr) * dcrcrp))
+                xmcd['Dnorm'] = 400 * (((np.abs(crcrp-1) / denerr) * dclclp)
+                                       + ((np.abs(clclp-1) / denerr) * dcrcrp))
 
         self.xmcd = xmcd
 
 
-def h_scale(guiobj, pos, neg, log_dt):
+def h_scale(guiobj, confobj, pos, neg, log_dt):
     '''
     Create the magnetic field scale used for data analysis.
     Range is selected considering the intersection of the field ranges
@@ -1288,6 +1482,8 @@ def h_scale(guiobj, pos, neg, log_dt):
     guiobj : GUI obj
         Provides GUI dialogs.
 
+    confobj : configuration object.
+
     pos: ScanData obj
         Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
@@ -1302,6 +1498,12 @@ def h_scale(guiobj, pos, neg, log_dt):
     array
         Common magnetic field scale for positive and negative XAS scans
         data treatement
+        If splitted branches are provided return
+        array[array_p, arrany_n, array_all]
+        where array_p is the array with common scale for positive
+        magnetic field branch, array_n contains the common scale
+        for negative magnetic field branch and array_all the union of
+        the two.
 
     Add h_scale key to log_dt with min, max and number of points of
     field scale. 
@@ -1310,44 +1512,176 @@ def h_scale(guiobj, pos, neg, log_dt):
     h_mins = []  # Minima of magnetic field scans
     h_len = []  # Number of different fields in each scan
 
-    # Collect maxima and minima and count the fields for edge scans
-    for i in pos.idx:
-        h_maxs.append(np.amax(pos.raw_imp['H' + i]))
-        h_mins.append(np.amin(pos.raw_imp['H' + i]))
-        h_len.append(h_num_points(pos.raw_imp['H' + i].dropna()))
-    for i in neg.idx:
-        h_maxs.append(np.amax(neg.raw_imp['H' + i]))
-        h_mins.append(np.amin(neg.raw_imp['H' + i]))
-        h_len.append(h_num_points(neg.raw_imp['H' + i].dropna()))
-    # If present pre-edge scans do the same for them
-    if pos.pre_edge:
-        for i in pos.pe_idx:
-            h_maxs.append(np.amax(pos.pe_raw_imp['H' + i]))
-            h_mins.append(np.amin(pos.pe_raw_imp['H' + i]))
-            h_len.append(h_num_points(pos.pe_raw_imp['H' + i].dropna()))
-    if neg.pre_edge:
-        for i in neg.pe_idx:
-            h_maxs.append(np.amax(neg.pe_raw_imp['H' + i]))
-            h_mins.append(np.amin(neg.pe_raw_imp['H' + i]))
-            h_len.append(h_num_points(neg.pe_raw_imp['H' + i].dropna()))
+    # splitted branch case
+    if confobj.spl_brnch:
+        zero_ps = []  # Near zero values for positive fields
+        zero_ns = []  # Near zero values for negative fields
 
-    # Compute min, max and default langth of energy range
-    # Set decimal place to round the first OoM higher than tolerance in
-    # h_num_points
-    h_min = np.around(np.amax(h_mins), 3)
-    h_max = np.around(np.amin(h_maxs), 3)
-    h_av_len = np.around(np.average(h_len), 0)
+        # Collect maxima and minima and count the fields for edge scans
+        # For splitted branches data are alreafy separated up from down
+        for i in pos.up_idx:
+            # Check from max h value which half-branch is
+            maxh = np.amax(pos.up['H' + i])
+            # if maxh < 0 negative field half-branch
+            if maxh < 0:
+                zero_ns.append(maxh)
+                h_mins.append(np.amin(pos.up['H' + i]))
+            # if maxh > 0 positive field half-branch
+            else:
+                h_maxs.append(maxh)
+                zero_ps.append(np.amin(pos.up['H' + i]))
+            h_len.append(h_num_points(pos.up['H' + i].dropna()))
+        for i in pos.dw_idx:
+            # Check from max h value which half-branch is
+            maxh = np.amax(pos.down['H' + i])
+            # if maxh < 0 negative field half-branch
+            if maxh < 0:
+                zero_ns.append(maxh)
+                h_mins.append(np.amin(pos.down['H' + i]))
+            # if maxh > 0 positive field half-branch
+            else:
+                h_maxs.append(maxh)
+                zero_ps.append(np.amin(pos.down['H' + i]))
+            h_len.append(h_num_points(pos.down['H' + i].dropna()))
+        for i in neg.up_idx:
+            # Check from max h value which half-branch is
+            maxh = np.amax(neg.up['H' + i])
+            # if maxh < 0 negative field half-branch
+            if maxh < 0:
+                zero_ns.append(maxh)
+                h_mins.append(np.amin(neg.up['H' + i]))
+            # if maxh > 0 positive field half-branch
+            else:
+                h_maxs.append(maxh)
+                zero_ps.append(np.amin(neg.up['H' + i]))
+            h_len.append(h_num_points(neg.up['H' + i].dropna()))
+        for i in neg.dw_idx:
+            # Check from max h value which half-branch is
+            maxh = np.amax(neg.down['H' + i])
+            # if maxh < 0 negative field half-branch
+            if maxh < 0:
+                zero_ns.append(maxh)
+                h_mins.append(np.amin(neg.down['H' + i]))
+            # if maxh > 0 positive field half-branch
+            else:
+                h_maxs.append(maxh)
+                zero_ps.append(np.amin(neg.down['H' + i]))
+            h_len.append(h_num_points(neg.down['H' + i].dropna()))
+        # If present pre-edge scans do the same for them
+        if pos.pre_edge:
+            for i in pos.pe_up_idx:
+                # Check from max h value which half-branch is
+                maxh = np.amax(pos.pe_up['H' + i])
+                # if maxh < 0 negative field half-branch
+                if maxh < 0:
+                    zero_ns.append(maxh)
+                    h_mins.append(np.amin(pos.pe_up['H' + i]))
+                # if maxh > 0 positive field half-branch
+                else:
+                    h_maxs.append(maxh)
+                    zero_ps.append(np.amin(pos.pe_up['H' + i]))
+                h_len.append(h_num_points(pos.pe_up['H' + i].dropna()))
+            for i in pos.pe_dw_idx:
+                # Check from max h value which half-branch is
+                maxh = np.amax(pos.pe_down['H' + i])
+                # if maxh < 0 negative field half-branch
+                if maxh < 0:
+                    zero_ns.append(maxh)
+                    h_mins.append(np.amin(pos.pe_down['H' + i]))
+                # if maxh > 0 positive field half-branch
+                else:
+                    h_maxs.append(maxh)
+                    zero_ps.append(np.amin(pos.pe_down['H' + i]))
+                h_len.append(h_num_points(pos.pe_down['H' + i].dropna()))
+        if neg.pre_edge:
+            for i in neg.pe_up_idx:
+                # Check from max h value which half-branch is
+                maxh = np.amax(neg.pe_up['H' + i])
+                # if maxh < 0 negative field half-branch
+                if maxh < 0:
+                    zero_ns.append(maxh)
+                    h_mins.append(np.amin(neg.pe_up['H' + i]))
+                # if maxh > 0 positive field half-branch
+                else:
+                    h_maxs.append(maxh)
+                    zero_ps.append(np.amin(neg.pe_up['H' + i]))
+                h_len.append(h_num_points(neg.pe_up['H' + i].dropna()))
+            for i in neg.pe_dw_idx:
+                # Check from max h value which half-branch is
+                maxh = np.amax(neg.pe_down['H' + i])
+                # if maxh < 0 negative field half-branch
+                if maxh < 0:
+                    zero_ns.append(maxh)
+                    h_mins.append(np.amin(neg.pe_down['H' + i]))
+                # if maxh > 0 positive field half-branch
+                else:
+                    h_maxs.append(maxh)
+                    zero_ps.append(np.amin(neg.pe_down['H' + i]))
+                h_len.append(h_num_points(neg.pe_down['H' + i].dropna()))
 
-    # Set number of points of energy scale
-    if guiobj.interactive:
-        n_points = guiobj.num_pnts(h_av_len)
+        # Compute min, max, zero_p, zero_n and default length of energy
+        # range
+        # Set decimal place to round the first OoM higher than tolerance
+        # in h_num_points
+        h_min = np.around(np.amax(h_mins), 3)
+        h_max = np.around(np.amin(h_maxs), 3)
+        zero_p = np.around(np.amax(zero_ps), 3)
+        zero_n = np.around(np.amin(zero_ns), 3)
+        h_av_len = np.around(np.average(h_len), 0)
+
+        # Set number of points of energy scale
+        if guiobj.interactive:
+            n_points = int(np.around((guiobj.num_pnts(2*h_av_len))/2))
+        else:
+            n_points = int(h_av_len)
+
+        h_step = (h_max - h_min) / (2*n_points - 1)
+        log_dt['h_scale'] = [h_min, h_max, n_points, h_step]
+
+        p_branch = np.linspace(zero_p, h_max, n_points)
+        n_branch = np.linspace(h_min, zero_n, n_points)
+        all_branch = np.concatenate((n_branch, p_branch))
+        return [n_branch, p_branch, all_branch]
+    # no splitted branch case
     else:
-        n_points = int(h_av_len)
+        # Collect maxima and minima and count the fields for edge scans
+        for i in pos.idx:
+            h_maxs.append(np.amax(pos.raw_imp['H' + i]))
+            h_mins.append(np.amin(pos.raw_imp['H' + i]))
+            h_len.append(h_num_points(pos.raw_imp['H' + i].dropna()))
+        for i in neg.idx:
+            h_maxs.append(np.amax(neg.raw_imp['H' + i]))
+            h_mins.append(np.amin(neg.raw_imp['H' + i]))
+            h_len.append(h_num_points(neg.raw_imp['H' + i].dropna()))
+        # If present pre-edge scans do the same for them
+        if pos.pre_edge:
+            for i in pos.pe_idx:
+                h_maxs.append(np.amax(pos.pe_raw_imp['H' + i]))
+                h_mins.append(np.amin(pos.pe_raw_imp['H' + i]))
+                h_len.append(h_num_points(pos.pe_raw_imp['H' + i].dropna()))
+        if neg.pre_edge:
+            for i in neg.pe_idx:
+                h_maxs.append(np.amax(neg.pe_raw_imp['H' + i]))
+                h_mins.append(np.amin(neg.pe_raw_imp['H' + i]))
+                h_len.append(h_num_points(neg.pe_raw_imp['H' + i].dropna()))
 
-    h_step = (h_max - h_min) / (n_points - 1)
-    log_dt['h_scale'] = [h_min, h_max, n_points, h_step]
+        # Compute min, max and default length of energy range
+        # Set decimal place to round the first OoM higher than tolerance
+        # in h_num_points
+        h_min = np.around(np.amax(h_mins), 3)
+        h_max = np.around(np.amin(h_maxs), 3)
+        h_av_len = np.around(np.average(h_len), 0)
 
-    return np.linspace(h_min, h_max, n_points)
+        # Set number of points of energy scale
+        if guiobj.interactive:
+            n_points = guiobj.num_pnts(h_av_len)
+        else:
+            n_points = int(h_av_len)
+
+        h_step = (h_max - h_min) / (n_points - 1)
+        log_dt['h_scale'] = [h_min, h_max, n_points, h_step]
+
+        return np.linspace(h_min, h_max, n_points)
 
 
 def h_num_points(h_arr):
@@ -1361,7 +1695,7 @@ def h_num_points(h_arr):
     at the same field value within the experimental uncertainty. This
     means that the number of acquisitions is not the same as the number
     of different magnetic fields measured. In order to obtain a reliable
-    value for the number of different magnetic fileds measured during
+    value for the number of different magnetic fields measured during
     the scan a tolerance value is introduced and consecutive fields
     differing less than tolerance are considered the same and counted
     only once.

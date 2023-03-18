@@ -1,14 +1,18 @@
+v 3.0.0
+-------
+- Added configuration and made adjustments in order to perform XMCD, XNLD, XNXD, XNCD and hystereis on the fly data analysis for ID-32 beamline @ ESRF Synchrotron (Grenoble, France)
+
 v 2.1.3
 -------
 - For energy scans analysis in plot window for choosing edge and pre-edge energies also the preview of XAS averaged with removed baseline is shown, useful for low-dichroism signal data. Only for linear baseline data treatment.
 
 v 2.1.2
 -------
-Minor bug fixes
+- Minor bug fixes
 
 v 2.1.1
 -------
-Minor bug fixes
+- Minor bug fixes
 
 v 2.1.0
 -------

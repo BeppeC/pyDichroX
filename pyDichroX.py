@@ -38,9 +38,9 @@ if __name__ == '__main__':
         
         if gui.analysis == 'hyst_fly':
             # Create common magneti field scale
-            h_scale = hsdt.h_scale(gui, pos, neg, log_dt)
+            h_scale = hsdt.h_scale(gui, conf, pos, neg, log_dt)
 
-            h_scan = hsdt.FieldScan(gui, h_scale, pos, neg, log_dt)
+            h_scan = hsdt.FieldScan(gui, conf, h_scale, pos, neg, log_dt)
             io.save_data_hscan(conf, gui, h_scan, log_dt)
 
         elif (gui.analysis=='hyst_t_aver') or (gui.analysis=='hyst_t_split'):

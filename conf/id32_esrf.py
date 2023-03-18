@@ -1,6 +1,7 @@
 """
-Configurations for DEIMOS Beamline at Soleil Synchrotron, Paris (France)
+Configurations for ID-32 Beamline at ESRF Synchrotron, Grenoble (France)
 """
+
 
 class Configuration():
     '''
@@ -38,7 +39,7 @@ class Configuration():
 
     scanlog_cnt : int
         counter to run through scanlog_nms.
-        Not used for Deimos.
+        Not used for id32.
 
     norm_curr : bool
         True if it/i0 is not provided by data
@@ -78,10 +79,10 @@ class Configuration():
 
     it : str
         datafile's column name for not normalized it - TEY data.
-    
+
     if1 : str
         datafile's column name for not normalized if - fluo data.
-    
+
     if0 : str
         datafile's column name for if0 - fluorescence data.
 
@@ -111,7 +112,7 @@ class Configuration():
             Exctract scan number from file name.
 
     scanlog_fname():
-        Collect logfile associated to scandata. Not needed for Deimos.
+        Collect logfile associated to scandata. Not needed for id32.
 
     single_lognm(dataflnm):
         Reconstruct name of datalog file.
@@ -131,15 +132,20 @@ class Configuration():
     ptbypt_logfl_creator(log_dt)
         Create string with log data to be saved in logfile for
         hysteresis point by point analysis.
+
+    data_ex(in_file, out_dir)
+        Extract single data scans and log from cumulative data file and
+        save them in given directory.
     '''
 
     def __init__(self):
         '''
         Instatiate object setting all the attributes.
         '''
-        self.default_only_ext = '.txt'
-        self.default_ext = '*.txt'  # mask
-        self.filetypes = []  #  leave empty - not needed
+        self.default_only_ext = '.dat'
+        self.default_ext = '*.dat'  # mask
+        # Include .spec cumulative files in open file dialogue window
+        self.filetypes = ['*.spec']
 
         # True for interactive mode program execution
         self.interactive = True
@@ -152,24 +158,22 @@ class Configuration():
 
         # List of of performed analysis
         self.list_analysis = ['XMCD', 'XNCD', 'XNLD', 'XNXD',
-                            'XMCD Hysteresis on the fly',
-                            'XMCD Hysteresis point by point - time average',
-                            'XMCD Hysteresis point by point - time split']
+                              'XMCD Hysteresis on the fly']
 
-        # at Deimos hysteresis are usually collected with scans covering
-        # the whole branch
-        self.spl_brnch = False
-        
+        # ID32 hysteresis scan are collected splitting branches with
+        # positive and negative fields
+        self.spl_brnch = True
+
         # Attributes for logfiles - present but not used
         self.scanlog_cnt = 0
 
         # it/i0 is provided
         self.norm_curr = False
 
-        # Deimos provide log information for sample T
+        # id32 provide log information for sample T
         self.ask_for_T = False
 
-        # Deimos provide log information for magnetic field
+        # id32 provide log information for magnetic field
         self.ask_for_H = False
 
         # Normalizaion by reference scans
@@ -187,63 +191,41 @@ class Configuration():
 
         f_name : str
             data filename, some beamline have filename in column names,
-            NOT Deimos case.
+            NOT id32 case.
 
         Return
         ------
         list of column names to be imprted.
         '''
         if guiobj.analysis in guiobj.type['hyst']:
-            # Columns for hysteresis on fly collected with TurboHyst
+            # Columns for hysteresis on fly
             if guiobj.analysis == 'hyst_fly':
-                self.field = 'data_02'  # magnetic field data
-                self.iti0 = 'data_08'  # it/i0 data - TEY
+                self.field = 'field'  # magnetic field data
+                self.iti0 = 'itratio'  # it/i0 data - TEY
 
-                self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
+                self.ifi0 = 'ifratio'  # if/if0 data - Fluorescence
 
-                self.time = 'abs_time'  # timestamps
-
-                # They should not be used
-                self.i0 = 'data_06'  # i0 data - TEY
-                self.it = 'data_07'  # it data - TEY
-                self.if1 = 'data_11'  # if data - Fluorescence
-                self.if0 = 'data_06'  # if0 data - Fluorescence
+                self.time = 'Epoch'  # timestamps
 
                 # Hysteresis scan colums list to be imported
                 return [self.field, self.iti0, self.ifi0, self.time]
 
             else:
-                # Columns for hysteresis point by point collected with
-                # TurboTimeScan
-                self.field = 'data_09'  # magnetic field data
-                self.iti0 = 'data_07'  # it/i0 data - TEY
-
-                # self.phase_hyst = 'data_09'  # phase data
-
-                self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
-
-                self.time = 'abs_time'  # timestamps
-
-                # They should not be used
-                self.i0 = 'data_05'  # i0 data - TEY
-                self.it = 'data_06'  # it data - TEY
-                self.if1 = 'data_11'  # if data - Fluorescence
-                self.if0 = 'data_05'  # if0 data - Fluorescence
-
-                # Hysteresis scan colums list to be imported
-                return [self.field, self.iti0, self.ifi0, self.time]
+                # Columns for hysteresis point by point - yet not
+                # considered for this bemaline
+                pass
         else:
             # columns for energy scan experiments
-            self.energy = 'data_01'  # column with energy data
-            self.iti0 = 'data_07'  # it/i0 data - TEY
+            self.energy = 'zap_energyM'  # column with energy data
+            self.iti0 = 'zap_itratio'  # it/i0 data - TEY
 
-            self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
+            self.ifi0 = 'zap_ifratio'  # if/if0 data - Fluorescence
 
             # They should not be used
-            self.i0 = 'data_05'  # i0 data - TEY
-            self.it = 'data_06'  # it data - TEY
-            self.if1 = 'data_11'  # if data - Fluorescence
-            self.if0 = 'data_05'  # if0 data - Fluorescence
+            self.i0 = 'zap_i0'  # i0 data - TEY
+            self.it = 'zap_it'  # it data - TEY
+            self.if1 = 'zap_ifluo'  # if data - Fluorescence
+            self.if0 = 'zap_i0'  # if0 data - Fluorescence
 
             # Energy scan colums list to be imported
             return [self.energy, self.iti0, self.ifi0]
@@ -256,17 +238,17 @@ class Configuration():
         Parameters
         ----------
         x : int polarisation identifier
-            CR id = 4
-            CL id = 3
+            CR id = 1
+            CL id = -1
 
         Returns
         -------
         bool, True if CR, False if CL.
         '''
-        if x == 4:
+        if x == 1:
             self.phi_sgn = 1
             return True
-        elif x == 3:
+        elif x == -1:
             self.phi_sgn = -1
             return False
         else:
@@ -280,16 +262,16 @@ class Configuration():
         Parameters
         ----------
         x : int polarisation identifier
-            LV id = 2
-            LH id = 1
+            LV id = 1
+            LH id = -1
 
         Returns
         -------
         bool, True if LV, False if LH.
         '''
-        if x == 2:
+        if x == 1:
             return True
-        elif x == 1:
+        elif x == -1:
             return False
         else:
             raise Exception()
@@ -307,14 +289,14 @@ class Configuration():
         -------
         str, scan-number.
         '''
-        scn_num = f_name.lstrip('scan_').rstrip(self.default_only_ext)
+        scn_num = f_name.lstrip('S_').rstrip(self.default_only_ext)
 
         return scn_num
 
     def scanlog_fname(self, guiobj):
         '''
         Collect logfile associated to scandata.
-        Not needed at Deimos, just pass.
+        Not needed at ESRF, just pass.
 
         Parameters
         ----------
@@ -374,49 +356,39 @@ class Configuration():
         self.nologmess = 'Related datascan will be ignored.'
 
         try:
-            with open(logfl, 'r', encoding='ISO-8859-1') as fl:
-                logtx = fl.read()
-                # separate paragraphs in logfile
-                parlst = logtx.split('\n\n')
-                # search in paragraphs the sections of interest
-                for par in parlst:
-                    if 'Monochromator' in par:
-                        # find line with energy and extract energy value
-                        for ln in par.split('\n'):
-                            if 'energy' in ln:
-                                mon_en = float(ln.split(':')[1].strip(' eV'))
-                    if 'Ondulator HU52' in par:
-                        # find polarisation id
-                        for ln in par.split('\n'):
-                            if 'polarisation' in ln:
-                                pol = int(ln.split(':')[1])
-                    if 'Sample magnetic field' in par:
-                        # find line with field and extract field value
-                        for ln in par.split('\n'):
-                            if 'field ' in ln:
-                                field = float(ln.split(':')[1].strip(' TESLA'))
-                    if 'Sample temperature' in par:
-                        # find line with sample temperature and take TB
-                        # values
-                        for ln in par.split('\n'):
-                            if '1_#1' in ln:
-                                tb1 = float(ln.split('=')[1].strip(' K;'))
-                            if '1_#2' in ln:
-                                tb2 = float(ln.split('=')[1].strip(' K;'))
-                    if 'Position' in par:
-                        # find lines with sample positions and extract
-                        # positions values
-                        for ln in par.split('\n'):
-                            if 'exp1-mt_rz_#1' in ln:
-                                rz = float(ln.split('=')[1].strip(' °;'))
-                            if 'exp1-mt_tx_#1' in ln:
-                                tx = float(ln.split('=')[1].strip(' mm;'))
-                            if 'exp1-mt_tz.2_#1' in ln:
-                                tz = float(ln.split('=')[1].strip(' mm;'))
-            t = (tb1 + tb2) / 2
-            return {'mon_en': mon_en, 'pol': pol, 'field': field, 'tb1': tb1,
-                    'tb2': tb2, 't': t, 'rz': rz, 'tx': tx, 'tz': tz}
-        except:            
+            with open(logfl, 'r') as fl:
+                for line in fl:
+                    sp_line = line.split(':')
+                    name = sp_line[0]
+                    value = sp_line[1].rstrip('\n')
+                    # find polarisation id
+                    if name == 'pol':
+                        pol = int(value)
+                    # find energy value
+                    if name == 'energy':
+                        mon_en = float(value)
+                    # find magnetic field value
+                    if name == 'magnet':
+                        field = float(value)
+                    # find temperature value
+                    # id-32 provides two temperatures readings:
+                    # tset which is the setted temperature and
+                    # corresponds to the heater temperature
+                    # tsam which is the temperature measured near the
+                    # sample but it is not measured during the scans
+                    # acquisition, so it is not considered here
+                    if name == 'tset':
+                        t = float(value)
+                    # find sample positions
+                    if name == 'sz':
+                        tz = float(value)
+                    if name == 'sy':
+                        tx = float(value)
+                    if name == 'srot':
+                        rz = float(value)
+            return {'mon_en': mon_en, 'pol': pol, 'field': field, 't': t,
+                    'rz': rz, 'tx': tx, 'tz': tz}
+        except:
             raise Exception()
 
     def escan_logfl_creator(self, guiobj, log_dt):
@@ -439,18 +411,16 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
+        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
+                                               log_tbl['t'].std())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
-        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
-                                              log_tbl['rz'].std())
-        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+        logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
+                                                log_tbl['rz'].std())
+        logtxt += 'Sy : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
                                                log_tbl['tx'].std())
-        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
+        logtxt += 'Sz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
                                                  log_tbl['tz'].std())
 
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
@@ -471,8 +441,8 @@ class Configuration():
         if guiobj.bsl_int:
             logtxt += 'Baseline interpolated with ArpLS method\n\n'
         else:
-            logtxt += ('Baseline linearly interpolated considering values at' +
-                    ' pre-edge and post-edge energies\n\n')
+            logtxt += ('Baseline linearly interpolated considering values at'
+                       + ' pre-edge and post-edge energies\n\n')
         logtxt += 'Edge used : {}\n'.format(log_dt['Edge_name'])
         logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
             log_dt['exper_edge'], log_dt['Edge_en'])
@@ -481,7 +451,7 @@ class Configuration():
             logtxt += 'Smooth parameter : {:f}\n'.format(log_dt['lambda']/1E7)
         else:
             logtxt += 'Post-edge energy : {} eV\n'.format(
-                                                    log_dt['setted_postedg'])
+                log_dt['setted_postedg'])
         logtxt += 'Recalibration : {}\n'.format(log_dt['recal'])
         logtxt += 'Offset : {} eV'.format(log_dt['offset'])
 
@@ -518,18 +488,16 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
+        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
+                                               log_tbl['t'].std())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
-        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
-                                              log_tbl['rz'].std())
-        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+        logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
+                                                log_tbl['rz'].std())
+        logtxt += 'Sy : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
                                                log_tbl['tx'].std())
-        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
+        logtxt += 'Sz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
                                                  log_tbl['tz'].std())
 
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
@@ -579,7 +547,7 @@ class Configuration():
         logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
             log_dt['exper_edge'], log_dt['Edge_en'])
         logtxt += 'Pre-edge energy : {} eV\n'.format(log_dt['setted_pedg'])
-        
+
         return logtxt
 
     def ptbypt_logfl_creator(self, log_dt):
@@ -599,18 +567,16 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
+        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
+                                               log_tbl['t'].std())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
-        logtxt += 'Rz : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
-                                              log_tbl['rz'].std())
-        logtxt += 'Tx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+        logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
+                                                log_tbl['rz'].std())
+        logtxt += 'Sy : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
                                                log_tbl['tx'].std())
-        logtxt += 'Tz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
+        logtxt += 'Sz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
                                                  log_tbl['tz'].std())
 
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
@@ -620,9 +586,9 @@ class Configuration():
             logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],
                                          log_tbl['type'].iloc[i])
         logtxt += '\n\n'
-        
+
         logtxt += 'Time window : {} -- {} s\n'.format(log_dt['t_scale'][0],
-                                                        log_dt['t_scale'][1])
+                                                      log_dt['t_scale'][1])
         logtxt += 'Number of time steps : {}\n'.format(log_dt['t_scale'][2])
         logtxt += 'Time step length : {} s\n\n'.format(log_dt['t_scale'][3])
 
@@ -630,5 +596,90 @@ class Configuration():
         logtxt += 'Edge energy used : {} eV - tabulated {} eV\n'.format(
             log_dt['exper_edge'], log_dt['Edge_en'])
         logtxt += 'Pre-edge energy : {} eV\n'.format(log_dt['setted_pedg'])
-        
+
         return logtxt
+
+    def data_ex(self, in_file, out_dir):
+        '''
+        Extract single data scans and log from cumulative data file and
+        save them in given directory
+
+        Parameters
+        ----------
+        if_file : str cumulative data filename
+        out_dir : str output directory name
+        '''
+        # Open input file
+        with open(in_file) as fin:
+            # loop through the file
+            for line in fin:
+                if line.split():
+                    sline = line.split()
+                    if sline[0] == '#S':
+                        scn_num = sline[1]
+                        # if first scan just open the files
+                        if scn_num == '1':
+                            # set log and data file names
+                            log_fn = out_dir + 'S_' + scn_num + '.log'
+                            scn_fn = out_dir + 'S_' + scn_num + '.dat'
+
+                            f_log = open(log_fn, 'w+')
+                            f_dat = open(scn_fn, 'w+')
+                        # if not first scan first close previous files
+                        else:
+                            f_log.close()
+                            f_dat.close()
+                            # set log and data file names
+                            log_fn = out_dir + 'S_' + scn_num + '.log'
+                            scn_fn = out_dir + 'S_' + scn_num + '.dat'
+
+                            f_log = open(log_fn, 'w+')
+                            f_dat = open(scn_fn, 'w+')
+                    # P1 line contains the phase
+                    elif sline[0] == '#P1':
+                        # At ESRF
+                        # LH = -0.15
+                        # LV = 43
+                        # CL ca. -26 (-25 -- -27)
+                        # CR ca. 26 (25 -- 27)
+                        # P1 value will be L or C depending on analysis
+                        # which is chosen by user
+                        # LH id = -1
+                        # LV id = 1
+                        # CL id = -1
+                        # CR id = 1
+                        fl_id = float(sline[1])
+                        if fl_id < 10:
+                            f_log.write('pol:-1\n')
+                        else:
+                            f_log.write('pol:1\n')
+                    # P6 line contains energy
+                    elif sline[0] == '#P6':
+                        f_log.write('energy:{}\n'.format(sline[1]))
+                    elif sline[0] == '#P13':
+                        f_log.write('magnet:{}\n'.format(sline[4]))
+                    # P14 line contains motors positions
+                    elif sline[0] == '#P14':
+                        f_log.write('sz:{}\n'.format(sline[1]))
+                        f_log.write('srot:{}\n'.format(sline[2]))
+                        f_log.write('sy:{}\n'.format(sline[3]))
+                    # C A: is heater temperature -> setted
+                    elif sline[0] == '#C' and sline[1] == 'A:':
+                        f_log.write('tset:{}\n'.format(sline[2]))
+                    # C D: is sample temperature but it is always 0
+                    # during measurements
+                    elif sline[0] == '#C' and sline[1] == 'D:':
+                        f_log.write('tsam:{}\n'.format(sline[2]))
+                    # L line contains data headers
+                    elif sline[0] == '#L':
+                        # write header of datafile
+                        f_dat.write(line.lstrip('#L '))
+                    # line not starting with # contains data
+                    elif line[0] != '#':
+                        f_dat.write(line)
+                    else:
+                        continue
+                else:
+                    continue
+            f_log.close()
+            f_dat.close()

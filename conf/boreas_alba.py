@@ -19,6 +19,11 @@ class Configuration():
     default_ext : str
         default datafile extension (mask).
 
+    filetypes : list of str
+        list of masks for other input data files (mainly designed to
+        include the single cumulative file from which data must be
+        extracted).
+
     interactive : bool
         True interactive mode is setted
         False not interactive mode is setted.
@@ -118,6 +123,7 @@ class Configuration():
         # Default datafile extensions
         self.default_only_ext = '.dat'
         self.default_ext = '*.dat'  # mask
+        self.filetypes = []  # leave empty - not needed
 
         # True for interactive mode program execution
         self.interactive = True
@@ -170,7 +176,7 @@ class Configuration():
             # Yet not considered hysteresis analysis for this beamline
             pass
         else:    
-            self.energy = 'energy_mono_corrected'  # energy data column
+            self.energy = 'energy_mono_ct'  # energy data column
             self.it = 'adc2_i3'  # it data - TEY
             self.i0 = 'adc2_i1'  # i0 data - TEY
 

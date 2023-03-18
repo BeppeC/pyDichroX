@@ -16,6 +16,11 @@ class Configuration():
     default_ext : str
         default datafile extension (mask).
 
+    filetypes : list of str
+        list of masks for other input data files (mainly designed to
+        include the single cumulative file from which data must be
+        extracted).
+
     interactive : bool
         True interactive mode is setted
         False not interactive mode is setted.
@@ -111,6 +116,7 @@ class Configuration():
         # Default file extension
         self.default_only_ext = '.txt'
         self.default_ext = '*.txt'  # mask
+        self.filetypes = []  # leave empty - not needed
 
         # True for interactive mode program execution
         self.interactive = True

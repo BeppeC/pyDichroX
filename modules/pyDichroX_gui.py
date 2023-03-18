@@ -72,17 +72,17 @@ class GUI:
     infile_ref : bool
         To select GUI message. True if input files are related to 
         reference sample, False otherwise.
-    
+
     ------- Attributes for graphs in edges selection ------
     escale : array
         Energy scale, for graphs.
-    
+
     y1int : UnivariateSpline.
         Interpolation of spectra to be plotted in edge choice.
 
     y2int : UnivariateSpline.
         Interpolation of spectra to be plotted in edge choice.
-    
+
     st_e_vals : list
         Collect edge, pre-edge and post-edge energies dafult starting
         values.
@@ -122,7 +122,7 @@ class GUI:
 
     isonbsl : line obj
         acvraged XAS baseline subtracted
-    
+
     text_box_ed : TextBox obj
         TextBox widget used to set edge energy.
 
@@ -131,7 +131,7 @@ class GUI:
 
     text_box_pewd : TextBox obj
         TextBox widget used to set pre-edge width energy.
-    
+
     text_box_pste : TextBox obj
         TextBox widget used to set post-edge energy.
 
@@ -213,9 +213,13 @@ class GUI:
     in_dtst(confobj)
         GUI dialogue to select input files data sets.
 
-    not_enough_fls(pol)
+    not_enough_fls(pol, preedge)
         GUI warning that not enough files for a given polarization have
         been supplied.
+
+    not_enough_sp_br(self, scanobj, pol, preedge=False)
+        GUI warning that not enough files for a given polarization have
+        been supplied. For splitted branch hysteresis scans.
 
     ask_logfn(self)
         Gui dialogue to ask for datalog filename.
@@ -374,7 +378,7 @@ class GUI:
         if chsn_edge == 'Add a new edge':
             msg = 'Add a new edge.'
             field_nms = ['Name', 'Edge Energy', 'Pre-edge Energy',
-                        'Post-edge Energy']
+                         'Post-edge Energy']
             field_vals = eg.multenterbox(msg, self.title, field_nms)
 
             # Check that enetered values are valid
@@ -386,27 +390,27 @@ class GUI:
                 try:
                     float(field_vals[1])
                 except:
-                    errmsg += ('\nOnly numerical values are accepted for' +
-                               ' Edge energy.\n\n')
+                    errmsg += ('\nOnly numerical values are accepted for'
+                               + ' Edge energy.\n\n')
                 try:
                     float(field_vals[2])
                 except:
-                    errmsg += ('\nOnly numerical values are accepted for' +
-                               ' Pre-Edge energy.\n\n')
+                    errmsg += ('\nOnly numerical values are accepted for'
+                               + ' Pre-Edge energy.\n\n')
                 try:
                     float(field_vals[3])
                 except:
-                    errmsg += ('\nOnly numerical values are accepted for' +
-                               ' Post-Edge energy.\n\n')
+                    errmsg += ('\nOnly numerical values are accepted for'
+                               + ' Post-Edge energy.\n\n')
 
                 if field_vals[0] in edg_lst['Name']:
                     errmsg += ('\nThere\'s already an Edge named {}.\n'.format(
-                                field_vals[0]) + 'Please choose another name.')
+                        field_vals[0]) + 'Please choose another name.')
                 if not errmsg:
                     break
 
                 field_vals = eg.multenterbox(msg + errmsg, self.title,
-                                            field_nms)
+                                             field_nms)
 
             # Add the new edge to the list
             edg_lst.loc[len(edg_lst)] = field_vals
@@ -415,11 +419,11 @@ class GUI:
             return field_vals
         else:
             # Select row in DataFrame
-            # values.tolist() returns a list of selected rows, each of them
-            # is on turn a list of the values in the rows.
+            # values.tolist() returns a list of selected rows, each of
+            # them is on turn a list of the values in the rows.
             sel_edg = edg_lst[edg_lst['Name'] == chsn_edge]
             sel_edg = sel_edg.values.tolist()[0]
-            return sel_edg    
+            return sel_edg
 
     def set_edges_lin(self, sel_edg, exper_edge, x, y1, y2, y1int, y2int):
         '''
@@ -474,7 +478,7 @@ class GUI:
         pe_wdt = 4
         # List with energy starting values
         self.st_e_vals = [sel_edg[0], exper_edge, sel_edg[1], sel_edg[2],
-                            pe_wdt, False]
+                          pe_wdt, False]
         # List with updated energy values
         self.e_vals = self.st_e_vals.copy()
 
@@ -490,7 +494,7 @@ class GUI:
         ax1.set_xlabel('E (eV)')
         ax1.set_ylabel(self.analysis + ' (a.u.)', color='black')
         ax1.tick_params(axis='y', labelcolor='black')
-        ax1.plot(self.escale, y1, color='black')        
+        ax1.plot(self.escale, y1, color='black')
 
         ax2 = ax1.twinx()  # second axes that shares the same x-axis
         ax2.spines['right'].set_color('pink')
@@ -499,9 +503,9 @@ class GUI:
         ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
         ax2.plot(self.escale, y2, color='pink')
 
-        ax3 = ax1.twinx() # 3rd axes that shares the same x-axis
+        ax3 = ax1.twinx()  # 3rd axes that shares the same x-axis
         ax3.axis('off')
-        
+
         # Refernce lines for energies
         # Made them as attributes to pass to textbox update function
         ax1.axvline(x=self.e_vals[0], color='blue', linestyle='dashed',
@@ -533,7 +537,7 @@ class GUI:
         self.pewl = ax1.axvspan(lpe_e, rpe_e, color='mistyrose')
 
         self.pel = ax1.axvline(x=self.e_vals[2], color='coral',
-                                linestyle='dashed', label='Pre-edge energy')
+                               linestyle='dashed', label='Pre-edge energy')
         self.psel = ax1.axvline(x=self.e_vals[3], color='plum',
                                 linestyle='dashed', label='Post-edge energy')
         # Compute linear interpolation of baseline considering pre-edge
@@ -547,18 +551,19 @@ class GUI:
         edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
 
         self.bsl, = ax1.plot(x_int, y_int, color='indianred',
-            linestyle='dashdot', label='linear baseline')
+                             linestyle='dashdot', label='linear baseline')
         self.bsliso, = ax2.plot(x_int, y_int_iso, color='indianred',
-            linestyle='dashdot')
+                                linestyle='dashdot')
         self.intedg, = ax2.plot(self.e_vals[1], edg_int, marker='x',
                                 color='indianred')
         # Averaged xd with lin baseline subtraction
         pst_idx = np.argmin(np.abs(self.escale - self.e_vals[3]))
         sub_bsl = self.escale[pe_idx:pst_idx+1]
-        self.isonbsl, = ax3.plot(sub_bsl, 
-            self.y2int(sub_bsl) - esdt.lin_interpolate(x_int, y_int_iso,
-            sub_bsl), color='grey', linestyle='dashdot',
-            label='Averagd XAS no baseline')
+        self.isonbsl, = ax3.plot(sub_bsl, self.y2int(sub_bsl) 
+                                 - esdt.lin_interpolate(
+                                    x_int, y_int_iso, sub_bsl),
+                                 color='grey', linestyle='dashdot',
+                                 label='Averagd XAS no baseline')
 
         # Position of text boxes
         boxedg = fig.add_axes([0.1, 0.09, 0.1, 0.05])
@@ -660,7 +665,7 @@ class GUI:
         lam = 1E7
         # List with energy starting values
         self.st_e_vals = [sel_edg[0], exper_edge, sel_edg[1], lam, pe_wdt,
-                            False, pos, neg, log_dt]
+                          False, pos, neg, log_dt]
         # List with updated energy values
         self.e_vals = self.st_e_vals.copy()
 
@@ -671,13 +676,13 @@ class GUI:
             add_title = "Normalized by reference data."
         else:
             add_title = ""
-        fig.suptitle("Choose energies and baseline smooth parameter\n\n" +
-                        self.title + add_title)
+        fig.suptitle("Choose energies and baseline smooth parameter\n\n"
+                     + self.title + add_title)
 
         ax1.set_xlabel('E (eV)')
         ax1.set_ylabel(self.analysis + ' (a.u.)', color='black')
         ax1.tick_params(axis='y', labelcolor='black')
-        ax1.plot(self.escale, y1, color='black')        
+        ax1.plot(self.escale, y1, color='black')
 
         ax2 = ax1.twinx()  # second axes that shares the same x-axis
         ax2.spines['right'].set_color('pink')
@@ -685,7 +690,7 @@ class GUI:
         ax2.yaxis.label.set_color('pink')
         ax2.set_ylabel('Averaged XAS (a.u.)', color='pink')
         ax2.plot(self.escale, y2, color='pink')
-        
+
         # Refernce lines for energies
         # Made them as attributes to pass to textbox update function
         ax1.axvline(x=self.e_vals[0], color='blue', linestyle='dashed',
@@ -717,15 +722,15 @@ class GUI:
         self.pewl = ax1.axvspan(lpe_e, rpe_e, color='mistyrose')
 
         self.pel = ax1.axvline(x=self.e_vals[2], color='coral',
-                                linestyle='dashed', label='Pre-edge energy')
+                               linestyle='dashed', label='Pre-edge energy')
         # Compute baselines
-        pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(pos, neg, log_dt)        
+        pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(pos, neg, log_dt)
 
         self.bsl, = ax1.plot(self.escale, xdbsl, color='indianred',
-            linestyle='dashdot', label='baseline')
+                             linestyle='dashdot', label='baseline')
         self.bsliso, = ax2.plot(self.escale, isobsl, color='indianred',
-            linestyle='dashdot')
-        
+                                linestyle='dashdot')
+
         # Position of text boxes
         boxedg = fig.add_axes([0.1, 0.09, 0.1, 0.05])
         boxpe = fig.add_axes([0.32, 0.09, 0.1, 0.05])
@@ -743,7 +748,7 @@ class GUI:
         self.text_box_pewd.on_submit(self.set_pew_energy)
         self.text_box_lam = TextBox(boxlam, 'Baseline\nsmoothing par')
         # For readability smoothing parameter is divided by 1E7
-        self.text_box_lam.set_val(self.e_vals[3] / 1e7)        
+        self.text_box_lam.set_val(self.e_vals[3] / 1e7)
         self.text_box_lam.on_submit(self.set_lam_par)
 
         # Recalibrate button
@@ -763,10 +768,11 @@ class GUI:
         plt.show()
 
         pos.bsl, neg.bsl, xdbsl, isobsl = self.comp_bsl(self.e_vals[6],
-                                                self.e_vals[7], self.e_vals[8])
+                                                        self.e_vals[7],
+                                                        self.e_vals[8])
 
         avbsl = itp.UnivariateSpline(self.escale, isobsl, k=3, s=0)
-        
+
         return [self.e_vals[1], self.e_vals[2], self.e_vals[3], self.e_vals[4],
                 self.e_vals[5], avbsl]
 
@@ -809,7 +815,7 @@ class GUI:
         tol = 1E-6
 
         l = len(y)
-        D = sparse.diags([1,-2,1],[0,-1,-2], shape=(l,l-2))
+        D = sparse.diags([1, -2, 1], [0, -1, -2], shape=(l, l-2))
         lamDD = lam * D.dot(D.transpose())
         # Starting weights all one
         w = np.ones(l)
@@ -827,7 +833,7 @@ class GUI:
             dn = d[d < 0]
             m = np.mean(dn)
             s = np.std(dn)
-            x = - 2 * (d - ( 2 * s - m)) / s
+            x = - 2 * (d - (2 * s - m)) / s
             # Weight logistic function
             wt = expit(x)
             # Check i converging condition is met
@@ -922,7 +928,7 @@ class GUI:
             # Pre-edge and post-edge points on interpolated curve.
             x_int = [self.e_vals[2], self.e_vals[3]]
             y_int_iso = [self.y2int(self.e_vals[2]),
-                        self.y2int(self.e_vals[3])]
+                         self.y2int(self.e_vals[3])]
             y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
             edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
@@ -953,8 +959,8 @@ class GUI:
                 eg.msgbox(msg=msg, title=title)
             else:
                 if (pedg_e <= self.escale[0]) or (pedg_e >= self.escale[-1]):
-                    msg = ('Enter a pre-edge value whithin the energy scale' +
-                            ' range.')
+                    msg = ('Enter a pre-edge value whithin the energy scale'
+                           + ' range.')
                     title = self.title
                     eg.msgbox(msg=msg, title=title)
                     # Leave previous value if the input is outside the
@@ -973,7 +979,7 @@ class GUI:
             # Pre-edge and post-edge points on interpolated curve.
             x_int = [self.e_vals[2], self.e_vals[3]]
             y_int_iso = [self.y2int(self.e_vals[2]),
-                        self.y2int(self.e_vals[3])]
+                         self.y2int(self.e_vals[3])]
             y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
             edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
@@ -990,8 +996,9 @@ class GUI:
             self.intedg.set_xdata(self.e_vals[1])
             self.intedg.set_ydata(edg_int)
             self.isonbsl.set_xdata(sub_bsl)
-            self.isonbsl.set_ydata(self.y2int(sub_bsl) -
-                esdt.lin_interpolate(x_int, y_int_iso, sub_bsl))
+            self.isonbsl.set_ydata(
+                self.y2int(sub_bsl)
+                - esdt.lin_interpolate(x_int, y_int_iso, sub_bsl))
 
         plt.draw()
 
@@ -1017,8 +1024,8 @@ class GUI:
                 eg.msgbox(msg=msg, title=title)
             else:
                 if (psedg_e <= self.escale[0]) or (psedg_e >= self.escale[-1]):
-                    msg = ('Enter a post-edge value whithin the energy scale' +
-                            ' range.')
+                    msg = ('Enter a post-edge value whithin the energy scale'
+                           + ' range.')
                     title = self.title
                     eg.msgbox(msg=msg, title=title)
                     # Leave previous value if the input is outside the
@@ -1051,8 +1058,9 @@ class GUI:
         self.intedg.set_ydata(edg_int)
 
         self.isonbsl.set_xdata(sub_bsl)
-        self.isonbsl.set_ydata(self.y2int(sub_bsl) -
-            esdt.lin_interpolate(x_int, y_int_iso, sub_bsl))
+        self.isonbsl.set_ydata(
+            self.y2int(sub_bsl)
+            - esdt.lin_interpolate(x_int, y_int_iso, sub_bsl))
 
         plt.draw()
 
@@ -1092,14 +1100,14 @@ class GUI:
                 rpe_idx = pe_idx + int(self.e_vals[4])
                 if rpe_idx >= len(self.escale):
                     rpe_e = self.escale[-1]
-                    self.e_vals[4] = min(self.e_vals[4], (len(self.escale) - 
-                                                                1 - pe_idx))
+                    self.e_vals[4] = min(self.e_vals[4], (len(self.escale)
+                                                          - 1 - pe_idx))
                 else:
                     rpe_e = self.escale[rpe_idx]
                     self.e_vals[4] = min(self.e_vals[4], pew_e)
                 break
         # Update graph
-        self.pewl.set_xy([[lpe_e, 0],[lpe_e, 1],[rpe_e, 1],[rpe_e, 0]])
+        self.pewl.set_xy([[lpe_e, 0], [lpe_e, 1], [rpe_e, 1], [rpe_e, 0]])
 
         plt.draw()
 
@@ -1129,7 +1137,8 @@ class GUI:
                 break
         # Update baselines
         pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(self.e_vals[6],
-                                                self.e_vals[7], self.e_vals[8])
+                                                  self.e_vals[7],
+                                                  self.e_vals[8])
         self.bsl.set_xdata(self.escale)
         self.bsl.set_ydata(xdbsl)
         self.bsliso.set_xdata(self.escale)
@@ -1184,8 +1193,8 @@ class GUI:
         rpe_idx = pe_idx + int(self.e_vals[4])
         if rpe_idx >= len(self.escale):
             rpe_e = self.escale[-1]
-            self.e_vals[4] = min(self.e_vals[4], (len(self.escale) - 1 -
-                                                    pe_idx))
+            self.e_vals[4] = min(self.e_vals[4], (len(self.escale) - 1
+                                                  - pe_idx))
         else:
             rpe_e = self.escale[rpe_idx]
             self.e_vals[4] = min(self.e_vals[4], pew_e)
@@ -1196,7 +1205,8 @@ class GUI:
 
         if self.bsl_int:
             pbsl, nbsl, xdbsl, isobsl = self.comp_bsl(self.e_vals[6],
-                                                self.e_vals[7], self.e_vals[8])
+                                                      self.e_vals[7],
+                                                      self.e_vals[8])
             self.bsl.set_xdata(self.escale)
             self.bsl.set_ydata(xdbsl)
             self.bsliso.set_xdata(escale)
@@ -1207,7 +1217,7 @@ class GUI:
             # Pre-edge and post-edge points on interpolated curve.
             x_int = [self.e_vals[2], self.e_vals[3]]
             y_int_iso = [self.y2int(self.e_vals[2]),
-                        self.y2int(self.e_vals[3])]
+                         self.y2int(self.e_vals[3])]
             y_int = [self.y1int(self.e_vals[2]), self.y1int(self.e_vals[3])]
 
             edg_int = esdt.lin_interpolate(x_int, y_int_iso, self.e_vals[1])
@@ -1219,7 +1229,7 @@ class GUI:
             self.intedg.set_xdata(self.e_vals[1])
             self.intedg.set_ydata(edg_int)
 
-        self.pewl.set_xy([[lpe_e, 0],[lpe_e, 1],[rpe_e, 1],[rpe_e, 0]])
+        self.pewl.set_xy([[lpe_e, 0], [lpe_e, 1], [rpe_e, 1], [rpe_e, 0]])
 
         plt.draw()
 
@@ -1340,6 +1350,8 @@ class GUI:
     def sel_ifls(self, confobj):
         '''
         GUI dialogue to select input files.
+        If a cumulative file including single data scans is selected
+        the method for extract them and save them in a folder is called.
 
         Parameters
         ----------
@@ -1348,27 +1360,93 @@ class GUI:
         Returns
         -------
         List (str) with the filenames to be opened.
-        For hysteresis analysis returns a two elements nested list, the
-        first element being a list with edge scans filenames and the
-        second one a list with pre-edge scans filenames.
         '''
         # Default file extension
         default = confobj.default_ext
 
-        # Current directory and txt files are setted as default.
+        ask_data = True  # while loop controller
+        while ask_data:
+            # Select message
+            if self.infile_ref:
+                msg = ("Choose reference data files")
+            else:
+                msg = ("Choose data files")
 
-        # Non hysteresis scans.
-        # Select message
-        if self.infile_ref:
-            msg = ("Choose reference data files")
-        else:
-            msg = ("Choose data files")
+            if self.analysis in self.type['hyst']:
+                msg += "\nInclude both Edge and Pre-edge scans."
 
-        if self.analysis in self.type['hyst']:
-            msg += "\nInclude both Edge and Pre-edge scans."
+            # If confobj.filetypes there's the possibility of extract
+            # data files from a cumulative file
+            if confobj.filetypes:
+                filetypes = confobj.filetypes
 
-        f_nms = eg.fileopenbox(msg=msg, title=self.title, multiple=True,
-                               default=default)
+                f_nms = eg.fileopenbox(msg=msg, title=self.title,
+                                       multiple=True, default=default,
+                                       filetypes=filetypes)
+
+                only_ex_ftyp = []  # only filetypes w/o *
+
+                for ft in filetypes:
+                    only_ex_ftyp.append(ft.lstrip('*'))
+                # Break while loop if no file is passed or dialogue box
+                # is closed
+                if f_nms == None:
+                    ask_data = False
+                # If there are more than 1 file they must be all single
+                # data files. If cumulative files containing single scan
+                # data must be passed in order to extract them,
+                # cumulative files must be passed one at time.
+                elif len(f_nms) > 1:
+                    # ctl var to check the presence of cumulative file
+                    chk_ex = False
+                    for fn in f_nms:
+                        for ft in only_ex_ftyp:
+                            # check cumulative file ext is present
+                            if ft in fn[-6:]:
+                                # if there's also 1 cumulative file brek
+                                chk_ex = True
+                                ft_fnd = ft  # ft found
+                                break
+                        if chk_ex == True:
+                            # if also 1 cumulative file is present brek
+                            only_ex = default.lstrip('*')
+                            msg2 = ('Choose only {} '.format(only_ex)
+                                    + 'files or one {}'.format(ft_fnd)
+                                    + ' file at time')
+                            eg.msgbox(msg2, self.title)
+                            break
+                    # If only scan data are presente break while loop
+                    if chk_ex is False:
+                        ask_data = False
+                # If only 1 file is seleceted check if it's a cumulative
+                # file. In this case extract data.
+                else:
+                    # ctl var to check the presence of cumulative file
+                    chk_ex = False
+                    fn = f_nms[0]
+                    for ft in only_ex_ftyp:
+                        # check cumulative file ext is present
+                        if ft in fn[-6:]:
+                            chk_ex = True
+                            msg2 = ('Choose directory where to save'
+                                    + ' extracted data.')
+                            ex_dir = eg.diropenbox(msg2, self.title)
+                            # If no directory or cancel is selected or
+                            # dialogue box is closed brak for loop and
+                            # continue with while loop
+                            if ex_dir == None:
+                                break
+                            else:
+                                ex_dir += '/'
+                                confobj.data_ex(fn, ex_dir)
+                            break
+                    if chk_ex is False:
+                        ask_data = False
+            else:
+                f_nms = eg.fileopenbox(msg=msg, title=self.title,
+                                       multiple=True, default=default)
+                # If cumulative file are not considered break while loop
+                ask_data = False
         return f_nms
 
     def add_set(self):
@@ -1379,9 +1457,9 @@ class GUI:
         -------
         bool, True to add another set of data, False otherwise.
         '''
-        msg = ("Dou you want to add another set of data?\n" +
-               "(N.B. These data will be averaged with the set of data " +
-               "already inserted)")
+        msg = ("Dou you want to add another set of data?\n"
+               + "(N.B. These data will be averaged with the set of data "
+               + "already inserted)")
 
         add = eg.ynbox(msg, self.title)
 
@@ -1478,12 +1556,69 @@ class GUI:
         if preedge:
             data_type = 'pre-edge ' + data_type
 
-        msg = ("You did not provide enough {} ".format(data_type) +
-               "files to continue data analysis.\n\n" +
-               "Do you want to choose files again or do you want to quit?")
+        msg = ("You did not provide enough {} ".format(data_type)
+               + "files to continue data analysis.\n\n"
+               + "Do you want to choose files again or do you want to quit?")
 
-        return eg.ccbox(msg=msg, title=self.title, choices=('Choose again',
-                                                'Quit'), cancel_choice='Quit')
+        return eg.ccbox(
+            msg=msg, title=self.title, choices=('Choose again', 'Quit'),
+            cancel_choice='Quit')
+
+    def not_enough_sp_br(self, scanobj, pol, preedge=False):
+        '''
+        GUI warning that not enough files for a given polarization have
+        been supplied. For splitted branch hysteresis scans.
+
+        Based on check variables in scanobj warn user which scans miss.
+
+        Parameters
+        ----------
+        scanobj : HScan data object.
+
+        pol : bool
+            True for sigma+, CR and LH
+            False for sigma-, CL and LV.
+
+        preedge : bool
+            True for pre-edge scan in hysteresis analysis
+            False otherwise
+
+        Returns
+        -------
+        bool, True to choose again input files, False to quit program.
+        '''
+        if pol:
+            data_type = 'CR'
+        else:
+            data_type = 'CL'
+
+        if preedge:
+            data_type = 'pre-edge ' + data_type
+            if scanobj.pe_up_hp is not True:
+                data_type += ' scan up positive fields'
+            if scanobj.pe_up_hn is not True:
+                data_type += ' scan up negative fields'
+            if scanobj.pe_down_hp is not True:
+                data_type += ' scan down positive fields'
+            if scanobj.pe_donw_hn is not True:
+                data_type += ' scan down negative fields'
+        else:
+            if scanobj.up_hp is not True:
+                data_type += ' scan up positive fields'
+            if scanobj.up_hn is not True:
+                data_type += ' scan up negative fields'
+            if scanobj.down_hp is not True:
+                data_type += ' scan down positive fields'
+            if scanobj.donw_hn is not True:
+                data_type += ' scan down negative fields'
+
+        msg = ("You did not provide enough {} ".format(data_type)
+               + "files to continue data analysis.\n\n"
+               + "Do you want to choose files again or do you want to quit?")
+
+        return eg.ccbox(
+            msg=msg, title=self.title, choices=('Choose again', 'Quit'),
+            cancel_choice='Quit')
 
     def ask_logfn(self):
         '''
@@ -1532,9 +1667,9 @@ class GUI:
         -------
         int, the number of points for scan interpolation.
         '''
-        msg = ("Please enter the number of points you want to consider " +
-               "for data interpolations.\n\nDefault value is given by the " +
-               "average number of data points.")
+        msg = ("Please enter the number of points you want to consider "
+               + "for data interpolations.\n\nDefault value is given by the "
+               + "average number of data points.")
 
         while True:
             num_points = eg.integerbox(msg, self.title, default=num_pts,
@@ -1561,8 +1696,8 @@ class GUI:
         int, the number of time steps to be plotted.
         '''
         n_pt = log_dt['t_scale'][2]
-        msg = ('Scans contains {} time steps.\n\n'.format(n_pt) + 
-                'Insert number of times step each scan must be plotted')
+        msg = ('Scans contains {} time steps.\n\n'.format(n_pt)
+               + 'Insert number of times step each scan must be plotted')
 
         default = str(int(np.rint(n_pt * 10 / 100)))
         lwrbn = 1
@@ -1570,7 +1705,7 @@ class GUI:
 
         while True:
             num_points = eg.integerbox(msg, self.title, default=default,
-                                        lowerbound=lwrbn, upperbound=uprbn)
+                                       lowerbound=lwrbn, upperbound=uprbn)
             if num_points is None:
                 ask_quit(self.title)
             else:
@@ -1626,10 +1761,11 @@ class GUI:
         ------
         Set the boolean attribute bsl_int.
         '''
-        msg = ("Select the method used to process baselines in order " +
-                "to extrapolate the edge jumps")
-        choices = [("Linear approximation using pre-edge and post-edge " +
-            "energies"), ("Baseline interpolation peak screened ALS method")]
+        msg = ("Select the method used to process baselines in order "
+               + "to extrapolate the edge jumps")
+        choices = [
+            ("Linear approximation using pre-edge and post-edge energies"),
+            ("Baseline interpolation peak screened ALS method")]
 
         choice = eg.choicebox(msg, self.title, choices)
 
@@ -1644,7 +1780,7 @@ class GUI:
             if noerr:
                 break
             choice = eg.choicebox(msg, self.title, choices)
-        
+
         if choice == choices[0]:
             self.bsl_int = False
         else:
@@ -1697,9 +1833,9 @@ class GUI:
         polarisation : str
             polarisation type.
         '''
-        msg = ('Polarisation of scan number {} is not {}'.format(scn_num,
-                polarisation) + '\n\nScan number {}'.format(scn_num) +
-                ' will not be considered')
+        msg = ('Polarisation of scan number {} is not {}'.format(
+            scn_num, polarisation) + '\n\nScan number {}'.format(scn_num)
+            + ' will not be considered')
 
         eg.msgbox(msg=msg, title=self.title)
 
@@ -1733,20 +1869,22 @@ class GUI:
             t_max.extend(neg.max_t)
 
             #t_num = pos.num_t.copy()
-            #t_num.extend(neg.num_t)
+            # t_num.extend(neg.num_t)
 
             # Check that start and end times are consistent with data
             if st_t < 0:
                 st_t = np.around(np.average(t_min), 1)
             if st_t > np.amin(t_max):
-                msg += ('The start time inserted is outside the acquired time' +
-                        'range.\nPlease chose a value smaller than {} s'.format(
-                            np.amin(t_max)))
+                msg += (
+                    'The start time inserted is outside the acquired time'
+                    + 'range.\nPlease chose a value smaller than {} s'.format(
+                    np.amin(t_max)))
             if end_t < 0:
-                end_t =np.around(np.average(t_max), 1)
+                end_t = np.around(np.average(t_max), 1)
             if st_t >= end_t:
-                msg += ('Start time must be smaller than end time.\n' +
-                        'Please chose a value smaller than {} s'.format(end_t))
+                msg += (
+                    'Start time must be smaller than end time.\n'
+                    + 'Please chose a value smaller than {} s'.format(end_t))
             if not msg:
                 break
             eg.msgbox(msg, self.title)
@@ -1765,8 +1903,8 @@ class GUI:
             passed 0 and -1 are the default values passed by deafult for
             start and end times respectively.
         '''
-        msg = ("Enter the START acquisition time you want to consider (sec)" +
-               "\n\nIf nothing is passed 0 is taken as default.")
+        msg = ("Enter the START acquisition time you want to consider (sec)"
+               + "\n\nIf nothing is passed 0 is taken as default.")
         st_t = eg.enterbox(msg, self.title)
 
         while True:
@@ -1777,18 +1915,18 @@ class GUI:
                 try:
                     st_t = float(st_t)
                 except:
-                    errmsg += ('\n\nPlease insert only numbers for start' +
-                               ' time.')
+                    errmsg += (
+                        '\n\nPlease insert only numbers for start time.')
                 if st_t < 0:
-                    errmsg += ('\n\nInsert only positive numbers for start' +
-                               ' time.')
+                    errmsg += (
+                        '\n\nInsert only positive numbers for start time.')
             if not errmsg:
                 break
             st_t = eg.enterbox(msg + errmsg, self.title)
 
-        msg = ("Enter the STOP acquisition time you want to consider (sec)" +
-               "\n\nIf nothing is passed last acquired time is taken as" +
-               " default.")
+        msg = ("Enter the STOP acquisition time you want to consider (sec)"
+               + "\n\nIf nothing is passed last acquired time is taken as"
+               + " default.")
         end_t = eg.enterbox(msg, self.title)
 
         while True:
@@ -1801,8 +1939,8 @@ class GUI:
                 except:
                     errmsg += ('\n\nPlease insert only numbers for end time.')
                 if end_t < 0:
-                    errmsg += ('\n\nInsert only positive numbers for end' +
-                               ' time.')
+                    errmsg += (
+                        '\n\nInsert only positive numbers for end time.')
             if not errmsg:
                 break
             end_t = eg.enterbox(msg + errmsg, self.title)

@@ -33,8 +33,8 @@ separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
     Separate scans and fill positive and negative ScanData objects with
     raw data and labels depending on analysis type.
 
-separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_lbl, scn_num,
-    ispol, lgrws, pos, neg)
+separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_lbl,
+    scn_num, ispol, lgrws, pos, neg)
     Separate magnetic field scans and fill positive and negative
     ScanData objects with raw data and labels depending on polarisation.
 
@@ -120,7 +120,7 @@ def open_import_scan(guiobj, confobj, edg_filename):
 
     edg_filename : str
             File lisitng edge and pre-edge energies.
-            
+
     Returns
     -------
     ScanData object with positive scans (sigma+, CR, H- or LH scans,
@@ -243,13 +243,13 @@ def open_import_scan(guiobj, confobj, edg_filename):
     # If field scan data use hsdt data object, if energy scan data use
     # es.dt data object
     if guiobj.analysis in guiobj.type['hyst']:
-        pos = hsdt.ScanData(guiobj)
-        neg = hsdt.ScanData(guiobj)
+        pos = hsdt.ScanData(guiobj, confobj)
+        neg = hsdt.ScanData(guiobj, confobj)
 
-        log_tbl = h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt)      
+        log_tbl = h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt)
         log_dt['exper_edge'] = np.round(log_tbl['edge_mon_en'].abs().mean(), 2)
         log_dt['setted_pedg'] = np.round(
-                                    log_tbl['pre_edge_mon_en'].abs().mean(), 2)
+            log_tbl['pre_edge_mon_en'].abs().mean(), 2)
         log_dt['field'] = np.round(log_tbl['field'].abs().mean(), 1)
 
         # Just create empty data list for pos_ref and neg_ref currently
@@ -269,7 +269,7 @@ def open_import_scan(guiobj, confobj, edg_filename):
 
     # dictionary collecting log data
     log_dt['log_tbl'] = log_tbl
-    log_dt['temp'] = np.round(log_tbl['t'].mean(), 1)    
+    log_dt['temp'] = np.round(log_tbl['t'].mean(), 1)
     log_dt['angle'] = angle
     log_dt['bm_angle'] = bm_angle
 
@@ -281,12 +281,13 @@ def open_import_scan(guiobj, confobj, edg_filename):
         guiobj.infile_ref = True
 
         log_ref_tbl = e_scan_importer(guiobj, confobj, pos_ref, neg_ref, T, H,
-                                    log_dt)
+                                      log_dt)
         log_dt['log_ref_tbl'] = log_ref_tbl
 
         guiobj.infile_ref = False
 
     return pos, neg, log_dt, pos_ref, neg_ref
+
 
 def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
     '''
@@ -342,7 +343,7 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
             for file in dtset:
                 f_name = os.path.basename(file)
                 data = pd.read_csv(file, sep=confobj.sep,
-                                   usecols=confobj.scn_cols(guiobj, f_name))                
+                                   usecols=confobj.scn_cols(guiobj, f_name))
                 try:
                     lgrws.update(confobj.log_scavenger(file))
                 except:
@@ -361,12 +362,12 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                 pol = lgrws['pol']
 
                 # Mean and sign of magnetic field
-                h_sgn = np.sign(lgrws['field'])                    
+                h_sgn = np.sign(lgrws['field'])
 
                 e_raw, dt_raw = escan_split(confobj, data)
 
                 for i in range(len(e_raw)):
-                    # Set scan number from filename                
+                    # Set scan number from filename
                     scn_num = set_scn_num(confobj, f_name, pos, neg)
 
                     # Check if magnetic field has changed: the first
@@ -394,10 +395,11 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                             # continue if wrong file is found
                             continue
 
-                        separate_escans(guiobj, confobj, e_raw[i], dt_raw[i], 
-                                    scn_lbl, scn_num, islv, lgrws, pos, neg)
+                        separate_escans(
+                            guiobj, confobj, e_raw[i], dt_raw[i], scn_lbl,
+                            scn_num, islv, lgrws, pos, neg)
                     else:
-                    # if not XNLD check for circular polarisation
+                        # if not XNLD check for circular polarisation
                         try:
                             iscr = confobj.cr_cond(pol)
                         except:
@@ -405,11 +407,13 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                             # continue if wrong file is found
                             continue
 
-                        separate_escans(guiobj, confobj, e_raw[i], dt_raw[i],
-                                    scn_lbl, scn_num, iscr, lgrws, pos, neg)
+                        separate_escans(
+                            guiobj, confobj, e_raw[i], dt_raw[i], scn_lbl,
+                            scn_num, iscr, lgrws, pos, neg)
 
-                    log_tbl = pd.concat([log_tbl, pd.DataFrame(lgrws,
-                        index=[0])], ignore_index=True)
+                    log_tbl = pd.concat(
+                        [log_tbl, pd.DataFrame(lgrws, index=[0])],
+                        ignore_index=True)
 
             # increase counter for cumulative scanlogs if present
             confobj.scanlog_cnt += 1
@@ -430,6 +434,7 @@ def e_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
         break  # If no problem with number of files breaks the loop
 
     return log_tbl
+
 
 def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
     '''
@@ -483,7 +488,7 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
             for file in dtset:
                 f_name = os.path.basename(file)
                 data = pd.read_csv(file, sep=confobj.sep, na_values='nan',
-                                   usecols=confobj.scn_cols(guiobj, f_name))                
+                                   usecols=confobj.scn_cols(guiobj, f_name))
                 try:
                     lgrws.update(confobj.log_scavenger(file))
                 except:
@@ -509,52 +514,113 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
                     guiobj.wrongpol(scn_num, 'circular')
                     continue  # continue if wrong file is found
 
-                # Set scan number from filename                
+                # Set scan number from filename
                 scn_num = set_scn_num(confobj, f_name, pos, neg)
                 lgrws['scn_num'] = scn_num
 
-                separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, iscr,
-                    lgrws, log_dt, pos, neg)
+                separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw,
+                                scn_num, iscr, lgrws, log_dt, pos, neg)
 
                 log_tbl = pd.concat([log_tbl, pd.DataFrame(lgrws, index=[0])],
-                    ignore_index=True)                
-                
+                                    ignore_index=True)
+
             # increase counter for cumulative scanlogs if present
             confobj.scanlog_cnt += 1
-        # At least one scan file per polarization is needed
-        if len(pos.idx) < 1:
-            cont = guiobj.not_enough_fls(True)
-            if (not cont) or (cont is None):
-                sys.exit(0)
+
+        # if splitted braches check that at least on half brah per
+        # polarisation is present
+        if confobj.spl_brnch:
+            pck = pos.up_hp and pos.up_hn and pos.down_hp and pos.down_nh
+            if pck:
+                break
             else:
-                continue
-        if len(neg.idx) < 1:
-            cont = guiobj.not_enough_fls(False)
-            if (not cont) or (cont is None):
-                sys.exit(0)
+                cont = guiobj.not_enough_sp_br(pos, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            nck = neg.up_hp and neg.up_hn and neg.down_hp and neg.down_nh
+            if nck:
+                break
             else:
-                continue
-        # If no pre-edge files are present hysteresis analysis can be 
-        # done without pre-edge normalization.
-        # But if are present pre-edge files for one polarization also at
-        # least one pre-edge file for the other polarization is
-        # required.
-        if (len(pos.pe_idx) < 1) and (len(neg.pe_idx) >= 1):
-            cont = guiobj.not_enough_fls(True, True)
-            if (not cont) or (cont is None):
-                sys.exit(0)
-            else:
-                continue
-        if (len(neg.pe_idx) < 1) and (len(pos.pe_idx) >= 1):
-            cont = guiobj.not_enough_fls(False, True)
-            if (not cont) or (cont is None):
-                sys.exit(0)
-            else:
-                continue
-        
-        if guiobj.analysis != 'hyst_fly': 
-            # For point by point analysis if pre-edge scans are present they
-            # must be in the same number as edge scans
+                cont = guiobj.not_enough_sp_br(neg, False)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            # If no pre-edge files are present hysteresis analysis can
+            # be done without pre-edge normalization.
+            # But if pre-edge files are present they must be at least
+            # one for each half branch.
+            if (len(pos.pe_idx) > 0) and (len(pos.pe_idx) < 4):
+                cont = guiobj.not_enough_fls(True, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            elif len(pos.pe_idx) >= 4:
+                p_peck = (pos.pe_up_hp and pos.pe_up_hn and
+                          pos.pe_down_hp and pos.pe_down_nh)
+                if p_peck:
+                    break
+                else:
+                    cont = guiobj.not_enough_sp_br(pos, True, True)
+                    if (not cont) or (cont is None):
+                        sys.exit(0)
+                    else:
+                        continue
+            if (len(neg.pe_idx) > 0) and (len(neg.pe_idx) < 4):
+                cont = guiobj.not_enough_fls(False, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            elif len(neg.pe_idx) >= 4:
+                n_peck = (neg.pe_up_hp and neg.pe_up_hn and
+                          neg.pe_down_hp and neg.pe_down_nh)
+                if n_peck:
+                    break
+                else:
+                    cont = guiobj.not_enough_sp_br(neg, False, True)
+                    if (not cont) or (cont is None):
+                        sys.exit(0)
+                    else:
+                        continue
+        else:
+            # At least one scan file per polarization is needed
+            if len(pos.idx) < 1:
+                cont = guiobj.not_enough_fls(True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            if len(neg.idx) < 1:
+                cont = guiobj.not_enough_fls(False)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            # If no pre-edge files are present hysteresis analysis can
+            # be done without pre-edge normalization.
+            # But if are present pre-edge files for one polarization
+            # also at least one pre-edge file for the other polarization
+            # is required.
+            if (len(pos.pe_idx) < 1) and (len(neg.pe_idx) >= 1):
+                cont = guiobj.not_enough_fls(True, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+            if (len(neg.pe_idx) < 1) and (len(pos.pe_idx) >= 1):
+                cont = guiobj.not_enough_fls(False, True)
+                if (not cont) or (cont is None):
+                    sys.exit(0)
+                else:
+                    continue
+
+        if guiobj.analysis != 'hyst_fly':
+            # For point by point analysis if pre-edge scans are present
+            # they must be in the same number as edge scans
             if (len(pos.pe_idx) > 0) and (len(pos.pe_idx) != len(pos.idx)):
                 cont = guiobj.not_enough_fls(True, True)
                 if (not cont) or (cont is None):
@@ -570,13 +636,15 @@ def h_scan_importer(guiobj, confobj, pos, neg, T, H, log_dt):
 
         break  # If no problem with number of files breaks the loop
 
-    if guiobj.analysis == 'hyst_fly':
-    # For hysteresis point by point no branch recognition mechanism is
-    # at the moment present.
+    if (confobj.spl_brnch == False) and (guiobj.analysis == 'hyst_fly'):
+        # Up and down separation only for complete branches
+        # For hysteresis point by point no branch recognition mechanism
+        # is at the moment present.
         pos.up_n_down()
         neg.up_n_down()
 
     return log_tbl
+
 
 def dt_raw_import(confobj, data):
     '''
@@ -612,6 +680,7 @@ def dt_raw_import(confobj, data):
 
     return dt_raw
 
+
 def escan_split(confobj, data):
     '''
     Split energy scan containing multiple scans into single scans.
@@ -628,7 +697,7 @@ def escan_split(confobj, data):
     Parameters
     ----------
     confobj : Configuration Object.
-    
+
     data : Pandas DataFrame
         DataFrame containing imported data from input file.
 
@@ -662,18 +731,19 @@ def escan_split(confobj, data):
     dt_raw = []
 
     for i in range(len(e_raw_der_round)):
-        if e_raw_der_round[i] != der_mode:  # Scan ends here        
+        if e_raw_der_round[i] != der_mode:  # Scan ends here
             stp_idx = i + 1
-            e_raw.append(energy_raw.iloc[st_idx : stp_idx])
-            dt_raw.append(data_raw.iloc[st_idx : stp_idx])
-            
+            e_raw.append(energy_raw.iloc[st_idx: stp_idx])
+            dt_raw.append(data_raw.iloc[st_idx: stp_idx])
+
             st_idx = stp_idx
     # Append last scan, or the single scan in case no multiple scans are
     # present
-    e_raw.append(energy_raw.iloc[st_idx : ])
-    dt_raw.append(data_raw.iloc[st_idx : ])
+    e_raw.append(energy_raw.iloc[st_idx:])
+    dt_raw.append(data_raw.iloc[st_idx:])
 
     return e_raw, dt_raw
+
 
 def hscan_imp(confobj, data):
     '''
@@ -682,7 +752,7 @@ def hscan_imp(confobj, data):
     Parameters
     ----------
     confobj : Configuration Object
-    
+
     data : Pandas DataFrame
         DataFrame containing imported data from input file
 
@@ -697,8 +767,9 @@ def hscan_imp(confobj, data):
     h_raw = data[confobj.field]
     data_raw = dt_raw_import(confobj, data)
     time_raw = data[confobj.time]
-    
+
     return time_raw, h_raw, data_raw
+
 
 def set_scn_num(confobj, f_name, pos, neg):
     '''
@@ -749,8 +820,9 @@ def set_scn_num(confobj, f_name, pos, neg):
 
     return scn_num_chk
 
+
 def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
-    lgrws, pos, neg):
+                    lgrws, pos, neg):
     '''
     Separate energy scans and fill positive and negative ScanData
     objects with raw data and labels depending on analysis type.
@@ -790,7 +862,7 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
     dictionary with scan labels.
 
     '''
-    
+
     if e_raw.iloc[0] > e_raw.iloc[-1]:
         e_raw_to_imp = np.flip(e_raw.to_numpy())
         dt_raw_to_imp = np.flip(dt_raw.to_numpy())
@@ -810,7 +882,7 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
 
         scn_lbl += ' H = {:.2f} T'.format(lgrws['field'])
 
-        if ispol:  # LV data            
+        if ispol:  # LV data
             neg.raw_imp = pd.concat([neg.raw_imp, rawen], axis=1)
             neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             neg.label.append(scn_lbl)
@@ -826,7 +898,7 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             lgrws['type'] = 'LH'
     # For XMCD, data are divided and different labels assigned based on
     # sigma sign.
-    elif guiobj.analysis in guiobj.type['xmcd']:       
+    elif guiobj.analysis in guiobj.type['xmcd']:
         h_sgn = np.sign(lgrws['field'])
 
         if ispol:
@@ -852,7 +924,7 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             neg.dtype = 'sigma^-'
     # For XNCD, data are divided and different labels assigned based on
     # polarizaion sign.
-    elif guiobj.analysis in guiobj.type['xncd']:      
+    elif guiobj.analysis in guiobj.type['xncd']:
         scn_lbl += ' H = {:.2f} T'.format(lgrws['field'])
 
         if ispol:  # CR data
@@ -871,7 +943,7 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             lgrws['type'] = 'CL'
     # For XNXD, data are divided and different labels assigned
     # based on magnetic field sign.
-    elif guiobj.analysis in guiobj.type['xnxd']:     
+    elif guiobj.analysis in guiobj.type['xnxd']:
         h_sgn = np.sign(lgrws['field'])
 
         if ispol:
@@ -894,8 +966,9 @@ def separate_escans(guiobj, confobj, e_raw, dt_raw, scn_lbl, scn_num, ispol,
             neg.idx.append(scn_num)
             neg.dtype = 'H +'
 
-def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
-    log_dt, pos, neg):
+
+def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
+                    lgrws, log_dt, pos, neg):
     '''
     Separate magnetic field scans and fill positive and negative
     ScanData objects with raw data and labels depending on polarisation.
@@ -904,6 +977,8 @@ def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
     ----------
     guiobj : GUI object
         Provides GUI dialogs.
+
+    confobj : Configurations object.
 
     h_raw : Pandas Series
         Series containing field values of the scan.
@@ -973,19 +1048,48 @@ def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
             lgrws['type'] = 'CR'
             lgrws['edge_mon_en'] = lgrws['mon_en']
             lgrws['pre_edge_mon_en'] = np.nan
-            
+
             if guiobj.analysis == 'hyst_fly':
-                pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
-                pos.raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
+                # for splitted branch up and down division is made here
+                if confobj.spl_brnch:
+                    fst = h_raw_to_imp[0]
+                    lst = h_raw_to_imp[-1]
+                    # up branch
+                    if (lst > fst):
+                        pos.up = pd.concat([pos.up, rawdt], axis=1)
+                        pos.up = pd.concat([pos.up, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            pos.up_hp = True
+                        # negative field branch
+                        else:
+                            pos.up_hn = True
+                        pos.up_idx.append(scn_num)
+                        pos.up_label.append(scn_lbl)
+                    # down branch
+                    else:
+                        pos.down = pd.concat([pos.down, rawdt], axis=1)
+                        pos.down = pd.concat([pos.down, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            pos.down_hp = True
+                        # negative field branch
+                        else:
+                            pos.down_nh = True
+                        pos.dw_idx.append(scn_num)
+                        pos.dw_label.append(scn_lbl)
+                else:
+                    pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
+                    pos.raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
             else:
                 pos.raw_imp = pos.raw_imp.append(rawdt, ignore_index=True)
                 pos.min_t.append(min_t)
                 pos.max_t.append(max_t)
-            
+
             pos.label.append(scn_lbl)
             pos.idx.append(scn_num)
         else:
-        # Pre-edge scan
+            # Pre-edge scan
             # Set True pre_edge attribute to indicate the presence of
             # pre-edge scans
             pos.pre_edge = True
@@ -993,18 +1097,47 @@ def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
             lgrws['type'] = 'PE-CR'
             lgrws['edge_mon_en'] = np.nan
             lgrws['pre_edge_mon_en'] = lgrws['mon_en']
-            
+
             if guiobj.analysis == 'hyst_fly':
-                pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawh], axis=1)
-                pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt], axis=1)
+                # for splitted branch up and down division is made here
+                if confobj.spl_brnch:
+                    fst = h_raw_to_imp[0]
+                    lst = h_raw_to_imp[-1]
+                    # up branch
+                    if (lst > fst):
+                        pos.pe_up = pd.concat([pos.pe_up, rawdt], axis=1)
+                        pos.pe_up = pd.concat([pos.pe_up, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            pos.pe_up_hp = True
+                        # negative field branch
+                        else:
+                            pos.pe_up_hn = True
+                        pos.pe_up_idx.append(scn_num)
+                        pos.pe_up_label.append(scn_lbl)
+                    # down branch
+                    else:
+                        pos.pe_down = pd.concat([pos.pe_down, rawdt], axis=1)
+                        pos.pe_down = pd.concat([pos.pe_down, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            pos.pe_down_hp = True
+                        # negative field branch
+                        else:
+                            pos.pe_down_nh = True
+                        pos.pe_dw_idx.append(scn_num)
+                        pos.pe_dw_label.append(scn_lbl)
+                else:
+                    pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawh], axis=1)
+                    pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt], axis=1)
             else:
                 pos.pe_raw_imp = pos.pe_raw_imp.append(rawdt,
-                                                        ignore_index=True)
+                                                       ignore_index=True)
                 pos.min_t.append(min_t)
                 pos.max_t.append(max_t)
-            
+
             pos.pe_label.append(scn_lbl)
-            pos.pe_idx.append(scn_num)        
+            pos.pe_idx.append(scn_num)
     else:  # CL data
         neg.dtype = 'CL'
         # Edge scan considered
@@ -1012,19 +1145,47 @@ def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
             lgrws['type'] = 'CL'
             lgrws['edge_mon_en'] = lgrws['mon_en']
             lgrws['pre_edge_mon_en'] = np.nan
-            
+
             if guiobj.analysis == 'hyst_fly':
-                neg.raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
-                neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
+                # for splitted branch up and down division is made here
+                if confobj.spl_brnch:
+                    fst = h_raw_to_imp[0]
+                    lst = h_raw_to_imp[-1]
+                    # up branch
+                    if (lst > fst):
+                        neg.up = pd.concat([neg.up, rawdt], axis=1)
+                        neg.up = pd.concat([neg.up, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            neg.up_hp = True
+                        # negative field branch
+                        else:
+                            neg.up_hn = True
+                        neg.up_idx.append(scn_num)
+                        neg.up_label.append(scn_lbl)
+                    # down branch
+                    else:
+                        neg.down = pd.concat([neg.down, rawdt], axis=1)
+                        neg.down = pd.concat([neg.down, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            neg.down_hp = True
+                        # negative field branch
+                        else:
+                            neg.down_nh = True
+                        neg.dw_idx.append(scn_num)
+                        neg.dw_label.append(scn_lbl)
+                else:
+                    neg.raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
+                    neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             else:
                 neg.raw_imp = neg.raw_imp.append(rawdt, ignore_index=True)
                 neg.min_t.append(min_t)
                 neg.max_t.append(max_t)
-            
             neg.label.append(scn_lbl)
             neg.idx.append(scn_num)
         else:
-        # Pre-edge scan
+            # Pre-edge scan
             # Set True pre_edge attribute to indicate the presence of
             # pre-edge scans
             neg.pre_edge = True
@@ -1032,18 +1193,48 @@ def separate_hscans(guiobj, h_raw, dt_raw, time_raw, scn_num, ispol, lgrws,
             lgrws['type'] = 'PE-CL'
             lgrws['edge_mon_en'] = np.nan
             lgrws['pre_edge_mon_en'] = lgrws['mon_en']
-            
+
             if guiobj.analysis == 'hyst_fly':
-                neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawh], axis=1)
-                neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt], axis=1)
+                # for splitted branch up and down division is made here
+                if confobj.spl_brnch:
+                    fst = h_raw_to_imp[0]
+                    lst = h_raw_to_imp[-1]
+                    # up branch
+                    if (lst > fst):
+                        neg.pe_up = pd.concat([neg.pe_up, rawdt], axis=1)
+                        neg.pe_up = pd.concat([neg.pe_up, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            neg.pe_up_hp = True
+                        # negative field branch
+                        else:
+                            neg.pe_up_hn = True
+                        neg.pe_up_idx.append(scn_num)
+                        neg.pe_up_label.append(scn_lbl)
+                    # down branch
+                    else:
+                        neg.pe_down = pd.concat([neg.pe_down, rawdt], axis=1)
+                        neg.pe_down = pd.concat([neg.pe_down, rawh], axis=1)
+                        # positive field branch
+                        if fst > 0:
+                            neg.pe_down_hp = True
+                        # negative field branch
+                        else:
+                            neg.pe_down_nh = True
+                        neg.pe_dw_idx.append(scn_num)
+                        neg.pe_dw_label.append(scn_lbl)
+                else:
+                    neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawh], axis=1)
+                    neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt], axis=1)
             else:
                 neg.pe_raw_imp = neg.pe_raw_imp.append(rawdt,
-                                                        ignore_index=True)
+                                                       ignore_index=True)
                 neg.min_t.append(min_t)
                 neg.max_t.append(max_t)
-            
+
             neg.pe_label.append(scn_lbl)
             neg.pe_idx.append(scn_num)
+
 
 def output_fls_escan(guiobj, pos, neg, scanobj):
     '''
@@ -1104,7 +1295,7 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
     col_desc += 'Calibrated E - offset: {} eV,'.format(scanobj.offset)
     col_desc += 'Averaged {},'.format(pos.dtype)
     col_desc += 'Averaged {},'.format(neg.dtype)
-    col_desc += '{}_av - {}_av,'.format(neg.dtype, pos.dtype) 
+    col_desc += '{}_av - {}_av,'.format(neg.dtype, pos.dtype)
     if guiobj.analysis in guiobj.type['xnld']:
         col_desc += '{}_av + ((2cos^2 - sin^2) {}_av)) / 3 cos^2,'.format(
             pos.dtype, neg.dtype)
@@ -1112,38 +1303,43 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
         col_desc += '({}_av +  {}_av) / 2,'.format(neg.dtype, pos.dtype)
     col_desc += '{}_av/PE_av,'.format(pos.dtype)
     col_desc += '{}_av/PE_av,'.format(neg.dtype)
-    if guiobj.analysis in guiobj.type['xnld']:      
+    if guiobj.analysis in guiobj.type['xnld']:
         col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis) +
-            ' ({0}oPE - {1}oPE) / ({1}_EJNor'.format(neg.dtype, pos.dtype) +
-            ' + (2cos^2 - sin^2) * {}_EJNor),'.format(neg.dtype))
+                     + ' ({0}oPE - {1}oPE) / ({1}_EJNor'.format(
+                        neg.dtype, pos.dtype)
+                     + ' + (2cos^2 - sin^2) * {}_EJNor),'.format(neg.dtype))
     else:
-        col_desc += ('Normalized {} 200 * '.format(guiobj.analysis) +
-            '({0}oPE - {1}oPE) / ({1}_EJNorm'.format(neg.dtype, pos.dtype) +
-            ' + {}_EJNorm),'.format(neg.dtype))
+        col_desc += ('Normalized {} 200 * '.format(guiobj.analysis)
+                     + '({0}oPE - {1}oPE) / ({1}_EJNorm'.format(
+                        neg.dtype, pos.dtype)
+                     + ' + {}_EJNorm),'.format(neg.dtype))
     col_desc += '{0}_av * XASavgdPE_av / {0}PE_av,'.format(pos.dtype)
     col_desc += '{0}_av * XASavgdPE_av / {0}PE_av,'.format(neg.dtype)
     col_desc += 'XAS avgd edge-jump norm,'
     col_desc += '{}_av/PE_int,'.format(pos.dtype)
     col_desc += '{}_av/PE_int,'.format(neg.dtype)
     if guiobj.analysis in guiobj.type['xnld']:
-        col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis) +
-            ' ({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(neg.dtype,
-            pos.dtype) + ' + (2cos^2 - sin^2) * {}_EJNor_int),'.format(
-            neg.dtype))
+        col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis)
+                     + ' ({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(
+                        neg.dtype, pos.dtype)
+                     + ' + (2cos^2 - sin^2) * {}_EJNor_int),'.format(
+                        neg.dtype))
     else:
-        col_desc += ('Normalized {} 200 * '.format(guiobj.analysis) +
-            '({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(neg.dtype,
-            pos.dtype) + ' + {}_EJNor_int),'.format(neg.dtype))
+        col_desc += ('Normalized {} 200 * '.format(guiobj.analysis)
+                     + '({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(
+                        neg.dtype, pos.dtype)
+                     + ' + {}_EJNor_int),'.format(neg.dtype))
     col_desc += '{0}_int{1} normalized by EJ of average {0}\n'.format(
         guiobj.analysis, ref)
 
     return out_data, col_nms, col_desc
 
+
 def output_fls_hscan(scanobj):
     '''
     Organize output data and columns names for hysteresis on fly
     analysis.
-    
+
     Parameters
     ----------
     scanobj : FieldScan object
@@ -1158,17 +1354,20 @@ def output_fls_hscan(scanobj):
     # Collect data
     if scanobj.pre_edge:
         # Aggregate data
-        out_data = np.stack((scanobj.fields, scanobj.cr_up, scanobj.cl_up,
-            scanobj.cr_down, scanobj.cl_down, scanobj.edg_up, scanobj.edg_down,
-            scanobj.edg_up_norm, scanobj.edg_down_norm, scanobj.cr_pe_up,
-            scanobj.cl_pe_up, scanobj.cr_pe_down, scanobj.cl_pe_down,
-            scanobj.up_w_pe, scanobj.dw_w_pe, scanobj.up_perc,
-            scanobj.down_perc), axis=1)
+        out_data = np.stack((scanobj.flds, scanobj.cr_up, scanobj.cl_up,
+                             scanobj.cr_down, scanobj.cl_down, scanobj.edg_up,
+                             scanobj.edg_down, scanobj.edg_up_norm,
+                             scanobj.edg_down_norm, scanobj.cr_pe_up,
+                             scanobj.cl_pe_up, scanobj.cr_pe_down,
+                             scanobj.cl_pe_down, scanobj.up_w_pe,
+                             scanobj.dw_w_pe, scanobj.up_perc,
+                             scanobj.down_perc), axis=1)
     else:
-        out_data = np.stack((scanobj.fields, scanobj.cr_up, scanobj.cl_up,
-            scanobj.cr_down, scanobj.cl_down, scanobj.edg_up, scanobj.edg_down,
-            scanobj.edg_up_norm, scanobj.edg_down_norm), axis=1)
-        
+        out_data = np.stack((scanobj.flds, scanobj.cr_up, scanobj.cl_up,
+                             scanobj.cr_down, scanobj.cl_down, scanobj.edg_up,
+                             scanobj.edg_down, scanobj.edg_up_norm,
+                             scanobj.edg_down_norm), axis=1)
+
     # Output file column names
     col_nms = 'H (T),'
     col_nms += 'CR up (a.u.),'
@@ -1214,11 +1413,12 @@ def output_fls_hscan(scanobj):
 
     return out_data, col_nms, col_desc
 
+
 def output_fls_ptbypt(guiobj, scanobj):
     '''
     Organize output data and columns names for hysteresis on point by
     point analysis.
-    
+
     Parameters
     ----------
     guiobj : GUI object
@@ -1251,13 +1451,13 @@ def output_fls_ptbypt(guiobj, scanobj):
         col_desc += 'Std of averaged CL,'
         col_desc += 'CL - CR - only edge,'
         col_desc += 'Std of CL - CR - only edge\n'
-        
+
         if scanobj.pre_edge:
             # Order data
             scanobj.xmcd = scanobj.xmcd[['H', 'CR', 'dCR', 'CL', 'dCL', 'edge',
-                                        'Dedge', 'CRpe', 'dCRpe', 'CLpe',
-                                        'dCLpe', 'pre-edge', 'Dpre-edge',
-                                        'no-norm', 'norm', 'Dnorm']]    
+                                         'Dedge', 'CRpe', 'dCRpe', 'CLpe',
+                                         'dCLpe', 'pre-edge', 'Dpre-edge',
+                                         'no-norm', 'norm', 'Dnorm']]
             # Output column names
             col_nms = col_nms.removesuffix('\n')
             col_nms += ',CR_pe (a.u.),'
@@ -1284,7 +1484,7 @@ def output_fls_ptbypt(guiobj, scanobj):
         else:
             # Order data
             scanobj.xmcd = scanobj.xmcd[['H', 'CR', 'dCR', 'CL', 'dCL', 'edge',
-                                        'Dedge']]
+                                         'Dedge']]
         scanobj.xmcd = scanobj.xmcd.sort_values(by=['H'])
     else:
         # Output column names
@@ -1304,7 +1504,7 @@ def output_fls_ptbypt(guiobj, scanobj):
         if scanobj.pre_edge:
             # Order data
             scanobj.xmcd = scanobj.xmcd[['H', 't', 'CR', 'CL', 'edge', 'CRpe',
-                                        'CLpe', 'pre-edge', 'no-norm', 'norm']]
+                                         'CLpe', 'pre-edge', 'no-norm', 'norm']]
             # Output column names
             col_nms = col_nms.removesuffix('\n')
             col_nms += ',CR_pe (a.u.),'
@@ -1327,6 +1527,7 @@ def output_fls_ptbypt(guiobj, scanobj):
     out_data = scanobj.xmcd.to_numpy()
 
     return out_data, col_nms, col_desc
+
 
 def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     '''
@@ -1388,9 +1589,9 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     ax2.set_xlabel('E (eV)')
     ax2.legend()
     f1.suptitle('Edge : {:.2f}, PreEdge : {:.2f}, Edge-jump : {:.4f}\n'.format(
-        log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['xas_aver_ej']) +
-        r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
-        log_dt['field'], log_dt['angle']))
+        log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['xas_aver_ej'])
+        + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
+            log_dt['temp'], log_dt['field'], log_dt['angle']))
 
     f2, (ax3, ax4) = plt.subplots(2, 1, sharex=True)
     if guiobj.analysis in guiobj.type['xnld']:
@@ -1420,21 +1621,22 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     ax4.legend()
     if guiobj.bsl_int:
         f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
-            log_dt['exper_edge'], log_dt['setted_pedg']) +
-            r' $\lambda$ : {:.2f},'.format(log_dt['lambda']/1E7) +
-            ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int']) +
-            r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
-            log_dt['field'], log_dt['angle']))
+            log_dt['exper_edge'], log_dt['setted_pedg'])
+            + r' $\lambda$ : {:.2f},'.format(log_dt['lambda']/1E7)
+            + ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int'])
+            + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
+                log_dt['temp'], log_dt['field'], log_dt['angle']))
     else:
         f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
-            log_dt['exper_edge'], log_dt['setted_pedg']) +
-            ' Post-Edge : {:.2f},'.format(log_dt['setted_postedg']) +
-            ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int']) +
-            r'T = {} K, H = {} T, $\theta$ = {}°'.format(log_dt['temp'],
-            log_dt['field'], log_dt['angle']))
+            log_dt['exper_edge'], log_dt['setted_pedg'])
+            + ' Post-Edge : {:.2f},'.format(log_dt['setted_postedg'])
+            + ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int'])
+            + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
+                log_dt['temp'], log_dt['field'], log_dt['angle']))
     plt.show()
 
     return f1, f2
+
 
 def output_plot_hscan(scanobj, log_dt):
     '''
@@ -1462,15 +1664,14 @@ def output_plot_hscan(scanobj, log_dt):
 
     # Collect edge scans used - for titling graph
     # set removes duplicates and then sort
-    edge_used = sorted(set(log_dt['pos_up_chsn'] + log_dt['pos_dw_chsn'] +
-                            log_dt['neg_up_chsn'] + log_dt['neg_dw_chsn']))
+    edge_used = sorted(set(log_dt['pos_up_chsn'] + log_dt['pos_dw_chsn']
+                           + log_dt['neg_up_chsn'] + log_dt['neg_dw_chsn']))
     f1, ax1 = plt.subplots()
 
-    ax1.plot(scanobj.fields, scanobj.edg_up_norm, label='UP', color='crimson')
-    ax1.plot(scanobj.fields, scanobj.edg_down_norm, label='DOWN',
-            color='green')
+    ax1.plot(scanobj.flds, scanobj.edg_up_norm, label='UP', color='crimson')
+    ax1.plot(scanobj.flds, scanobj.edg_down_norm, label='DOWN', color='green')
     ax1.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+        log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
     ax1.legend()
     ax1.set_ylim(limy, -limy)
     ax1.axhline(y=0, color='darkgray')
@@ -1483,21 +1684,22 @@ def output_plot_hscan(scanobj, log_dt):
     if scanobj.pre_edge:
         # Collect pre-edge scans used - for titling graph
         # set removes duplicates and then sort
-        pre_edge_used = sorted(set(log_dt['pos_pe_up_chsn'] +
-            log_dt['pos_pe_dw_chsn'] + log_dt['neg_pe_up_chsn'] +
-            log_dt['neg_pe_dw_chsn']))
+        pre_edge_used = sorted(set(log_dt['pos_pe_up_chsn']
+                                   + log_dt['pos_pe_dw_chsn']
+                                   + log_dt['neg_pe_up_chsn']
+                                   + log_dt['neg_pe_dw_chsn']))
 
         f2, ax2 = plt.subplots()
 
-        limy2 = max(abs(scanobj.up_perc[0]), abs(scanobj.up_perc[-1]),
+        limy2 = max(
+            abs(scanobj.up_perc[0]), abs(scanobj.up_perc[-1]),
             abs(scanobj.down_perc[0]), abs(scanobj.down_perc[-1])) * 1.3
-        
-        ax2.plot(scanobj.fields, scanobj.up_perc, label='UP', color='crimson')
-        ax2.plot(scanobj.fields, scanobj.down_perc, label='DOWN',
-                color='green')
+
+        ax2.plot(scanobj.flds, scanobj.up_perc, label='UP', color='crimson')
+        ax2.plot(scanobj.flds, scanobj.down_perc, label='DOWN', color='green')
         ax2.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
-                log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
-                log_dt['angle']))
+            log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
+            log_dt['angle']))
         ax2.legend()
         ax2.set_ylim(limy2, -limy2)
         ax2.axhline(y=0, color='darkgray')
@@ -1505,13 +1707,14 @@ def output_plot_hscan(scanobj, log_dt):
         ax2.set_xlabel('H (T)')
         ax2.set_ylabel('XMCD (%)')
 
-        f2.suptitle('Normalized hysteresis - Scan ' + ' '.join(edge_used) +
-                    ' '.join(pre_edge_used))
+        f2.suptitle('Normalized hysteresis - Scan ' + ' '.join(edge_used)
+                    + ' '.join(pre_edge_used))
         plt.show()
         return f1, f2
     else:
         plt.show()
         return f1
+
 
 def output_plot_t_aver(scanobj, log_dt):
     '''
@@ -1530,7 +1733,7 @@ def output_plot_t_aver(scanobj, log_dt):
     ------
     Two pyplot figure objects: CR and CL data in the first, XMCD edge
     only in the sedond one.
-    
+
     If pre-edge data are present also a third pyplot figure object with
     XMCD normalized with pre-edge data is returned.
     '''
@@ -1542,18 +1745,18 @@ def output_plot_t_aver(scanobj, log_dt):
     low_scn = np.amin(int_scn_num)
     hgh_scn = np.amax(int_scn_num)
     time = '{:.1f}--{:.1f} s'.format(log_dt['t_scale'][0],
-                                    log_dt['t_scale'][1])
+                                     log_dt['t_scale'][1])
     s_nums = 'scans {} - {} '.format(low_scn, hgh_scn)
     scanobj.subtitle = s_nums + time
-    
+
     f1, ax1 = plt.subplots()
-    
+
     ax1.plot(data['H'], data['CR'], label='CR')
     ax1.plot(data['H'], data['CL'], label='CL')
     ax1.set_xlabel('H (T)')
     ax1.set_ylabel('XAS (a.u.)')
     ax1.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+        log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
     ax1.legend()
     ax1.axhline(y=0, color='darkgray')
     ax1.axvline(x=0, color='darkgray')
@@ -1561,11 +1764,11 @@ def output_plot_t_aver(scanobj, log_dt):
 
     f2, ax2 = plt.subplots()
     ax2.errorbar(data['H'], data['edge'], yerr=data['Dedge'],
-                label='Edge only')
+                 label='Edge only')
     ax2.set_xlabel('H (T)')
     ax2.set_ylabel('XMCD (a.u.)')
     ax2.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+        log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
     ax2.legend()
     ax2.axhline(y=0, color='darkgray')
     ax2.axvline(x=0, color='darkgray')
@@ -1574,12 +1777,12 @@ def output_plot_t_aver(scanobj, log_dt):
     if scanobj.pre_edge:
         f3, ax3 = plt.subplots()
         ax3.errorbar(data['H'], data['norm'], yerr=data['Dnorm'],
-                    label='Normalized')
+                     label='Normalized')
         ax3.set_xlabel('H (T)')
         ax3.set_ylabel('XMCD (%)')
         ax3.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
-                log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
-                log_dt['angle']))
+            log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
+            log_dt['angle']))
         ax3.legend()
         ax3.axhline(y=0, color='darkgray')
         ax3.axvline(x=0, color='darkgray')
@@ -1590,6 +1793,7 @@ def output_plot_t_aver(scanobj, log_dt):
     else:
         plt.show()
         return f1, f2
+
 
 def output_plot_t_split(guiobj, scanobj, log_dt):
     '''
@@ -1611,7 +1815,7 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
     ------
     Two pyplot figure objects: CR and CL data in the first, XMCD edge
     only in the sedond one.
-    
+
     If pre-edge data are present also a third pyplot figure object with
     XMCD normalized with pre-edge data is returned.
     '''
@@ -1622,7 +1826,7 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
     low_scn = np.amin(int_scn_num)
     hgh_scn = np.amax(int_scn_num)
     time = '{:.1f}--{:.1f} s'.format(log_dt['t_scale'][0],
-                                    log_dt['t_scale'][1])
+                                     log_dt['t_scale'][1])
     s_nums = 'scans {} - {} '.format(low_scn, hgh_scn)
     scanobj.subtitle = s_nums + time
 
@@ -1638,8 +1842,8 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
     f1, (ax11, ax12) = plt.subplots(2, 1, sharex=True)
     f2, ax2 = plt.subplots()
 
-    steps = scanobj.time_scale[::int(np.rint(len(scanobj.time_scale) /
-                                num_times)) + 1]
+    steps = scanobj.time_scale[::int(np.rint(len(scanobj.time_scale)
+                                             / num_times)) + 1]
     for i in steps:
         data = t_gr.get_group(i)
         label = np.around(i, decimals=2)
@@ -1651,7 +1855,7 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
     ax2.set_xlabel('H (T)')
     ax2.set_ylabel('XMCD (a.u.)')
     ax2.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+        log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
     ax2.legend()
     ax2.axhline(y=0, color='darkgray')
     ax2.axvline(x=0, color='darkgray')
@@ -1660,7 +1864,7 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
     ax12.set_xlabel('H (T)')
     ax11.set_ylabel('CR (a.u.)')
     ax11.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-            log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+        log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
     ax11.legend()
     ax11.axhline(y=0, color='darkgray')
     ax11.axvline(x=0, color='darkgray')
@@ -1683,8 +1887,8 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
         ax3.set_xlabel('H (T)')
         ax3.set_ylabel('XMCD (%)')
         ax3.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
-                log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
-                log_dt['angle']))
+            log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
+            log_dt['angle']))
         ax3.legend()
         ax3.axhline(y=0, color='darkgray')
         ax3.axvline(x=0, color='darkgray')
@@ -1696,8 +1900,9 @@ def output_plot_t_split(guiobj, scanobj, log_dt):
         plt.show()
         return f1, f2
 
+
 def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
-    neg_ref, scanobj_ref_norm, log_dt_ref):
+                    neg_ref, scanobj_ref_norm, log_dt_ref):
     '''
     Save output data, logdata and final plots for energy scan analysis.
 
@@ -1740,16 +1945,16 @@ def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
 
     if confobj.ref_norm:
         guiobj.infile_ref = True  # For graphs and columns labelling
-        out_norm_dt, col_norm_nms, col_norm_desc = output_fls_escan(guiobj,
-            pos_ref, neg_ref, scanobj_ref_norm)
+        out_norm_dt, col_norm_nms, col_norm_desc = output_fls_escan(
+            guiobj, pos_ref, neg_ref, scanobj_ref_norm)
         f3, f4 = output_plot_escan(guiobj, pos_ref, neg_ref, scanobj_ref_norm,
-            log_dt_ref)
+                                   log_dt_ref)
         out_data = np.concatenate((out_data, out_norm_dt), axis=1)
         col_nms = col_nms.rstrip('\n') + ',' + col_norm_nms
         col_desc = col_desc + ',' + col_norm_desc
 
         logtxt += '\n\n'
-        logtxt +='Logs for reference scans and normalized data by refererence.'
+        logtxt += 'Logs for ref scans and normalized data by refererence.'
         logtxt += '\n\n'
         logtxt += confobj.escan_logfl_creator(guiobj, log_dt_ref)
 
@@ -1788,6 +1993,7 @@ def save_data_escan(confobj, guiobj, pos, neg, scanobj, log_dt, pos_ref,
             fl.write(logfl_nm + '\n\n')
             fl.write(logtxt)
 
+
 def save_data_hscan(confobj, guiobj, scanobj, log_dt):
     '''
     Save output data, logdata and final plots for scan field on the fly
@@ -1812,9 +2018,9 @@ def save_data_hscan(confobj, guiobj, scanobj, log_dt):
         f1, f2 = output_plot_hscan(scanobj, log_dt)
     else:
         f1 = output_plot_hscan(scanobj, log_dt)
-    
+
     logtxt = confobj.hscan_logfl_creator(log_dt)
-    
+
     default_nm = ('{}_Hyst_scan_{}-{}_{}K_{}T_{}_{}.dat'.format(
         log_dt['Edge_name'], log_dt['log_tbl']['scn_num'].iloc[0],
         log_dt['log_tbl']['scn_num'].iloc[-1], log_dt['temp'], log_dt['field'],
@@ -1845,6 +2051,7 @@ def save_data_hscan(confobj, guiobj, scanobj, log_dt):
             fl.write(logfl_nm + '\n\n')
             fl.write(logtxt)
 
+
 def save_data_tscan(confobj, guiobj, scanobj, log_dt):
     '''
     Save output data, logdata and final plots for scan field point by
@@ -1870,7 +2077,7 @@ def save_data_tscan(confobj, guiobj, scanobj, log_dt):
         if scanobj.pre_edge:
             f1, f2, f3 = output_plot_t_aver(scanobj, log_dt)
         else:
-            f1, f2 = output_plot_t_aver(scanobj, log_dt)        
+            f1, f2 = output_plot_t_aver(scanobj, log_dt)
     if guiobj.analysis == 'hyst_t_split':
         name = 'Hyst time split'
         if scanobj.pre_edge:
@@ -1881,7 +2088,7 @@ def save_data_tscan(confobj, guiobj, scanobj, log_dt):
     default_nm = ('{}_{}_scan_{}-{}_{}-{}s_{}K_{}T_{}_{}.dat'.format(
         log_dt['Edge_name'], name, log_dt['log_tbl']['scn_num'].iloc[0],
         log_dt['log_tbl']['scn_num'].iloc[-1], log_dt['t_scale'][0],
-        log_dt['t_scale'][1],log_dt['temp'], log_dt['field'], log_dt['angle'],
+        log_dt['t_scale'][1], log_dt['temp'], log_dt['field'], log_dt['angle'],
         guiobj.sense))
 
     logtxt = confobj.ptbypt_logfl_creator(log_dt)

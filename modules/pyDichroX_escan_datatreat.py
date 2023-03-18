@@ -199,18 +199,20 @@ class ScanData:
             for i in self.idx:
                 e_col = 'E' + i
                 # Show lines and not blines
-                self.lines.append(ax.plot(self.raw_imp[e_col], self.raw_imp[i],
-                                    label=self.label[self.idx.index(i)])[0])
-                self.blines.append(ax.plot(self.raw_imp[e_col],
-                         self.raw_imp[i], color='dimgrey', visible=False)[0])
+                self.lines.append(
+                    ax.plot(self.raw_imp[e_col], self.raw_imp[i],
+                        label=self.label[self.idx.index(i)])[0])
+                self.blines.append(
+                    ax.plot(self.raw_imp[e_col],
+                        self.raw_imp[i], color='dimgrey', visible=False)[0])
             # Initialize chsn_scs and average line with all scans and
             # set it invisible
             for line in self.lines:
-                    if line.get_visible():
-                        self.chsn_scns.append(line.get_label())
+                if line.get_visible():
+                    self.chsn_scns.append(line.get_label())
             self.aver_e_scans()
-            self.avg_ln, = ax.plot(self.energy, self.aver, color='red', lw=2,
-                                    visible=False)
+            self.avg_ln, = ax.plot(
+                self.energy, self.aver, color='red', lw=2, visible=False)
             # Create box for checkbutton
             chax = fig.add_axes([0.755, 0.32, 0.24, 0.55], facecolor='0.95')
             self.plab = [str(line.get_label()) for line in self.lines]
@@ -224,10 +226,14 @@ class ScanData:
                 r.set(width=bxh)
                 rxy.append(r.get_xy())
             for i in range(len(rxy)):
-                self.checkbx.lines[i][0].set_xdata([rxy[i][0], rxy[i][0] + bxh])
-                self.checkbx.lines[i][0].set_ydata([rxy[i][1], rxy[i][1] + bxh])
-                self.checkbx.lines[i][1].set_xdata([rxy[i][0] + bxh, rxy[i][0]])
-                self.checkbx.lines[i][1].set_ydata([rxy[i][1], rxy[i][1] + bxh])
+                self.checkbx.lines[i][0].set_xdata(
+                    [rxy[i][0], rxy[i][0] + bxh])
+                self.checkbx.lines[i][0].set_ydata(
+                    [rxy[i][1], rxy[i][1] + bxh])
+                self.checkbx.lines[i][1].set_xdata(
+                    [rxy[i][0] + bxh, rxy[i][0]])
+                self.checkbx.lines[i][1].set_ydata(
+                    [rxy[i][1], rxy[i][1] + bxh])
 
             for l in self.checkbx.labels:
                 l.set(fontsize='medium')
@@ -298,7 +304,7 @@ class ScanData:
                 self.lines[i].set(visible=False)
                 self.chsn_scns.append(self.lines[i].get_label())
                 self.blines[i].set(visible=True)
-        
+
         self.aver_e_scans()
 
         # Update average line and make it visible
@@ -347,8 +353,8 @@ class ScanData:
 
                 # Compute linear spline interpolation
                 y_int = itp.UnivariateSpline(x, y, k=1, s=0)
-                # Evaluate interpolation of scan data on enrg energy scale
-                # and append to previous interpolations
+                # Evaluate interpolation of scan data on enrg energy
+                # scale and append to previous interpolations
                 intrp.append(y_int(self.energy))
 
         # Average all inteprolated scans
@@ -392,7 +398,7 @@ class ScanData:
         If asymmetrically reweighted penalized least squares baseline is
         selected the edge jump is calculated considering as the distance
         at edge energy between the averaged spectrum and baseline.
-        
+
         Parameters
         ----------
         guiobj: GUI object
@@ -482,7 +488,7 @@ class ScanData:
 
         # Normalization by pre-edge value
         self.norm_int = self.aver / self.pe_av_int
-        
+
         self.ej_int = y_edg - self.pe_av_int
         self.ej_norm_int = self.ej_int / self.pe_av_int
 
@@ -586,7 +592,7 @@ class EngyScan:
     compt_xd(self, guiobj, pos, neg, log_dt)
         Compute not normalized X-Ray Dichroism.
 
-    edges(guiobj, confobj, log_dt)
+    edges(guiobj, pos, neg, log_dt)
         Set values of edge and pre-edge energies.
 
     compt_xd_pc(guiobj, pos, neg)
@@ -603,7 +609,7 @@ class EngyScan:
     '''
 
     def __init__(self, guiobj, e_scale, pos, neg, log_dt,
-                pos_to_norm=ScanData(), neg_to_norm=ScanData()):
+                 pos_to_norm=ScanData(), neg_to_norm=ScanData()):
         '''
         At instantiation scan_average and compt_xd method are called and
         energy attribute is setted, so upon its creation an EngyScan
@@ -784,9 +790,9 @@ class EngyScan:
 
         # Normalize spectra
         pos.edge_norm(guiobj, self.energycal, self.exper_edge, self.e_pe,
-                    self.e_poste, self.pe_wdt)
+                        self.e_poste, self.pe_wdt)
         neg.edge_norm(guiobj, self.energycal, self.exper_edge, self.e_pe,
-                    self.e_poste, self.pe_wdt)
+                        self.e_poste, self.pe_wdt)
 
         log_dt['pos_ej'] = pos.ej
         log_dt['pos_ej_int'] = pos.ej_int
@@ -973,7 +979,7 @@ class EngyScan:
             # energy
             if guiobj.bsl_int:
                 edgs = guiobj.set_edges_arpls(sel_edg, min_y.x, self.energy, y,
-                        y_aver, y_int, y_int_aver, pos, neg, log_dt)
+                                y_aver, y_int, y_int_aver, pos, neg, log_dt)
                 self.exper_edge = edgs[0]
                 self.e_pe = edgs[1]
                 self.e_poste = None  # not needed in the following
@@ -1066,17 +1072,17 @@ class EngyScan:
         # Compute mean
         if guiobj.analysis in guiobj.type['xnld']:
             # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = (100 * self.ang_w_d * (neg.norm - pos.norm) /
-                          (pos.ej_norm + self.ang_w_n * neg.ej_norm))
-            self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int -
-                            pos.norm_int) / (pos.ej_norm_int + self.ang_w_n *
-                            neg.ej_norm_int))
+            self.xd_pc = (100 * self.ang_w_d * (neg.norm - pos.norm)
+                          / (pos.ej_norm + self.ang_w_n * neg.ej_norm))
+            self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int
+                            - pos.norm_int) / (pos.ej_norm_int + self.ang_w_n
+                            * neg.ej_norm_int))
         else:
             # Percentage X-Ray dichroism normalized for edge jump
-            self.xd_pc = 200 * (neg.norm - pos.norm) / (neg.ej_norm +
-                                                        pos.ej_norm)
-            self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int) /
-                                    (neg.ej_norm_int + pos.ej_norm_int))
+            self.xd_pc = 200 * ((neg.norm - pos.norm)
+                                / (neg.ej_norm + pos.ej_norm))
+            self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int)
+                                    /(neg.ej_norm_int + pos.ej_norm_int))
 
     def compt_pe_corr(self, guiobj, pos, neg):
         '''
@@ -1143,8 +1149,8 @@ class EngyScan:
         if guiobj.analysis in guiobj.type['xnld']:
             # Angle weighted average of pre-edges values
             av_pe_av = (pos.pe_av + self.ang_w_n * neg.pe_av) / self.ang_w_d
-            av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int) /
-                         self.ang_w_d)
+            av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int)
+                         / self.ang_w_d)
         else:
             # Average of pre-edges values
             av_pe_av = (pos.pe_av + neg.pe_av) / 2
@@ -1222,10 +1228,10 @@ class EngyScan:
             pedg_val_xd_aver_int = lin_interpolate(x, y, self.exper_edge)
 
         # xd percentage normalized for edge-jump of xd_aver
-        self.xd_pc_av_ej = (100 * (self.neg_corr - self.pos_corr) /
-                            (edg_val_xd_aver - pedg_val_xd_aver))
-        self.xd_pc_av_ej_int = (100 * (self.neg_corr_int - self.pos_corr_int) /
-                                (edg_val_xd_aver - pedg_val_xd_aver_int))
+        self.xd_pc_av_ej = (100 * (self.neg_corr - self.pos_corr)
+                            / (edg_val_xd_aver - pedg_val_xd_aver))
+        self.xd_pc_av_ej_int = (100 * (self.neg_corr_int - self.pos_corr_int)
+                                / (edg_val_xd_aver - pedg_val_xd_aver_int))
 
         log_dt['xas_aver_ej'] = edg_val_xd_aver - pedg_val_xd_aver
         log_dt['xas_aver_ej_int'] = edg_val_xd_aver - pedg_val_xd_aver_int

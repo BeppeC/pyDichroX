@@ -11,7 +11,7 @@ Starting from XAS scans and related logfiles, pyDichroX computes:
 N.B. analysis routines of hysteresis data acquired with point by point methods does not discern different scan field branches. To avoid data from different branches to be averaged all together, analysis of different branches must be accomplished separately.
 
 Results of the data analysis are saved to a csv file togheter with the final graphs.
-Also a log file with information concerning experimental conditions (collected from scans' logfiles) and parameter choices durnig analysis is produced.
+Also a log file with information concerning experimental conditions (collected from scans' logfiles) and parameters choices durnig analysis is produced.
 
 Making use of configuration files wich take care of specific file formats and layouts, pyDichroX can analyse data collected in different beamlines.
 
@@ -19,6 +19,7 @@ Currently pyDichroX analyses data from:
 - DEIMOS Beamline @ Soleil Synchrotron, Paris (France) - XMCD, XNXD, XNCD, XNLD, Hystersis on the fly, Hysteresis point by point
 - BOREAS Beamline @ Alba Synchrotron, Barcelona (Spain) - XMCD, XNXD, XNCD, XNLD
 - APE Beamline @ Elettra Synchrotron, Trieste (Italy) - XNCD, XNLD
+- ID-32 Beamline @ ESRF Synchrotron, Grenoble (France) - XMCD, XNXD, XNCD, XNLD, Hystersis on the fly
 
 
 REQUIREMENTS
@@ -47,7 +48,7 @@ Select the edge-file where edge, preedge and postedge energies of the element of
 If there's no edge-file present a wizard allows to create one.
 Preedge and postedge energy are used during energy scans analisi to obtain edge jump. 
 
-- Edge chose:
+- Edge choice:
 Select one of the edge present in the edge-file at which work. If the edge is not present in the list, the GUI allows to add new edges.
 
 - Insert sample angle
@@ -95,14 +96,14 @@ dr. Giulia Serrano
 
 dr. Michele Serri
 
-Niccolò Giaconi
+dr. Niccolò Giaconi
 
 dr. Andrea Luigi Sorrentino
 
 prof. Matteo Mannini
 
 
-I also acknowledge the staff of DEIMOS Beamline (Soleil Synchrotron, Paris, France), BOREAS Beamline (Alba Synchrotron, Barcelona , Spain), APE Beamline (Elettra Synchrotron, Trieste, Italy).
+I also acknowledge the staff of DEIMOS Beamline (Soleil Synchrotron, Paris, France), BOREAS Beamline (Alba Synchrotron, Barcelona , Spain), APE Beamline (Elettra Synchrotron, Trieste, Italy), ID-32 Beamline (ESRF Synchrotron, Grenoble, France).
 
 The realization of this program would not have been possible without the collaboration, suggestions, discussion, hints and testing on the field they provided.
 

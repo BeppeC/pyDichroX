@@ -2,6 +2,7 @@
 Configurations for ID-32 Beamline at ESRF Synchrotron, Grenoble (France)
 """
 
+import numpy as np
 
 class Configuration():
     '''
@@ -490,8 +491,8 @@ class Configuration():
         logtxt += 'Sample temperature\n'
         logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
                                                log_tbl['t'].std())
-        logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
-            log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
+        logtxt += 'Magnetic field {} T\n\n'.format(
+            np.round(log_tbl['field'].abs().max(), 1))
         logtxt += 'Sample position\n'
         logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
                                                 log_tbl['rz'].std())

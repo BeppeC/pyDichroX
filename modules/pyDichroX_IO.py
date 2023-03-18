@@ -250,7 +250,10 @@ def open_import_scan(guiobj, confobj, edg_filename):
         log_dt['exper_edge'] = np.round(log_tbl['edge_mon_en'].abs().mean(), 2)
         log_dt['setted_pedg'] = np.round(
             log_tbl['pre_edge_mon_en'].abs().mean(), 2)
-        log_dt['field'] = np.round(log_tbl['field'].abs().mean(), 1)
+        if confobj.spl_brnch:
+            log_dt['field'] = np.round(log_tbl['field'].abs().max(), 1)
+        else:
+            log_dt['field'] = np.round(log_tbl['field'].abs().mean(), 1)
 
         # Just create empty data list for pos_ref and neg_ref currently
         # not considered for hysteresis

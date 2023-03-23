@@ -616,7 +616,34 @@ class Configuration():
             for line in fin:
                 if line.split():
                     sline = line.split()
-                    if sline[0] == '#S':
+                    # Lines starting with #o indicate how and where logs
+                    # are reported through spec file
+                    if line.startswith('#o'):
+                        num = sline[0].lstrip('#o')
+                        # HU88CP phase
+                        if 'HU88CP' in sline:                            
+                            ph_idx = sline.index('HU88CP')
+                            ph_ln = '#P' + num
+                        # energy line and idx
+                        if 'energy' in sline:
+                            en_idx = sline.index('energy')
+                            en_ln = '#P' + num
+                        # magnetic field line and idx
+                        if 'magnet' in sline:
+                            mg_idx = sline.index('magnet')
+                            mg_ln = '#P' + num
+                        # sz pos line and idx
+                        if 'sz' in sline:
+                            sz_idx = sline.index('sz')
+                            sz_ln = '#P' + num
+                        if 'srot' in sline:
+                            srot_idx = sline.index('srot')
+                            srot_ln = '#P' + num
+                        if 'sy' in sline:
+                            sy_idx = sline.index('sy')
+                            sy_ln = '#P' + num
+
+                    elif sline[0] == '#S':
                         scn_num = sline[1]
                         # if first scan just open the files
                         if scn_num == '1':
@@ -636,8 +663,8 @@ class Configuration():
 
                             f_log = open(log_fn, 'w+')
                             f_dat = open(scn_fn, 'w+')
-                    # P1 line contains the phase
-                    elif sline[0] == '#P1':
+                    # collect phase index
+                    elif sline[0] == ph_ln:
                         # At ESRF
                         # LH = -0.15
                         # LV = 43
@@ -649,27 +676,30 @@ class Configuration():
                         # LV id = 1
                         # CL id = -1
                         # CR id = 1
-                        fl_id = float(sline[1])
+                        fl_id = float(sline[ph_idx])
                         if fl_id < 10:
                             f_log.write('pol:-1\n')
                         else:
                             f_log.write('pol:1\n')
-                    # P6 line contains energy
-                    elif sline[0] == '#P6':
-                        f_log.write('energy:{}\n'.format(sline[1]))
-                    elif sline[0] == '#P13':
-                        f_log.write('magnet:{}\n'.format(sline[4]))
-                    # P14 line contains motors positions
-                    elif sline[0] == '#P14':
-                        f_log.write('sz:{}\n'.format(sline[1]))
-                        f_log.write('srot:{}\n'.format(sline[2]))
-                        f_log.write('sy:{}\n'.format(sline[3]))
+                    # collect energy value
+                    elif sline[0] == en_ln:
+                        f_log.write('energy:{}\n'.format(sline[en_idx]))
+                    # collect magnetic field value
+                    elif sline[0] == mg_ln:
+                        f_log.write('magnet:{}\n'.format(sline[mg_idx]))
+                    # collect motors positions
+                    elif sline[0] == sz_ln:
+                        f_log.write('sz:{}\n'.format(sline[sz_idx]))
+                    elif sline[0] == srot_ln:
+                        f_log.write('srot:{}\n'.format(sline[srot_idx]))
+                    elif sline[0] == sy_ln:
+                        f_log.write('sy:{}\n'.format(sline[sy_idx]))
                     # C A: is heater temperature -> setted
-                    elif sline[0] == '#C' and sline[1] == 'A:':
+                    elif (sline[0] == '#C') and ('A:' in sline[1]):
                         f_log.write('tset:{}\n'.format(sline[2]))
                     # C D: is sample temperature but it is always 0
                     # during measurements
-                    elif sline[0] == '#C' and sline[1] == 'D:':
+                    elif (sline[0] == '#C') and ('D:' in sline[1]):
                         f_log.write('tsam:{}\n'.format(sline[2]))
                     # L line contains data headers
                     elif sline[0] == '#L':

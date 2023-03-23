@@ -612,17 +612,23 @@ class Configuration():
         '''
         # Open input file
         with open(in_file) as fin:
+            ph_ln = 'foo'
+            en_ln = 'foo'
+            mg_ln = 'foo'
+            sz_ln = 'foo'
+            srot_ln = 'foo'
+            sy_ln = 'foo'
             # loop through the file
             for line in fin:
                 if line.split():
                     sline = line.split()
-                    # Lines starting with #o indicate how and where logs
+                    # Lines starting with #O indicate how and where logs
                     # are reported through spec file
-                    if line.startswith('#o'):
-                        num = sline[0].lstrip('#o')
+                    if line.startswith('#O'):
+                        num = sline[0].lstrip('#O')
                         # HU88CP phase
-                        if 'HU88CP' in sline:                            
-                            ph_idx = sline.index('HU88CP')
+                        if 'HU88C_PHASE' in sline:                            
+                            ph_idx = sline.index('HU88C_PHASE')
                             ph_ln = '#P' + num
                         # energy line and idx
                         if 'energy' in sline:
@@ -642,11 +648,7 @@ class Configuration():
                         if 'sy' in sline:
                             sy_idx = sline.index('sy')
                             sy_ln = '#P' + num
-            # loop through the file
-            for line in fin:
-                if line.split():
-                    sline = line.split()
-                    if sline[0] == '#S':
+                    elif sline[0] == '#S':
                         scn_num = sline[1]
                         # if first scan just open the files
                         if scn_num == '1':

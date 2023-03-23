@@ -642,8 +642,11 @@ class Configuration():
                         if 'sy' in sline:
                             sy_idx = sline.index('sy')
                             sy_ln = '#P' + num
-
-                    elif sline[0] == '#S':
+            # loop through the file
+            for line in fin:
+                if line.split():
+                    sline = line.split()
+                    if sline[0] == '#S':
                         scn_num = sline[1]
                         # if first scan just open the files
                         if scn_num == '1':

@@ -1307,7 +1307,7 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
     col_desc += '{}_av/PE_av,'.format(pos.dtype)
     col_desc += '{}_av/PE_av,'.format(neg.dtype)
     if guiobj.analysis in guiobj.type['xnld']:
-        col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis) +
+        col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis)
                      + ' ({0}oPE - {1}oPE) / ({1}_EJNor'.format(
                         neg.dtype, pos.dtype)
                      + ' + (2cos^2 - sin^2) * {}_EJNor),'.format(neg.dtype))

@@ -246,10 +246,10 @@ class Configuration():
         -------
         bool, True if CR, False if CL.
         '''
-        if x == 1:
+        if x == 4:
             self.phi_sgn = 1
             return True
-        elif x == -1:
+        elif x == 3:
             self.phi_sgn = -1
             return False
         else:
@@ -270,9 +270,9 @@ class Configuration():
         -------
         bool, True if LV, False if LH.
         '''
-        if x == 1:
+        if x == 2:
             return True
-        elif x == -1:
+        elif x == 1:
             return False
         else:
             raise Exception()
@@ -675,17 +675,24 @@ class Configuration():
                         # LV = 43
                         # CL ca. -26 (-25 -- -27)
                         # CR ca. 26 (25 -- 27)
-                        # P1 value will be L or C depending on analysis
-                        # which is chosen by user
-                        # LH id = -1
-                        # LV id = 1
-                        # CL id = -1
-                        # CR id = 1
+                        # 
+                        # LH id = 1
+                        # LV id = 2
+                        # CL id = 3
+                        # CR id = 4
                         fl_id = float(sline[ph_idx])
-                        if fl_id < 10:
-                            f_log.write('pol:-1\n')
-                        else:
+                        # LH
+                        if (fl_id > -5) and (fl_id < 5):
                             f_log.write('pol:1\n')
+                        # LV
+                        elif fl_id > 39:
+                            f_log.write('pol:2\n')
+                        # CL
+                        elif fl_id < -20:
+                            f_log.write('pol:3\n')
+                        # CR
+                        elif (fl_id > 20) and (fl_id < 35):
+                            f_log.write('pol:4\n')
                     # collect energy value
                     if sline[0] == en_ln:
                         f_log.write('energy:{}\n'.format(sline[en_idx]))

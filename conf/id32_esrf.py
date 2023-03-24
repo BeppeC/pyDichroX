@@ -387,13 +387,6 @@ class Configuration():
                         tx = float(value)
                     if name == 'srot':
                         rz = float(value)
-            '''print(mon_en)
-            print(pol)
-            print(field)
-            print(t)
-            print(rz)
-            print(tx)
-            print(tz)'''
             return {'mon_en': mon_en, 'pol': pol, 'field': field, 't': t,
                     'rz': rz, 'tx': tx, 'tz': tz}
         except:
@@ -637,30 +630,24 @@ class Configuration():
                         if 'HU88C_PHASE' in sline:                            
                             ph_idx = sline.index('HU88C_PHASE')
                             ph_ln = '#P' + num
-                            print(ph_ln, ph_idx)
                         # energy line and idx
                         if 'energy' in sline:
                             en_idx = sline.index('energy')
                             en_ln = '#P' + num
-                            print(en_ln, en_idx)
                         # magnetic field line and idx
                         if 'magnet' in sline:
                             mg_idx = sline.index('magnet')
                             mg_ln = '#P' + num
-                            print(mg_ln, mg_idx)
                         # sz pos line and idx
                         if 'sz' in sline:
                             sz_idx = sline.index('sz')
                             sz_ln = '#P' + num
-                            print(sz_ln, sz_idx)
                         if 'srot' in sline:
                             srot_idx = sline.index('srot')
                             srot_ln = '#P' + num
-                            print(srot_ln, srot_idx)
                         if 'sy' in sline:
                             sy_idx = sline.index('sy')
                             sy_ln = '#P' + num
-                            print(sy_ln, sy_idx)
                     if sline[0] == '#S':
                         scn_num = sline[1]
                         # if first scan just open the files
@@ -726,8 +713,6 @@ class Configuration():
                     # line not starting with # contains data
                     if line[0] != '#':
                         f_dat.write(line)
-                    #else:
-                    #    continue
                 else:
                     continue
             f_log.close()

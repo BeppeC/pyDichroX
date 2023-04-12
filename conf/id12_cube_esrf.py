@@ -1,5 +1,5 @@
 """
-Configurations for ID-32 Beamline at ESRF Synchrotron, Grenoble (France)
+Configurations for ID-12 Beamline at ESRF Synchrotron, Grenoble (France)
 """
 
 import numpy as np
@@ -155,11 +155,10 @@ class Configuration():
 
         # Set 'TEY' for total electron yeld experiments
         # Set 'Fluo' for total fluorescence experiments
-        self.sense = 'TEY'
+        self.sense = 'Fluo'
 
         # List of of performed analysis
-        self.list_analysis = ['XMCD', 'XNCD', 'XNLD', 'XNXD',
-                              'XMCD Hysteresis on the fly']
+        self.list_analysis = ['XNCD', 'XNCD']
 
         # ID32 hysteresis scan are collected splitting branches with
         # positive and negative fields
@@ -201,10 +200,10 @@ class Configuration():
         if guiobj.analysis in guiobj.type['hyst']:
             # Columns for hysteresis on fly
             if guiobj.analysis == 'hyst_fly':
-                self.field = 'field'  # magnetic field data
-                self.iti0 = 'itratio'  # it/i0 data - TEY
+                self.field = ''  # magnetic field data
+                self.iti0 = ''  # it/i0 data - TEY
 
-                self.ifi0 = 'ifratio'  # if/if0 data - Fluorescence
+                self.ifi0 = ''  # if/if0 data - Fluorescence
 
                 self.time = 'Epoch'  # timestamps
 
@@ -217,19 +216,20 @@ class Configuration():
                 pass
         else:
             # columns for energy scan experiments
-            self.energy = 'zap_energyM'  # column with energy data
-            self.iti0 = 'zap_itratio'  # it/i0 data - TEY
+            self.energy = 'Ene'  # column with energy data
+            self.iti0 = ''  # it/i0 data - TEY
 
-            self.ifi0 = 'zap_ifratio'  # if/if0 data - Fluorescence
+            self.ifi0 = 'IfdI0'  # if/if0 data - Fluorescence
 
             # They should not be used
-            self.i0 = 'zap_i0'  # i0 data - TEY
-            self.it = 'zap_it'  # it data - TEY
-            self.if1 = 'zap_ifluo'  # if data - Fluorescence
-            self.if0 = 'zap_i0'  # if0 data - Fluorescence
+            self.i0 = ''  # i0 data - TEY
+            self.it = ''  # it data - TEY
+            self.if1 = 'If'  # if data - Fluorescence
+            self.if0 = 'I0'  # if0 data - Fluorescence
 
             # Energy scan colums list to be imported
-            return [self.energy, self.iti0, self.ifi0]
+            #return [self.energy, self.iti0, self.ifi0]
+            return [self.energy, self.ifi0]
 
     def cr_cond(self, x):
         '''
@@ -378,12 +378,12 @@ class Configuration():
                     # tsam which is the temperature measured near the
                     # sample but it is not measured during the scans
                     # acquisition, so it is not considered here
-                    if name == 'tset':
+                    if name == 't':
                         t = float(value)
                     # find sample positions
                     if name == 'sz':
                         tz = float(value)
-                    if name == 'sy':
+                    if name == 'emtx':
                         tx = float(value)
                     if name == 'srot':
                         rz = float(value)
@@ -419,7 +419,7 @@ class Configuration():
         logtxt += 'Sample position\n'
         logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
                                                 log_tbl['rz'].std())
-        logtxt += 'Sy : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+        logtxt += 'Emtx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
                                                log_tbl['tx'].std())
         logtxt += 'Sz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
                                                  log_tbl['tz'].std())
@@ -496,7 +496,7 @@ class Configuration():
         logtxt += 'Sample position\n'
         logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
                                                 log_tbl['rz'].std())
-        logtxt += 'Sy : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+        logtxt += 'Emtx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
                                                log_tbl['tx'].std())
         logtxt += 'Sz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
                                                  log_tbl['tz'].std())
@@ -575,7 +575,7 @@ class Configuration():
         logtxt += 'Sample position\n'
         logtxt += 'SRot : {} +/- {} °\n'.format(log_tbl['rz'].mean(),
                                                 log_tbl['rz'].std())
-        logtxt += 'Sy : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
+        logtxt += 'Emtx : {} +/- {} mm\n'.format(log_tbl['tx'].mean(),
                                                log_tbl['tx'].std())
         logtxt += 'Sz : {} +/- {} mm\n\n'.format(log_tbl['tz'].mean(),
                                                  log_tbl['tz'].std())
@@ -618,6 +618,7 @@ class Configuration():
             sz_ln = 'foo'
             srot_ln = 'foo'
             sy_ln = 'foo'
+            t_ln = 'foo'
             # loop through the file
             for line in fin:
                 if line.split():
@@ -627,26 +628,30 @@ class Configuration():
                     if line.startswith('#O'):
                         num = sline[0].lstrip('#O')
                         # HU88CP phase
-                        if 'HU88C_PHASE' in sline:                            
-                            ph_idx = sline.index('HU88C_PHASE')
+                        if 'hu52_phase' in sline:                            
+                            ph_idx = sline.index('hu52_phase')
                             ph_ln = '#P' + num
                         # energy line and idx
-                        if 'energy' in sline:
-                            en_idx = sline.index('energy')
+                        if 'Energy' in sline:
+                            en_idx = sline.index('Energy')
                             en_ln = '#P' + num
                         # magnetic field line and idx
-                        if 'magnet' in sline:
-                            mg_idx = sline.index('magnet')
+                        if 'cryo' in sline:
+                            mg_idx = sline.index('cryo')
                             mg_ln = '#P' + num
+                        # sample temperature line and idx
+                        if 'lakeA' in sline:
+                            t_idx = sline.index('lakeA')
+                            t_ln = '#P' + num
                         # sz pos line and idx
-                        if 'sz' in sline:
-                            sz_idx = sline.index('sz')
+                        if 'SZ' in sline:
+                            sz_idx = sline.index('SZ')
                             sz_ln = '#P' + num
-                        if 'srot' in sline:
-                            srot_idx = sline.index('srot')
+                        if 'SROT' in sline:
+                            srot_idx = sline.index('SROT')
                             srot_ln = '#P' + num
-                        if 'sy' in sline:
-                            sy_idx = sline.index('sy')
+                        if 'EMTx' in sline:
+                            sy_idx = sline.index('EMTx')
                             sy_ln = '#P' + num
                     if sline[0] == '#S':
                         scn_num = sline[1]
@@ -670,11 +675,10 @@ class Configuration():
                             f_dat = open(scn_fn, 'w+')
                     # collect phase index
                     if sline[0] == ph_ln:
-                        # At ESRF id-32
-                        # LH = -0.15
-                        # LV = 43
-                        # CL ca. -26 (-25 -- -27)
-                        # CR ca. 26 (25 -- 27)
+                        # For ESRF id-12 at the moment only circular
+                        # polarisations are considered
+                        # CL < 0 
+                        # CR > 0
                         # 
                         # LH id = 1
                         # LV id = 2
@@ -682,16 +686,16 @@ class Configuration():
                         # CR id = 4
                         fl_id = float(sline[ph_idx])
                         # LH
-                        if (fl_id > -5) and (fl_id < 5):
-                            f_log.write('pol:1\n')
+                        #if (fl_id > -5) and (fl_id < 5):
+                        #    f_log.write('pol:1\n')
                         # LV
-                        elif fl_id > 39:
-                            f_log.write('pol:2\n')
+                        #elif fl_id > 39:
+                        #    f_log.write('pol:2\n')
                         # CL
-                        elif fl_id < -20:
+                        if fl_id < 0:
                             f_log.write('pol:3\n')
                         # CR
-                        elif (fl_id > 20) and (fl_id < 35):
+                        else:
                             f_log.write('pol:4\n')
                     # collect energy value
                     if sline[0] == en_ln:
@@ -705,14 +709,9 @@ class Configuration():
                     if sline[0] == srot_ln:
                         f_log.write('srot:{}\n'.format(sline[srot_idx]))
                     if sline[0] == sy_ln:
-                        f_log.write('sy:{}\n'.format(sline[sy_idx]))
-                    # C A: is heater temperature -> setted
-                    if (sline[0] == '#C') and ('A:' in sline[1]):
-                        f_log.write('tset:{}\n'.format(sline[2]))
-                    # C D: is sample temperature but it is always 0
-                    # during measurements
-                    if (sline[0] == '#C') and ('D:' in sline[1]):
-                        f_log.write('tsam:{}\n'.format(sline[2]))
+                        f_log.write('emtx:{}\n'.format(sline[sy_idx]))
+                    if sline[0] == t_ln:
+                        f_log.write('t:{}\n'.format(sline[t_idx]))
                     # L line contains data headers
                     if sline[0] == '#L':
                         # write header of datafile

@@ -40,7 +40,7 @@ class Configuration():
 
     scanlog_cnt : int
         counter to run through scanlog_nms.
-        Not used for id32.
+        Not used for id12.
 
     norm_curr : bool
         True if it/i0 is not provided by data
@@ -113,7 +113,7 @@ class Configuration():
             Exctract scan number from file name.
 
     scanlog_fname():
-        Collect logfile associated to scandata. Not needed for id32.
+        Collect logfile associated to scandata. Not needed for id12.
 
     single_lognm(dataflnm):
         Reconstruct name of datalog file.
@@ -160,7 +160,7 @@ class Configuration():
         # List of of performed analysis
         self.list_analysis = ['XNCD', 'XNCD']
 
-        # ID32 hysteresis scan are collected splitting branches with
+        # id12 hysteresis scan are collected splitting branches with
         # positive and negative fields
         self.spl_brnch = True
 
@@ -170,10 +170,10 @@ class Configuration():
         # it/i0 is provided
         self.norm_curr = False
 
-        # id32 provide log information for sample T
-        self.ask_for_T = False
+        # id12 cube do not provide log information for sample T
+        self.ask_for_T = True
 
-        # id32 provide log information for magnetic field
+        # id12 provide log information for magnetic field
         self.ask_for_H = False
 
         # Normalizaion by reference scans
@@ -191,7 +191,7 @@ class Configuration():
 
         f_name : str
             data filename, some beamline have filename in column names,
-            NOT id32 case.
+            NOT id12 case.
 
         Return
         ------
@@ -412,8 +412,7 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
-                                               log_tbl['t'].std())
+        logtxt += 'T : {} K\n\n'.format(log_tbl['t'].mean())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
@@ -489,8 +488,7 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
-                                               log_tbl['t'].std())
+        logtxt += 'T : {} K\n\n'.format(log_tbl['t'].mean())
         logtxt += 'Magnetic field {} T\n\n'.format(
             np.round(log_tbl['field'].abs().max(), 1))
         logtxt += 'Sample position\n'
@@ -568,8 +566,7 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
-                                               log_tbl['t'].std())
+        logtxt += 'T : {} K\n\n'.format(log_tbl['t'].mean())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
@@ -639,10 +636,6 @@ class Configuration():
                         if 'cryo' in sline:
                             mg_idx = sline.index('cryo')
                             mg_ln = '#P' + num
-                        # sample temperature line and idx
-                        if 'lakeA' in sline:
-                            t_idx = sline.index('lakeA')
-                            t_ln = '#P' + num
                         # sz pos line and idx
                         if 'SZ' in sline:
                             sz_idx = sline.index('SZ')
@@ -710,8 +703,6 @@ class Configuration():
                         f_log.write('srot:{}\n'.format(sline[srot_idx]))
                     if sline[0] == sy_ln:
                         f_log.write('emtx:{}\n'.format(sline[sy_idx]))
-                    if sline[0] == t_ln:
-                        f_log.write('t:{}\n'.format(sline[t_idx]))
                     # L line contains data headers
                     if sline[0] == '#L':
                         # write header of datafile

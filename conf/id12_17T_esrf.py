@@ -40,7 +40,7 @@ class Configuration():
 
     scanlog_cnt : int
         counter to run through scanlog_nms.
-        Not used for id32.
+        Not used for id12.
 
     norm_curr : bool
         True if it/i0 is not provided by data
@@ -113,7 +113,7 @@ class Configuration():
             Exctract scan number from file name.
 
     scanlog_fname():
-        Collect logfile associated to scandata. Not needed for id32.
+        Collect logfile associated to scandata. Not needed for id12.
 
     single_lognm(dataflnm):
         Reconstruct name of datalog file.
@@ -160,7 +160,7 @@ class Configuration():
         # List of of performed analysis
         self.list_analysis = ['XNCD', 'XNCD']
 
-        # ID32 hysteresis scan are collected splitting branches with
+        # id12 hysteresis scan are collected splitting branches with
         # positive and negative fields
         self.spl_brnch = True
 
@@ -170,10 +170,10 @@ class Configuration():
         # it/i0 is provided
         self.norm_curr = False
 
-        # id32 provide log information for sample T
+        # id12 provide log information for sample T
         self.ask_for_T = False
 
-        # id32 provide log information for magnetic field
+        # id12 provide log information for magnetic field
         self.ask_for_H = False
 
         # Normalizaion by reference scans
@@ -191,7 +191,7 @@ class Configuration():
 
         f_name : str
             data filename, some beamline have filename in column names,
-            NOT id32 case.
+            NOT id12 case.
 
         Return
         ------

@@ -26,7 +26,7 @@ REQUIREMENTS
 ------------
 - Python >= 3.9
 - numpy
-- scipy
+- scipy >= 1.9.0
 - pandas
 - matplotlib
 - easygui

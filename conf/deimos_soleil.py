@@ -393,7 +393,7 @@ class Configuration():
                     if 'Sample magnetic field' in par:
                         # find line with field and extract field value
                         for ln in par.split('\n'):
-                            if 'field ' in ln:
+                            if ('field ' in ln) and ('TESLA' in ln):
                                 field = float(ln.split(':')[1].strip(' TESLA'))
                     if 'Sample temperature' in par:
                         # find line with sample temperature and take TB

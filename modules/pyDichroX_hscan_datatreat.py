@@ -784,7 +784,8 @@ class ScanData:
                 # else:
                 row = pd.Series([Hval, np.nanmean(dat['I'], dtype=np.float64),
                                  np.nanstd(dat['I'])], index=['H', 'I', 'dI'])
-                aver = aver.append(row, ignore_index=True)
+                #aver = aver.append(row, ignore_index=True)
+                aver = pd.concat([aver, row.to_frame().T], ignore_index=True)
             # Sort data by H
             self.aver = aver.sort_values(by=['H'], ignore_index=True)
             if self.pre_edge:
@@ -800,7 +801,9 @@ class ScanData:
                     row = pd.Series(
                         [Hval, np.nanmean(dat['I'], dtype=np.float64),
                         np.nanstd(dat['I'])], index=['H', 'I', 'dI'])
-                    pe_aver = pe_aver.append(row, ignore_index=True)
+                    #pe_aver = pe_aver.append(row, ignore_index=True)
+                    pe_aver = pd.concat([pe_aver, row.to_frame().T],
+                                        ignore_index=True)
                 # Sort data by H
                 self.pe_aver = pe_aver.sort_values(by=['H'], ignore_index=True)
         else:
@@ -815,7 +818,8 @@ class ScanData:
                 # Append interpolated data
                 temp = pd.DataFrame({'H': Hval, 'I': interp(time_scale),
                                      't': time_scale})
-                aver = aver.append(temp, ignore_index=True)
+                #aver = aver.append(temp, ignore_index=True)
+                aver = pd.concat([aver, temp], ignore_index=True)
             # Sort data by t and H
             self.aver = aver.sort_values(by=['t', 'H'], ignore_index=True)
             if self.pre_edge:
@@ -830,7 +834,8 @@ class ScanData:
                     # Append interpolated data
                     temp = pd.DataFrame({'H': Hval, 'I': interp(time_scale),
                                          't': time_scale})
-                    pe_aver = pe_aver.append(temp, ignore_index=True)
+                    #pe_aver = pe_aver.append(temp, ignore_index=True)
+                    pe_aver = pd.concat([pe_aver, temp], ignore_index=True)
                 # Sort data by t and H
                 self.pe_aver = pe_aver.sort_values(by=['t', 'H'],
                                                    ignore_index=True)
@@ -1423,7 +1428,8 @@ class FieldPtScan:
                         by=['t'])['I']
                     xmcd_p['CLpe'] = negpe_gb.get_group(Hval).sort_values(
                         by=['t'])['I']
-                    xmcd = xmcd.append(xmcd_p, ignore_index=True)
+                    #xmcd = xmcd.append(xmcd_p, ignore_index=True)
+                    xmcd = pd.concat([xmcd, xmcd_p], ignore_index=True)
             else:
                 xmcd = pd.DataFrame(columns=['H', 'CR', 'CL', 't'])
                 for Hval, dat in pos_gb:
@@ -1431,7 +1437,8 @@ class FieldPtScan:
                         by=['t'])
                     xmcd_p['CL'] = neg_gb.get_group(Hval).sort_values(
                         by=['t'])['I']
-                    xmcd = xmcd.append(xmcd_p, ignore_index=True)
+                    #xmcd = xmcd.append(xmcd_p, ignore_index=True)
+                    xmcd = pd.concat([xmcd, xmcd_p], ignore_index=True)
         # Compute XMCD
         xmcd['edge'] = xmcd['CL'] - xmcd['CR']
 

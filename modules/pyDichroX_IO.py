@@ -1085,7 +1085,9 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
                     pos.raw_imp = pd.concat([pos.raw_imp, rawdt], axis=1)
                     pos.raw_imp = pd.concat([pos.raw_imp, rawh], axis=1)
             else:
-                pos.raw_imp = pos.raw_imp.append(rawdt, ignore_index=True)
+                #pos.raw_imp = pos.raw_imp.append(rawdt, ignore_index=True)
+                pos.raw_imp = pd.concat([pos.raw_imp, rawdt],
+                                        ignore_index=True)
                 pos.min_t.append(min_t)
                 pos.max_t.append(max_t)
 
@@ -1134,8 +1136,10 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
                     pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawh], axis=1)
                     pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt], axis=1)
             else:
-                pos.pe_raw_imp = pos.pe_raw_imp.append(rawdt,
-                                                       ignore_index=True)
+                #pos.pe_raw_imp = pos.pe_raw_imp.append(rawdt,
+                #                                       ignore_index=True)
+                pos.pe_raw_imp = pd.concat([pos.pe_raw_imp, rawdt],
+                                            ignore_index=True)
                 pos.min_t.append(min_t)
                 pos.max_t.append(max_t)
 
@@ -1182,7 +1186,9 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
                     neg.raw_imp = pd.concat([neg.raw_imp, rawh], axis=1)
                     neg.raw_imp = pd.concat([neg.raw_imp, rawdt], axis=1)
             else:
-                neg.raw_imp = neg.raw_imp.append(rawdt, ignore_index=True)
+                #neg.raw_imp = neg.raw_imp.append(rawdt, ignore_index=True)
+                neg.raw_imp = pd.concat([neg.raw_imp, rawdt],
+                                        ignore_index=True)
                 neg.min_t.append(min_t)
                 neg.max_t.append(max_t)
             neg.label.append(scn_lbl)
@@ -1230,8 +1236,10 @@ def separate_hscans(guiobj, confobj, h_raw, dt_raw, time_raw, scn_num, ispol,
                     neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawh], axis=1)
                     neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt], axis=1)
             else:
-                neg.pe_raw_imp = neg.pe_raw_imp.append(rawdt,
-                                                       ignore_index=True)
+                #neg.pe_raw_imp = neg.pe_raw_imp.append(rawdt,
+                #                                       ignore_index=True)
+                neg.pe_raw_imp = pd.concat([neg.pe_raw_imp, rawdt],
+                                            ignore_index=True)
                 neg.min_t.append(min_t)
                 neg.max_t.append(max_t)
 

@@ -288,6 +288,7 @@ def open_import_scan(guiobj, confobj, edg_filename):
     # dictionary collecting log data
     log_dt['log_tbl'] = log_tbl
     log_dt['temp'] = np.round(log_tbl['t'].mean(), 1)
+    log_dt['temp_er'] = np.round(log_tbl['t'].std(), 1)
     log_dt['angle'] = angle
     log_dt['bm_angle'] = bm_angle
 
@@ -1721,8 +1722,9 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
         + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_er'])
         + '{} @ edge energy : {:.2f} +/- {:.2f} %\n'.format(guiobj.analysis,
         log_dt['edge_pc'], log_dt['edge_pc_er'])
-        + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
-        log_dt['temp'], log_dt['field'], log_dt['angle']))
+        + 'T = {} +/- {} K, H = {} T, '.format(log_dt['temp'],
+        log_dt['temp_er'], log_dt['field'])
+        + r'$\theta$ = {}°'.format(log_dt['angle']))
 
     # Button to show/hide errors
     callback = sh(1)
@@ -1786,8 +1788,9 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
             + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
             + '{} @ edge energy : {:.2f} +/- {:.2f} %\n'.format(
             guiobj.analysis, log_dt['edge_pc_int'], log_dt['edge_pc_int_er'])
-            + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
-                log_dt['temp'], log_dt['field'], log_dt['angle']))
+            + 'T = {} +/- {} K, H = {} T, '.format(log_dt['temp'],
+            log_dt['temp_er'], log_dt['field'])
+            + r'$\theta$ = {}°'.format(log_dt['angle']))
     else:
         f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
             log_dt['exper_edge'], log_dt['setted_pedg'])
@@ -1796,8 +1799,9 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
             + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
             + '{} @ edge energy : {:.2f} +/- {:.2f} %\n'.format(
             guiobj.analysis, log_dt['edge_pc_int'], log_dt['edge_pc_int_er'])
-            + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
-                log_dt['temp'], log_dt['field'], log_dt['angle']))
+             + 'T = {} +/- {} K, H = {} T, '.format(log_dt['temp'],
+            log_dt['temp_er'], log_dt['field'])
+            + r'$\theta$ = {}°'.format(log_dt['angle']))
 
     # Button to show/hide errors
     callback2 = sh(2)
@@ -1842,8 +1846,9 @@ def output_plot_hscan(scanobj, log_dt):
 
     ax1.plot(scanobj.flds, scanobj.edg_up_norm, label='UP', color='crimson')
     ax1.plot(scanobj.flds, scanobj.edg_down_norm, label='DOWN', color='green')
-    ax1.set_title(r'E = {} eV, T = {} K, $\theta$ = {}°'.format(
-        log_dt['exper_edge'], log_dt['temp'], log_dt['angle']))
+    ax1.set_title('E = {} eV, T = {} +/- {} K, '.format(log_dt['exper_edge'],
+        log_dt['temp'], log_dt['temp_er']) + r'$\theta$ = {}°'.format(
+        log_dt['angle']))
     ax1.legend()
     ax1.set_ylim(limy, -limy)
     ax1.axhline(y=0, color='darkgray')
@@ -1869,9 +1874,9 @@ def output_plot_hscan(scanobj, log_dt):
 
         ax2.plot(scanobj.flds, scanobj.up_perc, label='UP', color='crimson')
         ax2.plot(scanobj.flds, scanobj.down_perc, label='DOWN', color='green')
-        ax2.set_title(r'E = {} eV, Epe = {}, T = {} K, $\theta$ = {}°'.format(
+        ax2.set_title('E = {} eV, Epe = {}, T = {} +/- {} K,'.format(
             log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['temp'],
-            log_dt['angle']))
+            log_dt['temp_er']) + r'$\theta$ = {}°'.format(log_dt['angle']))
         ax2.legend()
         ax2.set_ylim(limy2, -limy2)
         ax2.axhline(y=0, color='darkgray')

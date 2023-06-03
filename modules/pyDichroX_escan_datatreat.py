@@ -35,6 +35,7 @@ from scipy import sparse
 from scipy.special import expit
 from scipy.sparse.linalg import spsolve
 from matplotlib.widgets import CheckButtons, Button
+from matplotlib.path import Path
 
 
 class ScanData:
@@ -76,6 +77,9 @@ class ScanData:
         If ScanData is a reference one, aver contain normalized data by
         reference.
 
+    aver_std : array
+        STD of selected scans from raw_imput
+
     dtype : str
         Identifies the data collected, used for graph labelling:
         sigma+, sigma- for XMCD
@@ -88,8 +92,11 @@ class ScanData:
 
     pe_av : float
         Value of spectra at pre-edge energy. It is obtained from
-        averaging data in an defined energy range centered at pre-edge
+        averaging data in a defined energy range centered at pre-edge
         energy.
+
+    pe_av_er : float
+        STD on values range taken for computation of pre-edge.
 
     pe_av_int : float
         Pre-edge value obtained from linear interpolation considering
@@ -101,11 +108,20 @@ class ScanData:
     norm : array
         Averaged data normalized by value at pre-edge energy.
 
+    norm_er : array
+        Erron on norm.
+
     norm_int : array
         Averaged data normalized by interpolated pre-edge value.
 
+    norm_int_er : array
+        Error on norm_int.
+
     ej : float
         Edge-jump value.
+
+    ej_er : float
+        Error on edge-jump value.
 
     ej_norm : float
             edge-jump value normalized by value at pre-edge energy.
@@ -113,9 +129,22 @@ class ScanData:
     ej_int : float
         edge-jump value computed with interpolated pre-edge value.
 
+    ej_int_er : float
+        error edge-jump value computed with interpolated pre-edge value.
+        ATTENTION! No propagation is performed form interpolation, so
+        currently error is the same coming for std at the edge of
+        experimental data.
+
     ej_norm_int : float
         edge-jump computed and normalized by interpolated pre-edge
         value.
+
+    ej_norm_int_er : float
+        error on edge-jump computed and normalized by interpolated 
+        pre-edge value.
+        ATTENTION! No propagation is performed form interpolation, so
+        currently error is the same coming for std at the edge of
+        experimental data.
 
     Methods
     -------
@@ -156,7 +185,7 @@ class ScanData:
     def man_aver_e_scans(self, guiobj, enrg):
         '''
         Manage the choice of scans to be averaged and return the average
-        of selected scans.
+        and standard deviation of selected scans.
 
         Parameters
         ----------
@@ -171,6 +200,9 @@ class ScanData:
         Set class attributes:
         aver : array
             Average values of the chosen scans.
+
+        aver_std : array
+            STD values of the chosen scans.
 
         chsn_scns : list
             Labels of chosen scans for the analysis (for log purpose).
@@ -213,6 +245,10 @@ class ScanData:
             self.aver_e_scans()
             self.avg_ln, = ax.plot(
                 self.energy, self.aver, color='red', lw=2, visible=False)
+            self.avg_std_fl = ax.fill_between(
+                self.energy, self.aver - self.aver_std,
+                self.aver + self.aver_std, color='red', alpha=0.2,
+                visible=False)
             # Create box for checkbutton
             chax = fig.add_axes([0.755, 0.32, 0.24, 0.55], facecolor='0.95')
             self.plab = [str(line.get_label()) for line in self.lines]
@@ -307,9 +343,19 @@ class ScanData:
 
         self.aver_e_scans()
 
-        # Update average line and make it visible
+        # Update average and std lines and make them visible
         self.avg_ln.set_ydata(self.aver)
         self.avg_ln.set(visible=True)
+        # update errorband
+        averp = self.aver + self.aver_std
+        avern = self.aver - self.aver_std
+        verts = np.block([[self.energy, self.energy[::-1]],
+                        [averp, avern[::-1]]]).T
+        codes = np.full(len(verts), Path.LINETO)
+        codes[0] = codes[len(self.aver)] = Path.MOVETO
+        path = Path(verts, codes)
+        self.avg_std_fl.set_paths([path.vertices])
+        self.avg_std_fl.set(visible=True)
 
         plt.draw()
 
@@ -359,6 +405,8 @@ class ScanData:
 
         # Average all inteprolated scans
         self.aver = np.average(intrp, axis=0)
+        # Compute STD of the interpolated scans
+        self.aver_std = np.std(intrp, axis=0)
 
     def reset(self, event):
         '''
@@ -367,6 +415,7 @@ class ScanData:
         '''
         # Clear graph
         self.avg_ln.set(visible=False)
+        self.avg_std_fl.set(visible=False)
 
         stauts = self.checkbx.get_status()
         for i, stat in enumerate(stauts):
@@ -462,17 +511,32 @@ class ScanData:
 
         # Average of values for computation of pre-edge
         self.pe_av = np.average(self.aver[lpe_idx: rpe_idx: 1])
+        # STD on values range taken for computation of pre-edge
+        self.pe_av_er = np.std(self.aver[lpe_idx: rpe_idx: 1])
 
         # Cubic spline interpolation of energy scan
         y_int = itp.UnivariateSpline(enrg, self.aver, k=3, s=0)
         # value at edge energy from interpolation
         y_edg = y_int(e_edge)
 
+        # Take as error on value at the edge energy the interpolated
+        # value of STD data
+        # Cubic spline interpolation of STD energy scan
+        y_int_er = itp.UnivariateSpline(enrg, self.aver_std, k=3, s=0)
+        # value at edge energy from interpolation
+        y_edg_err = y_int_er(e_edge)
+
         # Edge-jumps computations - no baseline
         self.ej = y_edg - self.pe_av
+        self.ej_er = y_edg_err + self.pe_av_er
         self.ej_norm = self.ej / self.pe_av
+        relerr = (self.ej_er / self.ej) + (self.pe_av_er / self.pe_av)
+        self.ej_norm_er = self.ej_norm * relerr
         # Normalization by pre-edge value
+        # It's a normalization not a physical quantity computation, so
+        # no error propagation is computed
         self.norm = self.aver / self.pe_av
+        self.norm_er = self.aver_std / self.pe_av
 
         # Edge-jumps computations - consider baseline
         if guiobj.bsl_int:
@@ -488,9 +552,12 @@ class ScanData:
 
         # Normalization by pre-edge value
         self.norm_int = self.aver / self.pe_av_int
+        self.norm_int_er = self.aver_std / self.pe_av_int
 
         self.ej_int = y_edg - self.pe_av_int
+        self.ej_int_er = y_edg_err
         self.ej_norm_int = self.ej_int / self.pe_av_int
+        self.ej_norm_int_er = self.ej_int_er / self.pe_av_int
 
 
 class EngyScan:
@@ -539,16 +606,28 @@ class EngyScan:
     xd : array
         X-Ray dichroism data.
 
+    xd_err : array
+        Experimental error of X-Ray dichroism.
+
     xd_aver : array
         Average of positive and negative XAS. In case of XNLD analysis a
         weighted average is considered.
 
+    xd_aver_err : array
+        Experimental error of xd_aver.
+
     xd_pc : array
         Percentage of X-Ray dichroism normalized by the average of
-        positve and negative scans edge jumps respectively. 
+        positve and negative scans edge jumps respectively.
+
+    xd_pc_er : array
+        Error on xd_pc.
 
     xd_pc_int :array
         Same as xd_pc using data normalized with inerpolated edge-jump.
+
+    xd_pc_int :array
+        Error on xd_pc_int.
 
     pos_corr : array
         Normalized positive XAS spectrum weighted by the average of
@@ -556,29 +635,47 @@ class EngyScan:
         For XNLD spectra the weight consider also the X-Ray beam's
         incidence angle.
 
+    pos_corr_er : array
+        Error on pos_corr.
+
     neg_corr : array
         Normalized negative XAS spectrum weighted by the average of
         values at pre-edge energy of positive and negative spectra.
         For XNLD spectra the weight consider also the X-Ray beam's
         incidence angle.
 
+    neg_corr_er : array
+        Error on neg_corr.
+
     pos_corr_int : array
         Same as pos_corr but using for the avereage of pre-edge values
         the ineterpolated values. For XNLD spectra the weight consider
         also the X-Ray beam's incidence angle.
+
+    pos_corr_int_er : array
+        Error on pos_corr_int.
 
     neg_corr_int : array
         Same as neg_corr but using for the avereage of pre-edge values
         the ineterpolated values. For XNLD spectra the weight consider
         also the X-Ray beam's incidence angle.
 
+    neg_corr_int_er : array
+        Error on neg_corr_int.
+
     xd_pc_av_ej : array
         Percentage  ofX-Ray dichroism normalized by edge jump of xd_aver
-        scan.        
+        scan.
+
+    xd_pc_av_ej_er : array
+        Error on xd_pc_av_ej 
 
     xd_pc_av_ej_int : array
         Same as xd_pc_av_ej but using for the edge-jump computation the 
         interpolated values of pre-edges.
+
+    xd_pc_av_ej_int_er: array
+        Error on xd_pc_av_ej_int
 
     Methods
     -------
@@ -795,9 +892,13 @@ class EngyScan:
                         self.e_poste, self.pe_wdt)
 
         log_dt['pos_ej'] = pos.ej
+        log_dt['pos_ej_er'] = pos.ej_er
         log_dt['pos_ej_int'] = pos.ej_int
+        log_dt['pos_ej_int_er'] = pos.ej_int_er
         log_dt['neg_ej'] = neg.ej
+        log_dt['neg_ej_er'] = neg.ej_er
         log_dt['neg_ej_int'] = neg.ej_int
+        log_dt['neg_ej_int_er'] = neg.ej_int_er
 
         # Compute percentage X-Ray Dichroism normalized for edge-jump
         self.compt_xd_pc(guiobj, pos, neg)
@@ -850,6 +951,7 @@ class EngyScan:
                         3 * cos(t)^2
         '''
         self.xd = neg.aver - pos.aver
+        self.xd_err = neg.aver_std + pos.aver_std
         if guiobj.analysis in guiobj.type['xnld']:
             # If XNLD the angle must be considered for weighted mean
             # computation
@@ -860,8 +962,11 @@ class EngyScan:
             self.ang_w_d = 3 * (np.cos(theta))**2
 
             self.xd_aver = (pos.aver + (self.ang_w_n*neg.aver)) / self.ang_w_d
+            self.xd_aver_err = ((pos.aver_std + (self.ang_w_n*neg.aver_std))
+                                / self.ang_w_d)
         else:
             self.xd_aver = (pos.aver + neg.aver) / 2
+            self.xd_aver_err = (pos.aver_std + neg.aver_std) / 2
 
     def edges(self, guiobj, pos, neg, log_dt):
         '''
@@ -1074,15 +1179,41 @@ class EngyScan:
             # Percentage X-Ray dichroism normalized for edge jump
             self.xd_pc = (100 * self.ang_w_d * (neg.norm - pos.norm)
                           / (pos.ej_norm + self.ang_w_n * neg.ej_norm))
+            # Error propagation
+            d_rel = ((pos.ej_norm_er + self.ang_w_n * neg.ej_norm_er)
+                    / (pos.ej_norm + self.ang_w_n * neg.ej_norm))
+            n_rel = ((neg.norm_er + pos.norm_er) / (neg.norm - pos.norm))            
+
             self.xd_pc_int = (100 * self.ang_w_d * (neg.norm_int
                             - pos.norm_int) / (pos.ej_norm_int + self.ang_w_n
                             * neg.ej_norm_int))
+            # Error propagation
+            d_i_rel = ((pos.ej_norm_int_er + self.ang_w_n * neg.ej_norm_int_er)
+                    / (pos.ej_norm_int + self.ang_w_n * neg.ej_norm_int))
+            n_i_rel = ((neg.norm_int_er + pos.norm_int_er)
+                    / (neg.norm_int - pos.norm_int))            
         else:
             # Percentage X-Ray dichroism normalized for edge jump
             self.xd_pc = 200 * ((neg.norm - pos.norm)
                                 / (neg.ej_norm + pos.ej_norm))
+            # Error propagation
+            d_rel = ((neg.ej_norm_er + pos.ej_norm_er)
+                    / (neg.ej_norm + pos.ej_norm))
+            # neg/pos.norm_int_er = aver.std
+            n_rel = ((neg.norm_er + pos.norm_er) / (neg.norm - pos.norm))
+
             self.xd_pc_int = 200 * ((neg.norm_int - pos.norm_int)
                                     /(neg.ej_norm_int + pos.ej_norm_int))
+            # Error propagation
+            d_i_rel = ((pos.ej_norm_int_er + neg.ej_norm_int_er)
+                    / (neg.ej_norm_int + pos.ej_norm_int))
+            n_i_rel = ((neg.norm_int_er + pos.norm_int_er)
+                    / (neg.norm_int - pos.norm_int))
+
+        xd_pc_errel = n_rel + d_rel
+        self.xd_pc_er = self.xd_pc * xd_pc_errel
+        xd_pc_int_errel = n_i_rel + d_i_rel
+        self.xd_pc_int_er = self.xd_pc_int * xd_pc_int_errel
 
     def compt_pe_corr(self, guiobj, pos, neg):
         '''
@@ -1149,18 +1280,29 @@ class EngyScan:
         if guiobj.analysis in guiobj.type['xnld']:
             # Angle weighted average of pre-edges values
             av_pe_av = (pos.pe_av + self.ang_w_n * neg.pe_av) / self.ang_w_d
+            av_pe_av_er = ((pos.pe_av_er + self.ang_w_n * neg.pe_av_er)
+                        / self.ang_w_d)
             av_pe_int = ((pos.pe_av_int + self.ang_w_n * neg.pe_av_int)
                          / self.ang_w_d)
         else:
             # Average of pre-edges values
             av_pe_av = (pos.pe_av + neg.pe_av) / 2
+            av_pe_av_er = (pos.pe_av_er + neg.pe_av_er) / 2
             av_pe_int = (pos.pe_av_int + neg.pe_av_int) / 2
 
         self.pos_corr = pos.aver * av_pe_av / pos.pe_av
+        self.pos_corr_er = (
+            ((pos.aver_std / pos.aver) + (av_pe_av_er / av_pe_av)
+            + (pos.pe_av_er / pos.pe_av)) * self.pos_corr)
         self.neg_corr = neg.aver * av_pe_av / neg.pe_av
+        self.neg_corr_er = (
+            ((neg.aver_std / neg.aver) + (av_pe_av_er / av_pe_av)
+            + (neg.pe_av_er / neg.pe_av)) * self.neg_corr)
 
         self.pos_corr_int = pos.aver * av_pe_int / pos.pe_av_int
+        self.pos_corr_int_er = pos.aver_std * av_pe_int / pos.pe_av_int
         self.neg_corr_int = neg.aver * av_pe_int / neg.pe_av_int
+        self.neg_corr_int_er = neg.aver_std * av_pe_int / neg.pe_av_int
 
     def comp_xd_pc_av_ej(self, guiobj, log_dt):
         '''
@@ -1216,9 +1358,18 @@ class EngyScan:
         edg_val_xd_aver = xd_aver_inter(self.exper_edge)
         pedg_val_xd_aver = xd_aver_inter(self.e_pe)
 
+        # Linear spline interpolation of xd_aver_err array in order to
+        # determine edge jump error
+        xd_aver_inter_er = itp.UnivariateSpline(
+                                    self.energycal, self.xd_aver_err, k=1, s=0)
+        # Ineterpolated values of errors at edge and pre-edge energies
+        edg_val_xd_aver_er = xd_aver_inter_er(self.exper_edge)
+        pedg_val_xd_aver_er = xd_aver_inter_er(self.e_pe)
+
         if guiobj.bsl_int:
             # Compute value at egde of ArPLS baseline of average xd
             pedg_val_xd_aver_int = self.avbsl(self.exper_edge)
+            pedg_val_xd_aver_int_er = 0
         else:
             # Compute linear interpolation of pre-edge for average xd
             pstedg_val_xd_aver = xd_aver_inter(self.e_poste)
@@ -1227,14 +1378,48 @@ class EngyScan:
             y = [pedg_val_xd_aver, pstedg_val_xd_aver]
             pedg_val_xd_aver_int = lin_interpolate(x, y, self.exper_edge)
 
+            # For linear interpolation error on edge and predge values
+            # can be included in propagation for edge-jump computation.
+            # Lines from pe+er:poste-er and pe-er:poste+er are
+            # considered. Values at egde energy of both line is
+            # interpolated then the greatest deviation from
+            # pedg_val_xd_aver_int is taken as error estimation.
+
+            # Ineterpolated values of errors at pre-edge and post-edge
+            # energies            
+            pstedg_val_xd_aver_er = xd_aver_inter_er(self.e_poste)
+            y1 = [pedg_val_xd_aver + pedg_val_xd_aver_er,
+                pstedg_val_xd_aver - pstedg_val_xd_aver_er]
+            y2 = [pedg_val_xd_aver - pedg_val_xd_aver_er,
+                pstedg_val_xd_aver + pstedg_val_xd_aver_er]
+            y1_ext = lin_interpolate(x, y1, self.exper_edge)
+            y2_ext = lin_interpolate(x, y2, self.exper_edge)
+            pedg_val_xd_aver_int_er = np.amax(np.abs([
+                                            pedg_val_xd_aver_int - y1_ext,
+                                            pedg_val_xd_aver_int - y2_ext]))
+
         # xd percentage normalized for edge-jump of xd_aver
         self.xd_pc_av_ej = (100 * (self.neg_corr - self.pos_corr)
                             / (edg_val_xd_aver - pedg_val_xd_aver))
+        d_er = ((edg_val_xd_aver_er + pedg_val_xd_aver_er)
+                / (edg_val_xd_aver - pedg_val_xd_aver))
+        n_er = (100 * (self.neg_corr_er + self.pos_corr_er)
+                /(100 * (self.neg_corr - self.pos_corr)))
+        self.xd_pc_av_ej_er = (n_er + d_er) * self.xd_pc_av_ej
+
         self.xd_pc_av_ej_int = (100 * (self.neg_corr_int - self.pos_corr_int)
                                 / (edg_val_xd_aver - pedg_val_xd_aver_int))
+        d_er = ((edg_val_xd_aver_er + pedg_val_xd_aver_int_er)
+                / (edg_val_xd_aver - pedg_val_xd_aver_int))
+        n_er = (100 * (self.neg_corr_int_er + self.pos_corr_int_er)
+                / (self.neg_corr_int - self.pos_corr_int))
+        self.xd_pc_av_ej_int_er = (n_er + d_er) * self.xd_pc_av_ej_int
 
         log_dt['xas_aver_ej'] = edg_val_xd_aver - pedg_val_xd_aver
+        log_dt['xas_aver_ej_er'] = edg_val_xd_aver_er + pedg_val_xd_aver_er
         log_dt['xas_aver_ej_int'] = edg_val_xd_aver - pedg_val_xd_aver_int
+        log_dt['xas_aver_ej_int_er'] = (
+            edg_val_xd_aver_er + pedg_val_xd_aver_int_er)
 
 
 def e_scale(guiobj, pos, neg, log_dt, pos_ref, neg_ref):

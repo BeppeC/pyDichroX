@@ -486,18 +486,19 @@ class Configuration():
         logtxt += 'Offset : {} eV'.format(log_dt['offset'])
 
         logtxt += '\n\n'
-        logtxt += 'Edge jump for positive scans : {}\n'.format(
-            log_dt['pos_ej'])
-        logtxt += 'Edge jump for positive scans - int.d pre-edge: {}\n'.format(
-            log_dt['pos_ej_int'])
-        logtxt += 'Edge jump for negative scans : {}\n'.format(
-            log_dt['neg_ej'])
-        logtxt += 'Edge jump for negative scans - int.d pre-edge: {}\n'.format(
-            log_dt['neg_ej_int'])
-        logtxt += 'Edge jump for Avgd XAS spectrum : {}\n'.format(
-            log_dt['xas_aver_ej'])
+        logtxt += 'Edge jump for positive scans : {} +/- {}\n'.format(
+            log_dt['pos_ej'], log_dt['pos_ej_er'])
+        logtxt += 'Edge jump for positive scans - int.d pre-edge: {} '.format(
+            log_dt['pos_ej_int']) + '+/- {}\n'.format(log_dt['pos_ej_int_er'])
+        logtxt += 'Edge jump for negative scans : {} +/-{}\n'.format(
+            log_dt['neg_ej'], log_dt['neg_ej_er'])
+        logtxt += 'Edge jump for negative scans - int.d pre-edge: {} '.format(
+            log_dt['neg_ej_int']) + '+/- {}\n'.format(log_dt['neg_ej_int_er'])
+        logtxt += 'Edge jump for Avgd XAS spectrum : {} +/- {}\n'.format(
+            log_dt['xas_aver_ej'], log_dt['xas_aver_ej_er'])
         logtxt += ('Edge jump for Avgd XAS sptectrum' +
-                   ' - int.d pre-edge: {}\n'.format(log_dt['xas_aver_ej_int']))
+                   ' - int.d pre-edge: {} +/- {}\n'.format(
+                    log_dt['xas_aver_ej_int'], log_dt['xas_aver_ej_int_er']))
 
         return logtxt
 

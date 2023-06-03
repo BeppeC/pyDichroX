@@ -20,6 +20,7 @@ Currently pyDichroX analyses data from:
 - BOREAS Beamline @ Alba Synchrotron, Barcelona (Spain) - XMCD, XNXD, XNCD, XNLD
 - APE Beamline @ Elettra Synchrotron, Trieste (Italy) - XNCD, XNLD
 - ID-32 Beamline @ ESRF Synchrotron, Grenoble (France) - XMCD, XNXD, XNCD, XNLD, Hystersis on the fly
+- ID-12 Beamline @ ESRF Synchrotron, Grenoble (France) - XNCD
 
 
 REQUIREMENTS
@@ -63,7 +64,7 @@ All the further set of data will be averaged together.
 During analysis, XAS spectra will be interpolated using the number of points inserted. By default the number of points in the scans is setted.
 
 - Chose XAS spectra to average
-The graphs of the scans are shown. Scans selected by means of checking boxs are averaged and the average computed will be used for successive analysis. Currently only for energy scan analysis.
+The graphs of the scans are shown. Scans selected by means of checking boxs are averaged and STD computed; average and STD computed will be used for successive analysis. Currently only for energy scan analysis.
 
 - If configuration file is setted in order to accept scans from a reference sample, repeat the same passages before for reference scans. Currently only for energy scan analysis.
 

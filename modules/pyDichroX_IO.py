@@ -174,14 +174,22 @@ def open_import_scan(guiobj, confobj, edg_filename):
                 and step size used to construct the time scale
     . pe_int : interpolated pre-edge value
     . pos_ej : edge-jump for positive scans
+    . pos_ej_er : error on edge-jump for positive scans
     . pos_ej_int : edge-jump for positve scans computed using
                    interpolated pre-edge energy
+    . pos_ej_int_er : error on edge-jump for positve scans computed
+                      using interpolated pre-edge energy
     . neg_ej : edge-jump for negative scans
+    . neg_ej_er : error on edge-jump for negative scans
     . neg_ej_int : edge-jump for negative scans computed using
                    interpolated pre-edge energy
+    . neg_ej_int_er : error onedge-jump for negative scans
+                      computed using interpolated pre-edge energy
     . xas_aver_ej : edge-jump computed from averaged XAS spectra
+    . xas_aver_ej_er : error on xas_aver_ej
     . xas_aver_ej_int : edge-jump computed from averaged XAS spectra and
                         using interpolated pre-edge energy
+    . xas_aver_ej_int_er : error on xas_aver_ej_int
     . log_tbl / log_ref_tbl pandas DataFrame:
         - mon_en : monocromator energy
         - edge_mon_en : monocromator energy for edge scans - only field
@@ -1273,12 +1281,36 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
     col_desc str with column description
     '''
     # Collect data
-    out_data = np.stack((scanobj.energy, scanobj.energycal, pos.aver,
-                         neg.aver, scanobj.xd, scanobj.xd_aver, pos.norm,
-                         neg.norm, scanobj.xd_pc, scanobj.pos_corr,
-                         scanobj.neg_corr, scanobj.xd_pc_av_ej, pos.norm_int,
-                         neg.norm_int, scanobj.xd_pc_int,
-                         scanobj.xd_pc_av_ej_int), axis=1)
+    out_data = np.stack((scanobj.energy,
+                         scanobj.energycal,
+                         pos.aver,
+                         pos.aver_std,
+                         neg.aver,
+                         neg.aver_std,
+                         scanobj.xd,
+                         scanobj.xd_err,
+                         scanobj.xd_aver,
+                         scanobj.xd_aver_err,
+                         pos.norm,
+                         pos.norm_er,
+                         neg.norm,
+                         neg.norm_er,
+                         scanobj.xd_pc,
+                         scanobj.xd_pc_er,
+                         scanobj.pos_corr,
+                         scanobj.pos_corr_er,
+                         scanobj.neg_corr,
+                         scanobj.neg_corr_er,
+                         scanobj.xd_pc_av_ej,
+                         scanobj.xd_pc_int_er,
+                         pos.norm_int,
+                         pos.norm_int_er,
+                         neg.norm_int,
+                         neg.norm_int_er,
+                         scanobj.xd_pc_int,
+                         scanobj.xd_pc_int_er,
+                         scanobj.xd_pc_av_ej_int,
+                         scanobj.xd_pc_av_ej_int_er), axis=1)
     if guiobj.infile_ref:
         ref = ' norm by ref'
     else:
@@ -1287,33 +1319,53 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
     col_nms = 'E_int{} (eV),'.format(ref)
     col_nms += 'E{} (eV),'.format(ref)
     col_nms += '{}_av{} (a.u.),'.format(pos.dtype, ref)
+    col_nms += '{}_av_er{} (a.u.),'.format(pos.dtype, ref)
     col_nms += '{}_av{} (a.u.),'.format(neg.dtype, ref)
+    col_nms += '{}_av_er{} (a.u.),'.format(neg.dtype, ref)
     col_nms += '{}{} (a.u.),'.format(guiobj.analysis, ref)
+    col_nms += '{}{}_er (a.u.),'.format(guiobj.analysis, ref)
     col_nms += 'XAS avgd{} (a.u.),'.format(ref)
+    col_nms += 'XAS avgd{}_er (a.u.),'.format(ref)
     col_nms += '{}oPE{} (a.u.),'.format(pos.dtype, ref)
+    col_nms += '{}oPE{}_er (a.u.),'.format(pos.dtype, ref)
     col_nms += '{}oPE{} (a.u.),'.format(neg.dtype, ref)
+    col_nms += '{}oPE{}_er (a.u.),'.format(neg.dtype, ref)
     col_nms += '{}{} (%),'.format(guiobj.analysis, ref)
+    col_nms += '{}{}_er (%),'.format(guiobj.analysis, ref)
     col_nms += '{} Corr{} (a.u.),'.format(pos.dtype, ref)
+    col_nms += '{} Corr{}_er (a.u.),'.format(pos.dtype, ref)
     col_nms += '{} Corr{} (a.u.),'.format(neg.dtype, ref)
+    col_nms += '{} Corr{}_er (a.u.),'.format(neg.dtype, ref)
     col_nms += '{} XAS avgd{} (%),'.format(guiobj.analysis, ref)
+    col_nms += '{} XAS avgd{}_er (%),'.format(guiobj.analysis, ref)
     col_nms += '{}oPE_int{} (a.u.),'.format(pos.dtype, ref)
+    col_nms += '{}oPE_int{}_er (a.u.),'.format(pos.dtype, ref)
     col_nms += '{}oPE_int{} (a.u.),'.format(neg.dtype, ref)
+    col_nms += '{}oPE_int{}_er (a.u.),'.format(neg.dtype, ref)
     col_nms += '{}_int{} (%),'.format(guiobj.analysis, ref)
-    col_nms += '{} XAS avgd_int{} (%)\n'.format(guiobj.analysis, ref)
+    col_nms += '{}_int{}_er (%),'.format(guiobj.analysis, ref)
+    col_nms += '{} XAS avgd_int{} (%),'.format(guiobj.analysis, ref)
+    col_nms += '{} XAS avgd_int_er{} (%)\n'.format(guiobj.analysis, ref)
 
     # Output file column descriptions
     col_desc = 'Interpolated E,'
     col_desc += 'Calibrated E - offset: {} eV,'.format(scanobj.offset)
     col_desc += 'Averaged {},'.format(pos.dtype)
+    col_desc += 'STD of averaged {},'.format(pos.dtype)
     col_desc += 'Averaged {},'.format(neg.dtype)
+    col_desc += 'STD of averaged {},'.format(neg.dtype)
     col_desc += '{}_av - {}_av,'.format(neg.dtype, pos.dtype)
+    col_desc += 'Error of {}_av - {}_av,'.format(neg.dtype, pos.dtype)
     if guiobj.analysis in guiobj.type['xnld']:
         col_desc += '{}_av + ((2cos^2 - sin^2) {}_av)) / 3 cos^2,'.format(
             pos.dtype, neg.dtype)
     else:
         col_desc += '({}_av +  {}_av) / 2,'.format(neg.dtype, pos.dtype)
+    col_desc += 'Error of XAS avgd{} (a.u.),'.format(ref)
     col_desc += '{}_av/PE_av,'.format(pos.dtype)
+    col_desc += 'Error on {}_av/PE_av,'.format(pos.dtype)
     col_desc += '{}_av/PE_av,'.format(neg.dtype)
+    col_desc += 'Error on {}_av/PE_av,'.format(neg.dtype)
     if guiobj.analysis in guiobj.type['xnld']:
         col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis)
                      + ' ({0}oPE - {1}oPE) / ({1}_EJNor'.format(
@@ -1324,11 +1376,17 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
                      + '({0}oPE - {1}oPE) / ({1}_EJNorm'.format(
                         neg.dtype, pos.dtype)
                      + ' + {}_EJNorm),'.format(neg.dtype))
+    col_desc += 'Error on normalized {},'.format(guiobj.analysis)
     col_desc += '{0}_av * XASavgdPE_av / {0}PE_av,'.format(pos.dtype)
+    col_desc += 'Error on {0}_av * XASavgdPE_av / {0}PE_av,'.format(pos.dtype)
     col_desc += '{0}_av * XASavgdPE_av / {0}PE_av,'.format(neg.dtype)
+    col_desc += 'Error on {0}_av * XASavgdPE_av / {0}PE_av,'.format(neg.dtype)
     col_desc += 'XAS avgd edge-jump norm,'
+    col_desc += 'Error on XAS avgd edge-jump norm,'
     col_desc += '{}_av/PE_int,'.format(pos.dtype)
+    col_desc += 'Error on {}_av/PE_int,'.format(pos.dtype)
     col_desc += '{}_av/PE_int,'.format(neg.dtype)
+    col_desc += 'Error on {}_av/PE_int,'.format(neg.dtype)
     if guiobj.analysis in guiobj.type['xnld']:
         col_desc += ('Normalized {} 300 * cos^2 *'.format(guiobj.analysis)
                      + ' ({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(
@@ -1340,7 +1398,10 @@ def output_fls_escan(guiobj, pos, neg, scanobj):
                      + '({0}oPE_int - {1}oPE_int) / ({1}_EJNor_int'.format(
                         neg.dtype, pos.dtype)
                      + ' + {}_EJNor_int),'.format(neg.dtype))
-    col_desc += '{0}_int{1} normalized by EJ of average {0}\n'.format(
+    col_desc += 'Error on normalized {},'.format(guiobj.analysis)
+    col_desc += '{0}_int{1} normalized by EJ of average {0},'.format(
+        guiobj.analysis, ref)
+    col_desc += 'Error on {0}_int{1} normalized by EJ of average {0}\n'.format(
         guiobj.analysis, ref)
 
     return out_data, col_nms, col_desc
@@ -1577,55 +1638,92 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     if guiobj.analysis in guiobj.type['xnld']:
         ax1.plot(scanobj.energycal, neg.aver, color='darkorange',
                  label=neg.dtype)
+        ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='darkorange', alpha=0.2)
         ax1.plot(scanobj.energycal, pos.aver, color='darkviolet',
                  label=pos.dtype)
+        ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='darkviolet', alpha=0.2)
     elif guiobj.analysis in guiobj.type['xmcd']:
         ax1.plot(scanobj.energycal, neg.aver,
                  color='blue', label=r'$\sigma^-$')
+        ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2)
         ax1.plot(scanobj.energycal, pos.aver, color='red', label=r'$\sigma^+$')
+        ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2)
     else:
         ax1.plot(scanobj.energycal, neg.aver, color='blue', label=neg.dtype)
+        ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2)
         ax1.plot(scanobj.energycal, pos.aver, color='red', label=pos.dtype)
+        ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2)
     ax1.set_ylabel('XAS{} (a.u.)'.format(ref))
     ax1.legend()
     if guiobj.analysis in guiobj.type['xnld']:
         ax2.plot(scanobj.energycal, scanobj.xd_pc, color='black',
                  label=guiobj.analysis)
+        ax2.fill_between(scanobj.energycal, scanobj.xd_pc - scanobj.xd_pc_er,
+            scanobj.xd_pc + scanobj.xd_pc_er, color='black', alpha=0.2)
         ax2.axhline(y=0, color='darkgray')
     else:
         ax2.plot(scanobj.energycal, scanobj.xd_pc, color='green',
                  label=guiobj.analysis)
+        ax2.fill_between(scanobj.energycal, scanobj.xd_pc - scanobj.xd_pc_er,
+            scanobj.xd_pc + scanobj.xd_pc_er, color='green', alpha=0.2)
         ax2.axhline(y=0, color='black')
     ax2.set_ylabel('{}{} (%)'.format(guiobj.analysis, ref))
     ax2.set_xlabel('E (eV)')
     ax2.legend()
-    f1.suptitle('Edge : {:.2f}, PreEdge : {:.2f}, Edge-jump : {:.4f}\n'.format(
+    f1.suptitle('Edge : {:.2f}, PreEdge : {:.2f}, Edge-jump : {:.4f}'.format(
         log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['xas_aver_ej'])
+        + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_er'])
         + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
-            log_dt['temp'], log_dt['field'], log_dt['angle']))
+        log_dt['temp'], log_dt['field'], log_dt['angle']))
 
     f2, (ax3, ax4) = plt.subplots(2, 1, sharex=True)
     if guiobj.analysis in guiobj.type['xnld']:
         ax3.plot(scanobj.energycal, neg.aver, color='darkorange',
                  label=neg.dtype)
+        ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='darkorange', alpha=0.2)
         ax3.plot(scanobj.energycal, pos.aver, color='darkviolet',
                  label=pos.dtype)
+        ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='darkviolet', alpha=0.2)
     elif guiobj.analysis in guiobj.type['xmcd']:
         ax3.plot(scanobj.energycal, neg.aver,
                  color='blue', label=r'$\sigma^-$')
+        ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2)
         ax3.plot(scanobj.energycal, pos.aver, color='red', label=r'$\sigma^+$')
+        ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2)
     else:
         ax3.plot(scanobj.energycal, neg.aver, color='blue', label=neg.dtype)
+        ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2)
         ax3.plot(scanobj.energycal, pos.aver, color='red', label=pos.dtype)
+        ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2)
     ax3.set_ylabel('XAS{} (a.u.)'.format(ref))
     ax3.legend()
     if guiobj.analysis in guiobj.type['xnld']:
         ax4.plot(scanobj.energycal, scanobj.xd_pc_int, color='black',
                  label=guiobj.analysis)
+        ax4.fill_between(scanobj.energycal,
+            scanobj.xd_pc_int - scanobj.xd_pc_int_er,
+            scanobj.xd_pc_int + scanobj.xd_pc_int_er, color='black',
+            alpha=0.2)
         ax4.axhline(y=0, color='darkgray')
     else:
         ax4.plot(scanobj.energycal, scanobj.xd_pc_int, color='green',
                  label=guiobj.analysis)
+        ax4.fill_between(scanobj.energycal,
+            scanobj.xd_pc_int - scanobj.xd_pc_int_er,
+            scanobj.xd_pc_int + scanobj.xd_pc_int_er, color='green',
+            alpha=0.2)
         ax4.axhline(y=0, color='black')
     ax4.set_ylabel('{}{}_int (%)'.format(guiobj.analysis, ref))
     ax4.set_xlabel('E (eV)')
@@ -1633,15 +1731,17 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     if guiobj.bsl_int:
         f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
             log_dt['exper_edge'], log_dt['setted_pedg'])
-            + r' $\lambda$ : {:.2f},'.format(log_dt['lambda']/1E7)
-            + ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int'])
+            + r' $\lambda$ : {:.2f}'.format(log_dt['lambda']/1E7)
+            + 'Edge-jump : {:.4f}'.format(log_dt['xas_aver_ej_int'])
+            + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
             + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
                 log_dt['temp'], log_dt['field'], log_dt['angle']))
     else:
         f2.suptitle('Edge : {:.2f}, PreEdge : {:.2f},'.format(
             log_dt['exper_edge'], log_dt['setted_pedg'])
-            + ' Post-Edge : {:.2f},'.format(log_dt['setted_postedg'])
-            + ' Edge-jump : {:.4f}\n'.format(log_dt['xas_aver_ej_int'])
+            + ' Post-Edge : {:.2f}\n'.format(log_dt['setted_postedg'])
+            + ' Edge-jump : {:.4f}'.format(log_dt['xas_aver_ej_int'])
+            + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
             + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
                 log_dt['temp'], log_dt['field'], log_dt['angle']))
     plt.show()

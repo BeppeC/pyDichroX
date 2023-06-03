@@ -191,6 +191,12 @@ def open_import_scan(guiobj, confobj, edg_filename):
     . xas_aver_ej_int : edge-jump computed from averaged XAS spectra and
                         using interpolated pre-edge energy
     . xas_aver_ej_int_er : error on xas_aver_ej_int
+    . edge_pc : percentage of X-Ray Dichroism normalized for edge-jump
+                at experimental edge energy
+    . edge_pc_er : error on edge_pc
+    . edge_pc_int : percentage of X-Ray Dichroism normalized with
+                    inerpolated edge-jump at experimental edge energy
+    . edge_pc_int_er : error on edge_pc_int 
     . log_tbl / log_ref_tbl pandas DataFrame:
         - mon_en : monocromator energy
         - edge_mon_en : monocromator energy for edge scans - only field
@@ -1713,6 +1719,8 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     f1.suptitle('Edge : {:.2f}, PreEdge : {:.2f}, Edge-jump : {:.4f}'.format(
         log_dt['exper_edge'], log_dt['setted_pedg'], log_dt['xas_aver_ej'])
         + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_er'])
+        + '{} @ edge energy : {:.2f} +/- {:.2f} %\n'.format(guiobj.analysis,
+        log_dt['edge_pc'], log_dt['edge_pc_er'])
         + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
         log_dt['temp'], log_dt['field'], log_dt['angle']))
 
@@ -1776,6 +1784,8 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
             + r' $\lambda$ : {:.2f}'.format(log_dt['lambda']/1E7)
             + 'Edge-jump : {:.4f}'.format(log_dt['xas_aver_ej_int'])
             + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
+            + '{} @ edge energy : {:.2f} +/- {:.2f} %\n'.format(
+            guiobj.analysis, log_dt['edge_pc_int'], log_dt['edge_pc_int_er'])
             + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
                 log_dt['temp'], log_dt['field'], log_dt['angle']))
     else:
@@ -1784,6 +1794,8 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
             + ' Post-Edge : {:.2f}\n'.format(log_dt['setted_postedg'])
             + ' Edge-jump : {:.4f}'.format(log_dt['xas_aver_ej_int'])
             + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
+            + '{} @ edge energy : {:.2f} +/- {:.2f} %\n'.format(
+            guiobj.analysis, log_dt['edge_pc_int'], log_dt['edge_pc_int_er'])
             + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
                 log_dt['temp'], log_dt['field'], log_dt['angle']))
 

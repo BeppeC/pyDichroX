@@ -901,7 +901,7 @@ class EngyScan:
         log_dt['neg_ej_int_er'] = neg.ej_int_er
 
         # Compute percentage X-Ray Dichroism normalized for edge-jump
-        self.compt_xd_pc(guiobj, pos, neg)
+        self.compt_xd_pc(guiobj, pos, neg, log_dt)
         self.compt_pe_corr(guiobj, pos, neg)
         self.comp_xd_pc_av_ej(guiobj, log_dt)
 
@@ -1129,7 +1129,7 @@ class EngyScan:
         log_dt['recal'] = recal
         log_dt['offset'] = self.offset
 
-    def compt_xd_pc(self, guiobj, pos, neg):
+    def compt_xd_pc(self, guiobj, pos, neg, log_dt):
         '''
         Compute the percentage of X-Ray Dichroism normalized for
         edge-jump.
@@ -1148,7 +1148,10 @@ class EngyScan:
             Positive scans (CR for XMCD and XNCD, LH for XNLD).
 
         neg : ScanData obj
-            Negative scnas (CL for XMCD and XNCD, LV for XNLD).   
+            Negative scnas (CL for XMCD and XNCD, LV for XNLD).
+
+        log_dt : dict
+            Collect data for logfile.
 
         Return
         ------
@@ -1164,6 +1167,14 @@ class EngyScan:
         xd_pc_int : array
             Same as xd_pc using data normalized with inerpolated
             edge-jump.
+
+        Add keys to logdt
+        edge_pc : percentage of X-Ray Dichroism normalized for edge-jump
+            at experimental edge energy
+        edge_pc_er : error on edge_pc
+        edge_pc_int : percentage of X-Ray Dichroism normalized with
+            inerpolated edge-jump at experimental edge energy
+        edge_pc_int_er : error on edge_pc_int 
 
         Notes
         -----
@@ -1214,6 +1225,20 @@ class EngyScan:
         self.xd_pc_er = self.xd_pc * xd_pc_errel
         xd_pc_int_errel = n_i_rel + d_i_rel
         self.xd_pc_int_er = self.xd_pc_int * xd_pc_int_errel
+
+        # Compute dichroism percentage at edge energy
+        in_xd_pc = itp.UnivariateSpline(self.energycal, self.xd_pc, k=1, s=0)
+        in_xd_pc_er = itp.UnivariateSpline(self.energycal, self.xd_pc_er, k=1,
+                                            s=0)
+        log_dt['edge_pc'] = np.abs(in_xd_pc(self.exper_edge))
+        log_dt['edge_pc_er'] = in_xd_pc_er(self.exper_edge)
+        in_xd_pc_int = itp.UnivariateSpline(self.energycal, self.xd_pc_int,
+                                            k=1, s=0)
+        in_xd_pc_int_er = itp.UnivariateSpline(self.energycal,
+                                                self.xd_pc_int_er, k=1, s=0)
+        log_dt['edge_pc_int'] = np.abs(in_xd_pc_int(self.exper_edge))
+        log_dt['edge_pc_int_er'] = in_xd_pc_int_er(self.exper_edge)
+
 
     def compt_pe_corr(self, guiobj, pos, neg):
         '''

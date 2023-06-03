@@ -499,6 +499,11 @@ class Configuration():
         logtxt += ('Edge jump for Avgd XAS sptectrum' +
                    ' - int.d pre-edge: {} +/- {}\n'.format(
                     log_dt['xas_aver_ej_int'], log_dt['xas_aver_ej_int_er']))
+        logtxt += '\n'
+        logtxt += ('Dichroism @ edge energy : {} +/- {} %\n'.format(
+                    log_dt['edge_pc'], log_dt['edge_pc_er']))
+        logtxt += ('Dichroism @ edge energy int. : {} +/- {} %\n'.format(
+                    log_dt['edge_pc_int'], log_dt['edge_pc_int_er']))
 
         return logtxt
 

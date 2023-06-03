@@ -93,6 +93,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import scipy.interpolate as itp
 from scipy import stats
+from matplotlib.widgets import Button
 
 import modules.pyDichroX_escan_datatreat as esdt
 import modules.pyDichroX_hscan_datatreat as hsdt
@@ -1634,44 +1635,77 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
     else:
         ref = ''
 
+    class sh:
+        # Class with functions to show/hide error bands
+        def __init__(self, f):
+            self.f = f
+
+        def press(self, event):
+            if self.f == 1:
+                if f11.get_visible():
+                    f11.set(visible=False)
+                    f12.set(visible=False)
+                    f21.set(visible=False)
+                    plt.draw()
+                else:
+                    f11.set(visible=True)
+                    f12.set(visible=True)
+                    f21.set(visible=True)
+                    plt.draw()
+            else:
+                if f31.get_visible():
+                    f31.set(visible=False)
+                    f32.set(visible=False)
+                    f4.set(visible=False)
+                    plt.draw()
+                else:
+                    f31.set(visible=True)
+                    f32.set(visible=True)
+                    f4.set(visible=True)
+                    plt.draw()
+
     f1, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     if guiobj.analysis in guiobj.type['xnld']:
         ax1.plot(scanobj.energycal, neg.aver, color='darkorange',
                  label=neg.dtype)
-        ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
-            neg.aver + neg.aver_std, color='darkorange', alpha=0.2)
+        f11 = ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='darkorange', alpha=0.2,
+            visible=True)
         ax1.plot(scanobj.energycal, pos.aver, color='darkviolet',
                  label=pos.dtype)
-        ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
-            pos.aver + pos.aver_std, color='darkviolet', alpha=0.2)
+        f12 = ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='darkviolet', alpha=0.2,
+            visible=True)
     elif guiobj.analysis in guiobj.type['xmcd']:
         ax1.plot(scanobj.energycal, neg.aver,
                  color='blue', label=r'$\sigma^-$')
-        ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
-            neg.aver + neg.aver_std, color='blue', alpha=0.2)
+        f11 = ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2, visible=True)
         ax1.plot(scanobj.energycal, pos.aver, color='red', label=r'$\sigma^+$')
-        ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
-            pos.aver + pos.aver_std, color='red', alpha=0.2)
+        f12 = ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2, visible=True)
     else:
         ax1.plot(scanobj.energycal, neg.aver, color='blue', label=neg.dtype)
-        ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
-            neg.aver + neg.aver_std, color='blue', alpha=0.2)
+        f11 = ax1.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2, visible=True)
         ax1.plot(scanobj.energycal, pos.aver, color='red', label=pos.dtype)
-        ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
-            pos.aver + pos.aver_std, color='red', alpha=0.2)
+        f12 = ax1.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2, visible=True)
     ax1.set_ylabel('XAS{} (a.u.)'.format(ref))
     ax1.legend()
     if guiobj.analysis in guiobj.type['xnld']:
         ax2.plot(scanobj.energycal, scanobj.xd_pc, color='black',
                  label=guiobj.analysis)
-        ax2.fill_between(scanobj.energycal, scanobj.xd_pc - scanobj.xd_pc_er,
-            scanobj.xd_pc + scanobj.xd_pc_er, color='black', alpha=0.2)
+        f21 = ax2.fill_between(scanobj.energycal,
+            scanobj.xd_pc - scanobj.xd_pc_er, scanobj.xd_pc + scanobj.xd_pc_er,
+            color='black', alpha=0.2, visible=True)
         ax2.axhline(y=0, color='darkgray')
     else:
         ax2.plot(scanobj.energycal, scanobj.xd_pc, color='green',
                  label=guiobj.analysis)
-        ax2.fill_between(scanobj.energycal, scanobj.xd_pc - scanobj.xd_pc_er,
-            scanobj.xd_pc + scanobj.xd_pc_er, color='green', alpha=0.2)
+        f21 = ax2.fill_between(scanobj.energycal,
+            scanobj.xd_pc - scanobj.xd_pc_er, scanobj.xd_pc + scanobj.xd_pc_er,
+            color='green', alpha=0.2, visible=True)
         ax2.axhline(y=0, color='black')
     ax2.set_ylabel('{}{} (%)'.format(guiobj.analysis, ref))
     ax2.set_xlabel('E (eV)')
@@ -1682,48 +1716,56 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
         + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
         log_dt['temp'], log_dt['field'], log_dt['angle']))
 
+    # Button to show/hide errors
+    callback = sh(1)
+    axbutt1 = f1.add_axes([0.81, 0.0, 0.1, 0.065])
+    butt1 = Button(axbutt1, label='S/H errs', color='whitesmoke')
+    butt1.on_clicked(callback.press)
+
     f2, (ax3, ax4) = plt.subplots(2, 1, sharex=True)
     if guiobj.analysis in guiobj.type['xnld']:
         ax3.plot(scanobj.energycal, neg.aver, color='darkorange',
                  label=neg.dtype)
-        ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
-            neg.aver + neg.aver_std, color='darkorange', alpha=0.2)
+        f31 = ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='darkorange', alpha=0.2,
+            visible=True)
         ax3.plot(scanobj.energycal, pos.aver, color='darkviolet',
                  label=pos.dtype)
-        ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
-            pos.aver + pos.aver_std, color='darkviolet', alpha=0.2)
+        f32 = ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='darkviolet', alpha=0.2,
+            visible=True)
     elif guiobj.analysis in guiobj.type['xmcd']:
         ax3.plot(scanobj.energycal, neg.aver,
                  color='blue', label=r'$\sigma^-$')
-        ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
-            neg.aver + neg.aver_std, color='blue', alpha=0.2)
+        f31 = ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2, visible=True)
         ax3.plot(scanobj.energycal, pos.aver, color='red', label=r'$\sigma^+$')
-        ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
-            pos.aver + pos.aver_std, color='red', alpha=0.2)
+        f32= ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2, visible=True)
     else:
         ax3.plot(scanobj.energycal, neg.aver, color='blue', label=neg.dtype)
-        ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
-            neg.aver + neg.aver_std, color='blue', alpha=0.2)
+        f31 = ax3.fill_between(scanobj.energycal, neg.aver - neg.aver_std,
+            neg.aver + neg.aver_std, color='blue', alpha=0.2, visible=True)
         ax3.plot(scanobj.energycal, pos.aver, color='red', label=pos.dtype)
-        ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
-            pos.aver + pos.aver_std, color='red', alpha=0.2)
+        f32 = ax3.fill_between(scanobj.energycal, pos.aver - pos.aver_std,
+            pos.aver + pos.aver_std, color='red', alpha=0.2, visible=True)
     ax3.set_ylabel('XAS{} (a.u.)'.format(ref))
     ax3.legend()
     if guiobj.analysis in guiobj.type['xnld']:
         ax4.plot(scanobj.energycal, scanobj.xd_pc_int, color='black',
                  label=guiobj.analysis)
-        ax4.fill_between(scanobj.energycal,
+        f4 = ax4.fill_between(scanobj.energycal,
             scanobj.xd_pc_int - scanobj.xd_pc_int_er,
             scanobj.xd_pc_int + scanobj.xd_pc_int_er, color='black',
-            alpha=0.2)
+            alpha=0.2, visible=True)
         ax4.axhline(y=0, color='darkgray')
     else:
         ax4.plot(scanobj.energycal, scanobj.xd_pc_int, color='green',
                  label=guiobj.analysis)
-        ax4.fill_between(scanobj.energycal,
+        f4 = ax4.fill_between(scanobj.energycal,
             scanobj.xd_pc_int - scanobj.xd_pc_int_er,
             scanobj.xd_pc_int + scanobj.xd_pc_int_er, color='green',
-            alpha=0.2)
+            alpha=0.2, visible=True)
         ax4.axhline(y=0, color='black')
     ax4.set_ylabel('{}{}_int (%)'.format(guiobj.analysis, ref))
     ax4.set_xlabel('E (eV)')
@@ -1744,6 +1786,13 @@ def output_plot_escan(guiobj, pos, neg, scanobj, log_dt):
             + '+/-{:.4f}\n'.format(log_dt['xas_aver_ej_int_er'])
             + r'T = {} K, H = {} T, $\theta$ = {}°'.format(
                 log_dt['temp'], log_dt['field'], log_dt['angle']))
+
+    # Button to show/hide errors
+    callback2 = sh(2)
+    axbutt2 = f2.add_axes([0.81, 0.0, 0.1, 0.065])
+    butt2 = Button(axbutt2, label='S/H errs', color='whitesmoke')
+    butt2.on_clicked(callback2.press)
+
     plt.show()
 
     return f1, f2

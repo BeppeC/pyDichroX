@@ -1,3 +1,25 @@
+v 4.0.0
+-------
+- Added errorbands in energy scan analysis. Now it is possible to visualize error bands of energy scan spectra. Error bands are calcuated starting from standard deviation of averaged scans and propagating them through the analysis.
+- Bug correction in hysteresis scans average. A bug was corrected which prevented to average multiple scans in hysteeresis on the fly analisis. 
+
+v 3.1.2
+-------
+- Update in configuartion file for ESRF ID-12 @ ESRF Synchrotron (Grenoble, France) cube configuartion.
+
+v 3.1.1
+-------
+- Added configurations for ESRF ID-12 @ ESRF Synchrotron (Grenoble, France) 17 T configuartion.
+- Added configurations for ESRF ID-12 @ ESRF Synchrotron (Grenoble, France) cube configuartion.
+
+v 3.1.0
+-------
+- Update of configuration file for ID-32 beamline @ ESRF Synchrotron (Grenoble, France). Data collecting from input file was implemented in a strongest way in order to work also with oldest file.
+
+v 3.0.1
+-------
+- Minor bug correction in reporting log.
+
 v 3.0.0
 -------
 - Added configuration and made adjustments in order to perform XMCD, XNLD, XNXD, XNCD and hystereis on the fly data analysis for ID-32 beamline @ ESRF Synchrotron (Grenoble, France)
@@ -55,12 +77,12 @@ v 0.3.0
 
 v 0.2.1
 -------
-- Fixed a bug in Boreas configuration files related to importing log
+- Fixed a bug in Boreas configuration file related to importing log
   information.
 
 v 0.2.0
 -------
-- Added configuration for Boreas beamline at Alba Synchrotron 
+- Added configurations for Boreas beamline at Alba Synchrotron 
   (Barcellona, Spain) to compute XMCD, XNCD, XNXD and XNLD.
 - In order to correctly manage data coming from different facilities
   data log files are now mandatory for the functioning of the program.

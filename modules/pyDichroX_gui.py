@@ -1515,7 +1515,6 @@ class GUI:
                 confobj.scanlog_fname(self)
             else:
                 break
-
         return dataset
 
     def not_enough_fls(self, pol, preedge=False):

@@ -1749,9 +1749,10 @@ def aver_duplicates(data, idx):
     array, field scale with unique values.
     array, XAS values corresponding to unique values field scale.
     '''
-
+    # consider only idx scan data
+    sel_data = data[['H'+idx, idx]]
     # Remove NaNs and sort data by field column
-    sorted_data = data.dropna().sort_values(by=['H' + idx])
+    sorted_data = sel_data.dropna().sort_values(by=['H' + idx])
 
     # Extract unique field values and corresonding indexes of first
     # unique value occurence

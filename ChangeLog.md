@@ -1,6 +1,10 @@
+v 4.0.2
+-------
+- Update of configuration file for Deimos beamline in order to work with changes in experimental data logfiles formatting.
+
 v 4.0.1
 -------
-- Update of configuration file for Deimos beamline in order to work with changes in experimental data logfiles formatting
+- Update of configuration file for Deimos beamline in order to work with changes in experimental data logfiles formatting.
 
 v 4.0.0
 -------

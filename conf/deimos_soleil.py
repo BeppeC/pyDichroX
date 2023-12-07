@@ -408,11 +408,11 @@ class Configuration():
                         # find lines with sample positions and extract
                         # positions values
                         for ln in par.split('\n'):
-                            if 'exp1-mt_rz_#1' in ln:
+                            if 'exp1-mt_rz_#2' in ln:
                                 rz = float(ln.split('=')[1].strip(' °;'))
-                            if 'exp1-mt_tx_#1' in ln:
+                            if 'exp1-mt_tx_#2' in ln:
                                 tx = float(ln.split('=')[1].strip(' mm;'))
-                            if 'exp1-mt_tz.2_#1' in ln:
+                            if 'exp1-mt_tz.2_#2' in ln:
                                 tz = float(ln.split('=')[1].strip(' mm;'))
             return {'mon_en': mon_en, 'pol': pol, 'field': field, 't': t,
                     'rz': rz, 'tx': tx, 'tz': tz}

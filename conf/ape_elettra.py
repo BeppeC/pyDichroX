@@ -345,6 +345,11 @@ class Configuration():
             log_tbl['z'].std())
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
 
+        logtxt += 'Weight energy for positive scans: {} eV\n'.format(
+                                                                log_dt['PWEn'])
+        logtxt += 'Weight energy for negative scans: {} eV\n\n'.format(
+                                                                log_dt['NWEn'])
+
         logtxt += 'Input scans\n'
         for i in range(len(log_tbl)):
             logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],

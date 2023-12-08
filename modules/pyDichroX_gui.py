@@ -261,6 +261,10 @@ class GUI:
     ask_acq_times()
         Prompt for starting and ending acquisition times to be 
         considered in hysteresis point by point analysis.
+
+    ask_weig()
+        GUI dialogue to ask if user wants to normalize input data.
+
     '''
 
     def __init__(self, confobj):
@@ -1946,6 +1950,25 @@ class GUI:
 
         return st_t, end_t
 
+    def ask_weig(self):
+        '''
+        GUI dialogue to ask if user wants to weight input data.
+
+        Returns
+        -------
+        bool
+            true if user wants to notmalize input data , false if not or
+            if window is closed without choice 
+        '''
+        msg = ('Do you want to weight input data before staring analysis?' +
+               '\nThe weight is proportional to value at selcted energy.')
+        ans = eg.ynbox(msg, self.title)
+
+        if ans is None:
+            return False  # If window is closed don't normalize data
+        else:
+            return ans
+
 
 def ask_continue():
     '''
@@ -2055,4 +2078,4 @@ def sel_edg_fls():
             ask_quit(title, 1)
             continue
 
-    return f_nm
+    return f_nm    

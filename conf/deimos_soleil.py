@@ -407,11 +407,11 @@ class Configuration():
                         # find lines with sample positions and extract
                         # positions values
                         for ln in par.split('\n'):
-                            if 'exp1-mt_rz_#1' in ln:
+                            if 'exp1-mt_rz_#2' in ln:
                                 rz = float(ln.split('=')[1].strip(' °;'))
-                            if 'exp1-mt_tx_#1' in ln:
+                            if 'exp1-mt_tx_#2' in ln:
                                 tx = float(ln.split('=')[1].strip(' mm;'))
-                            if 'exp1-mt_tz.2_#1' in ln:
+                            if 'exp1-mt_tz.2_#2' in ln:
                                 tz = float(ln.split('=')[1].strip(' mm;'))
             t = (tb1 + tb2) / 2
             return {'mon_en': mon_en, 'pol': pol, 'field': field, 'tb1': tb1,
@@ -455,6 +455,10 @@ class Configuration():
 
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
 
+        logtxt += 'Weight energy for positive scans: {} eV\n'.format(
+                                                                log_dt['PWEn'])
+        logtxt += 'Weight energy for negative scans: {} eV\n\n'.format(
+                                                                log_dt['NWEn'])
         logtxt += 'Input scans\n'
         for i in range(len(log_tbl)):
             logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],

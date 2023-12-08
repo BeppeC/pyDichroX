@@ -34,7 +34,7 @@ import scipy.optimize as opt
 from scipy import sparse
 from scipy.special import expit
 from scipy.sparse.linalg import spsolve
-from matplotlib.widgets import CheckButtons, Button
+from matplotlib.widgets import CheckButtons, Button, TextBox
 from matplotlib.path import Path
 
 
@@ -57,11 +57,21 @@ class ScanData:
     energy : array
         common energy scale for average of scans.
 
+    ax : plt.subplot
+        subplot where to show scans and their average during choosing
+        scans procedure.
+
     lines : list (2d line objects)
         Collect lines object of raw scan for plotting.
 
-    blins : list (2d line objects)
+    blines : list (2d line objects)
         Collect lines object of raw scan for plotting.
+
+    weig_val : float
+        energy value for weighting data scans
+    
+    weig_ln : line obj
+        vline for weight energy.
 
     avg_ln : 2d line objects
         Lines object of average of scans.
@@ -148,25 +158,35 @@ class ScanData:
 
     Methods
     -------
-    man_aver_e_scans(guiobj, enrg)
+    man_aver_e_scans(guiobj, enrg, weig_dt, log_dt)
         Manage the choice of scans to be averaged and return the average
         of selected scans.
-
-    aver_e_scans(enrg, chsn, guiobj)
-        Performe the average of data scans.
 
     check_but(label)
         When check buttons are checked switch the visibility of
         corresponding line.
 
+    set_weigen(weig_e)
+        Update weight energy and line on graph based on user input.
+
     averbut(event)
         When average button is pressed calls aver_e_scans to compute
         average on selected scans.
 
+    weigaverbut(event)
+        When average button is pressed calls weig_aver_e_scans to weight
+        and compute average on selected scans.
+
+    aver_e_scans()
+        Performe the average of data scans.
+
+    weig_aver_e_scans()
+        Weight data scans and average them.
+
     reset(event)
         Reset graph to starting conditions.
 
-    finish_but(self, event)
+    finish_but(event)
         Close the figure on pressing the button Finish.
 
     edge_norm(guiobj, enrg, e_edge, e_pe, pe_rng, pe_int)
@@ -182,7 +202,7 @@ class ScanData:
         self.idx = []
         self.raw_imp = pd.DataFrame()
 
-    def man_aver_e_scans(self, guiobj, enrg):
+    def man_aver_e_scans(self, guiobj, enrg, weig_dt, log_dt):
         '''
         Manage the choice of scans to be averaged and return the average
         and standard deviation of selected scans.
@@ -194,6 +214,13 @@ class ScanData:
 
         enrg : array
             Energy values at which average is calculated.
+
+        weig_dt : bool
+            If True weight data before averaging them.
+
+        log_dt : pandas DataFrame
+            DataFrame with log data - needed to initialize norm energy
+            with pre-edge energy
 
         Return
         ------
@@ -212,11 +239,11 @@ class ScanData:
         self.aver = 0
 
         if guiobj.interactive:  # Interactive choose of scans
-            fig, ax = plt.subplots(figsize=(10, 6))
+            fig, self.ax = plt.subplots(figsize=(10, 6))
             fig.subplots_adjust(right=0.75)
 
-            ax.set_xlabel('E (eV)')
-            ax.set_ylabel(self.dtype)
+            self.ax.set_xlabel('E (eV)')
+            self.ax.set_ylabel(self.dtype)
 
             if guiobj.infile_ref:
                 fig.suptitle('Choose reference sample scans')
@@ -227,25 +254,58 @@ class ScanData:
             # blines contain dark lines to be showed with average
             self.lines = []
             self.blines = []
-            # Populate list with line objs
-            for i in self.idx:
-                e_col = 'E' + i
-                # Show lines and not blines
-                self.lines.append(
-                    ax.plot(self.raw_imp[e_col], self.raw_imp[i],
-                        label=self.label[self.idx.index(i)])[0])
-                self.blines.append(
-                    ax.plot(self.raw_imp[e_col],
-                        self.raw_imp[i], color='dimgrey', visible=False)[0])
-            # Initialize chsn_scs and average line with all scans and
-            # set it invisible
-            for line in self.lines:
-                if line.get_visible():
-                    self.chsn_scns.append(line.get_label())
-            self.aver_e_scans()
-            self.avg_ln, = ax.plot(
+
+            if weig_dt:
+                # Initialize normalization. As starting value pre-edge
+                # energy is considered
+                self.weig_val = float(log_dt['PreEdge_en'])
+
+                self.weig_ln = self.ax.axvline(x=self.weig_val, color='seagreen',
+                                          label='Weight Energy')
+
+                # Create new pd.DataFrame to store weighted scans and
+                # initialize to raw_imp
+                #self.raw_imp_w = self.raw_imp
+
+                # Populate list with line objs
+                for i in self.idx:
+                    e_col = 'E' + i
+                    # Show lines and not blines
+                    self.lines.append(
+                                    self.ax.plot(self.raw_imp[e_col],
+                                    self.raw_imp[i],
+                                    label=self.label[self.idx.index(i)])[0])
+                # Initialize chsn_scs and average line with all scans and
+                # set it invisible
+                for line in self.lines:
+                    if line.get_visible():
+                        self.chsn_scns.append(line.get_label())
+                self.weig_aver_e_scans()
+            else:    
+                # Populate list with line objs
+                for i in self.idx:
+                    e_col = 'E' + i
+                    # Show lines and not blines
+                    self.lines.append(
+                                    self.ax.plot(self.raw_imp[e_col],
+                                    self.raw_imp[i],
+                                    label=self.label[self.idx.index(i)])[0])
+                    self.blines.append(
+                                        self.ax.plot(self.raw_imp[e_col],
+                                            self.raw_imp[i], color='dimgrey',
+                                            visible=False)[0])
+                # Initialize chsn_scs and average line with all scans and
+                # set it invisible
+                for line in self.lines:
+                    if line.get_visible():
+                        self.chsn_scns.append(line.get_label())
+                self.aver_e_scans()
+                # Set a value just for log dt
+                self.weig_val = '--'
+         
+            self.avg_ln, = self.ax.plot(
                 self.energy, self.aver, color='red', lw=2, visible=False)
-            self.avg_std_fl = ax.fill_between(
+            self.avg_std_fl = self.ax.fill_between(
                 self.energy, self.aver - self.aver_std,
                 self.aver + self.aver_std, color='red', alpha=0.2,
                 visible=False)
@@ -279,17 +339,30 @@ class ScanData:
             self.checkbx.on_clicked(self.check_but)
 
             # Create box for average reset and finish buttons
-            averbox = fig.add_axes([0.77, 0.2, 0.08, 0.08])
-            bnaver = Button(averbox, 'Average')
-            bnaver.on_clicked(self.averbut)
-            rstbox = fig.add_axes([0.89, 0.2, 0.08, 0.08])
+            if weig_dt:
+                wenbox = fig.add_axes([0.87, 0.24, 0.1, 0.06])
+                text_wenbox = TextBox(wenbox, 'Weight Energy')
+                text_wenbox.set_val(np.around(float(log_dt['PreEdge_en']),
+                                              decimals=2))
+                text_wenbox.on_submit(self.set_weigen)
+                averbox = fig.add_axes([0.77, 0.14, 0.08, 0.06])
+                bnaver = Button(averbox, 'Weight\n& Aver')
+                bnaver.on_clicked(self.weigaverbut)
+                rstbox = fig.add_axes([0.89, 0.14, 0.08, 0.06])
+                finbox = fig.add_axes([0.82, 0.04, 0.12, 0.06])
+            else:
+                averbox = fig.add_axes([0.77, 0.2, 0.08, 0.08])
+                bnaver = Button(averbox, 'Average')
+                bnaver.on_clicked(self.averbut)
+                rstbox = fig.add_axes([0.89, 0.2, 0.08, 0.08])
+                finbox = fig.add_axes([0.82, 0.07, 0.12, 0.08])
+
             bnrst = Button(rstbox, 'Reset')
             bnrst.on_clicked(self.reset)
-            finbox = fig.add_axes([0.82, 0.07, 0.12, 0.08])
             bnfinish = Button(finbox, 'Finish')
             bnfinish.on_clicked(self.finish_but)
 
-            ax.legend()
+            self.ax.legend()
             plt.show()
 
             # If average is not pressed automatically compute average on
@@ -298,7 +371,10 @@ class ScanData:
                 for line in self.lines:
                     if line.get_visible():
                         self.chsn_scns.append(line.get_label())
-                self.aver_e_scans()
+                if weig_dt:
+                    self.weig_aver_e_scans()
+                else:
+                    self.aver_e_scans()
         else:
             # Not-interactive mode: all scans except 'Dummy Scans' are
             # evaluated
@@ -307,8 +383,15 @@ class ScanData:
                 # corresponding scan number in chosen scan list
                 if not ('Dummy' in lbl):
                     self.chsn_scns.append(self.idx[self.label.index(lbl)])
-
             self.aver_e_scans()
+            # Set a value just for log dt
+            self.weig_val = '--'
+        # collect weight energy for final log
+        if self.dtype in ['sigma^+', 'CR', 'H-', 'LH']:
+            label_w_dt = 'PWEn'
+        else:
+            label_w_dt = 'NWEn'
+        log_dt[label_w_dt] = self.weig_val
 
     def check_but(self, label):
         '''
@@ -324,6 +407,40 @@ class ScanData:
             if line.get_visible():
                 self.chsn_scns.append(line.get_label())
         plt.draw()
+
+    def set_weigen(self, weig_e):
+        '''
+        Update weight energy value and line on graph based on input in
+        TextBox.
+
+        Parameters
+        ----------
+        weig_e : str
+            user input for weight energy. 
+        '''
+        # Check that a number is passed
+        while True:
+            try:
+                weig_e = float(weig_e)
+            except:
+                # Leave previous value if the input is not a number
+                weig_e = self.weig_val
+                msg = 'Enter a float number for weight energy.'
+                eg.msgbox(msg=msg, title='Error')
+            else:
+                if (weig_e < self.energy[0]) or (weig_e > self.energy[-1]):
+                    msg = ('Enter a weight energy value whithin the energy' +
+                           ' scale range.')
+                    eg.msgbox(msg=msg, title='Error')
+                    # Leave previous value if the input is outside the
+                    # energy range
+                    weig_e = self.weig_val
+                else:
+                    # Update weight energy value
+                    self.weig_val = weig_e
+                    break
+        # Update graph
+        self.weig_ln.set_xdata(self.weig_val)
 
     def averbut(self, event):
         '''
@@ -359,30 +476,58 @@ class ScanData:
 
         plt.draw()
 
+    def weigaverbut(self, event):
+        '''
+        When average button is pressed calls weig_aver_e_scans to weight
+        and compute average on selected scans.
+        Update self.chsn_scns and self.aver.
+        '''
+        # Initialize list of chosed scans
+        self.chsn_scns = []
+        
+        # Set visible only chosen scans in blines and append to
+        # chsn_scns
+        for i in range(len(self.lines)):
+            if self.lines[i].get_visible():
+                self.lines[i].set(visible=False)
+                self.chsn_scns.append(self.lines[i].get_label())
+        # Empty self.blines: it will be filled with weighted scans by
+        # self.weig_aver_e_scans
+        self.blines.clear()
+        self.weig_aver_e_scans()
+        # Make visible blines
+        for i in range(len(self.blines)):        
+            self.blines[i].set(visible=True)
+        # Update average and std lines and make them visible
+        self.avg_ln.set_ydata(self.aver)
+        self.avg_ln.set(visible=True)
+        self.avg_ln.set_zorder(2.5)
+        # update errorband
+        averp = self.aver + self.aver_std
+        avern = self.aver - self.aver_std
+        verts = np.block([[self.energy, self.energy[::-1]],
+                        [averp, avern[::-1]]]).T
+        codes = np.full(len(verts), Path.LINETO)
+        codes[0] = codes[len(self.aver)] = Path.MOVETO
+        path = Path(verts, codes)
+        self.avg_std_fl.set_paths([path.vertices])
+        self.avg_std_fl.set(visible=True)
+        self.avg_std_fl.set_zorder(2.45)
+
+        plt.draw()
+
     def aver_e_scans(self):
         '''
         Perform the average of data scans. 
-        If interactive mode, data scans and their average are shown
-        together in a plot. 
-
-        Parameters
-        ----------
-        enrg : array
-            Energy values at which average is calculated.
-
-        chsn : list (str)
-            Scan-numbers of scan to be averaged.
-
-        guiobj: GUI object
-            Provides GUI dialogs.
-
+        
         Returns
         -------
         array, containing the average of data scans.
 
         Notes
         -----
-        To compute the average the common energy scale enrg is used.
+        To compute the average the common energy scale self.enrgy is
+        used.
         All passed scans are interpolated with a linear spline (k=1 and
         s=0 in itp.UnivariateSpline) and evaluated along the common
         energy scale.
@@ -391,7 +536,6 @@ class ScanData:
         intrp = []
 
         for i in self.idx:
-            e_col = 'E' + i
             if self.label[self.idx.index(i)] in self.chsn_scns:
                 # chosen data
                 x = self.raw_imp['E' + i][1:]
@@ -399,7 +543,7 @@ class ScanData:
 
                 # Compute linear spline interpolation
                 y_int = itp.UnivariateSpline(x, y, k=1, s=0)
-                # Evaluate interpolation of scan data on enrg energy
+                # Evaluate interpolation of scan data on common energy
                 # scale and append to previous interpolations
                 intrp.append(y_int(self.energy))
 
@@ -407,6 +551,76 @@ class ScanData:
         self.aver = np.average(intrp, axis=0)
         # Compute STD of the interpolated scans
         self.aver_std = np.std(intrp, axis=0)
+
+    def weig_aver_e_scans(self):
+        '''
+        Weight data scans and average them.
+        
+        Returns
+        -------
+        array, containing the average of weighted data scans.
+
+        Notes
+        -----
+        For each data scan the weight is computed as
+        y(weig_val) / <y(weig_val)>
+        where
+        y(weig_val) is the interpolated value at weig_val energy 
+        <y(weig_val)> is the average of all values at weig_val energy  of
+        data scans
+        For itnerpolation linear spline (k=1 and s=0 in 
+        itp.UnivariateSpline) is employed.
+
+        To compute the average the common energy scale self.energy is
+        used.
+        All passed scans are first weighted, then interpolated with a
+        linear spline (k=1 and s=0 in itp.UnivariateSpline) and
+        evaluated along the common energy scale.
+        The interpolated data are eventually averaged.
+        '''
+        intrp_we = []
+        intrp = []
+
+        raw_imp_w = pd.DataFrame()
+
+        for i in self.idx:
+            if self.label[self.idx.index(i)] in self.chsn_scns:
+                # chosen data
+                x = self.raw_imp['E' + i][1:]
+                y = self.raw_imp[i][1:]
+
+                # Compute linear spline interpolation
+                y_int = itp.UnivariateSpline(x, y, k=1, s=0)
+                # Evaluate interpolation of scan data at self.weig_val
+                int_weig_e = y_int(self.weig_val)
+                # Divide scan data by int_weig_e and store them in
+                # raw_imp_w
+                raw_imp_w[i] = self.raw_imp[i] / int_weig_e
+                # Append int_weig_e to intrp_we in order to average all
+                # the values at self.weig_val
+                intrp_we.append(int_weig_e)
+
+                # Evaluate interpolation of scan data on common energy
+                # scale, divide by int_weig_e it and append to previous
+                # interpolations
+                intrp.append(y_int(self.energy) / int_weig_e)
+        # Average all inteprolated scan values at self.weig_val
+        weig_e_av = np.average(intrp_we)
+        # Populate self.bline with wirghted selected scans
+        for i in self.idx:
+            if self.label[self.idx.index(i)] in self.chsn_scns:
+                e_col = 'E' + i
+                # weighted chosen data
+                wy = weig_e_av * raw_imp_w[i]
+                self.blines.append(
+                                    self.ax.plot(self.raw_imp[e_col],
+                                            wy, color='dimgrey',
+                                            visible=False)[0])
+        # Average all inteprolated scans and multiply by weig_e_av in 
+        # this way each scan has been weighted by int_weig_e/weig_e_av
+        self.aver = weig_e_av * np.average(intrp, axis=0)
+        # Compute STD of the interpolated scans
+        self.aver_std = weig_e_av * np.std(intrp, axis=0)
 
     def reset(self, event):
         '''
@@ -424,6 +638,7 @@ class ScanData:
         # Show all spectra
         for i in range(len(self.lines)):
             self.lines[i].set(visible=True)
+        for i in range(len(self.blines)):
             self.blines[i].set(visible=False)
 
         plt.draw()
@@ -792,6 +1007,12 @@ class EngyScan:
         neg_chs : list (str) with negative chosen scan
 
         '''
+        if guiobj.interactive:
+            # only in interactive mode ask for normalization
+            weig_dt = guiobj.ask_weig()
+        else:
+            weig_dt = False
+
         # If no reference data pos_to_norm and neg_to_norm are empty
         # ScanData object
         if pos_to_norm.raw_imp.empty or neg_to_norm.raw_imp.empty:
@@ -799,8 +1020,8 @@ class EngyScan:
             # scans
             guiobj.infile_ref = False
 
-            pos.man_aver_e_scans(guiobj, self.energy)
-            neg.man_aver_e_scans(guiobj, self.energy)
+            pos.man_aver_e_scans(guiobj, self.energy, weig_dt, log_dt)
+            neg.man_aver_e_scans(guiobj, self.energy, weig_dt, log_dt)
         else:
             # If present computes averages of positive and negative
             # polarization  of reference scans and normalize data for
@@ -810,8 +1031,8 @@ class EngyScan:
             # They are supposed to be already analyzed so aver attribute
             # is already setted.
             guiobj.infile_ref = True
-            pos.man_aver_e_scans(guiobj, self.energy)
-            neg.man_aver_e_scans(guiobj, self.energy)
+            pos.man_aver_e_scans(guiobj, self.energy, weig_dt, log_dt)
+            neg.man_aver_e_scans(guiobj, self.energy, weig_dt, log_dt)
 
             # Just substitute pos.aver and neg.aver with normalized data
             pos.aver = pos_to_norm.aver / pos.aver

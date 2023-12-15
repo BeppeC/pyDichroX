@@ -1,3 +1,18 @@
+v 4.0.3
+-------
+- Added configuration file for Deimos beamline. This new configuaration involve only point by point hysteresis analysis:
+. use deimos_soleil to analyse data collected by TimeScan routine
+. use deimos_soleil_turbotime to analyse data collected by TurboTimeScan routine
+For all the other analysis use indifferently deimos_soleil or deimos_soleil_turboscan
+
+v 4.0.2
+-------
+- Update of configuration file for Deimos beamline in order to work with changes in experimental data logfiles formatting.
+
+v 4.0.1
+-------
+- Update of configuration file for Deimos beamline in order to work with changes in experimental data logfiles formatting.
+
 v 4.0.0
 -------
 - Added errorbands in energy scan analysis. Now it is possible to visualize error bands of energy scan spectra. Error bands are calcuated starting from standard deviation of averaged scans and propagating them through the analysis.

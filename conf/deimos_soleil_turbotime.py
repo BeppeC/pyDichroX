@@ -214,21 +214,21 @@ class Configuration():
 
             else:
                 # Columns for hysteresis point by point collected with
-                # TimeScan
-                self.field = 'data_08'  # magnetic field data
-                self.iti0 = 'data_06'  # it/i0 data - TEY
+                # TurboTimeScan
+                self.field = 'data_09'  # magnetic field data
+                self.iti0 = 'data_07'  # it/i0 data - TEY
 
                 # self.phase_hyst = 'data_09'  # phase data
 
-                self.ifi0 = 'data_11'  # if/if0 data - Fluorescence
+                self.ifi0 = 'data_12'  # if/if0 data - Fluorescence
 
-                self.time = 'rel_time'  # timestamps
+                self.time = 'abs_time'  # timestamps
 
                 # They should not be used
-                self.i0 = 'data_04'  # i0 data - TEY
-                self.it = 'data_04'  # it data - TEY
-                self.if1 = 'data_10'  # if data - Fluorescence
-                self.if0 = 'data_04'  # if0 data - Fluorescence
+                self.i0 = 'data_05'  # i0 data - TEY
+                self.it = 'data_06'  # it data - TEY
+                self.if1 = 'data_11'  # if data - Fluorescence
+                self.if0 = 'data_05'  # if0 data - Fluorescence
 
                 # Hysteresis scan colums list to be imported
                 return [self.field, self.iti0, self.ifi0, self.time]

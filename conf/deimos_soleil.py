@@ -226,7 +226,7 @@ class Configuration():
 
                 # They should not be used
                 self.i0 = 'data_04'  # i0 data - TEY
-                self.it = 'data_04'  # it data - TEY
+                self.it = 'data_05'  # it data - TEY
                 self.if1 = 'data_10'  # if data - Fluorescence
                 self.if0 = 'data_04'  # if0 data - Fluorescence
 

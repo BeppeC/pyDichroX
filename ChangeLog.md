@@ -1,3 +1,7 @@
+v 4.1.0
+-------
+- From v 4.1.0 it is possible to weight raw scan data durnig importing passages before average them. If scans are affected by large drift and/or fluctation of the background user can chose to re-calibrate scans applying a weighting based on a reference value given by the scan values at a choosen energy. This energy is chosen interactively through a GUI. For each scan the weigh is computed considering this reference value at the chosen energy divided by the average of all the reference values.  
+
 v 4.0.3
 -------
 - Added configuration file for Deimos beamline. This new configuaration involve only point by point hysteresis analysis:

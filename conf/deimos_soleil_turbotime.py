@@ -360,9 +360,7 @@ class Configuration():
          . mon_en : monocromator energy
          . pol : polarisation identifier
          . field : magnetic field value
-         . tb1 : sample temperature 1
-         . tb2 : sample temperature 2
-         . t : average of tb1 and tb2
+         . t : sample temperature
          . rz : sample rotation angle
          . tx : sample x position
          . tz : sample z position
@@ -399,10 +397,13 @@ class Configuration():
                         # find line with sample temperature and take TB
                         # values
                         for ln in par.split('\n'):
-                            if '1_#1' in ln:
-                                tb1 = float(ln.split('=')[1].strip(' K;'))
+                            # nov 2023: 
+                            # 1_#1 is no more present in Deimos logfiles
+                            # if '1_#1' in ln:
+                            #    tb1 = float(ln.split('=')[1].strip(' K;'))
                             if '1_#2' in ln:
-                                tb2 = float(ln.split('=')[1].strip(' K;'))
+                            # t once was t2 and the average was returned
+                                t = float(ln.split('=')[1].strip(' K;'))
                     if 'Position' in par:
                         # find lines with sample positions and extract
                         # positions values
@@ -413,9 +414,8 @@ class Configuration():
                                 tx = float(ln.split('=')[1].strip(' mm;'))
                             if 'exp1-mt_tz.2_#2' in ln:
                                 tz = float(ln.split('=')[1].strip(' mm;'))
-            t = (tb1 + tb2) / 2
-            return {'mon_en': mon_en, 'pol': pol, 'field': field, 'tb1': tb1,
-                    'tb2': tb2, 't': t, 'rz': rz, 'tx': tx, 'tz': tz}
+            return {'mon_en': mon_en, 'pol': pol, 'field': field, 't': t,
+                    'rz': rz, 'tx': tx, 'tz': tz}
         except:            
             raise Exception()
 
@@ -439,10 +439,8 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
+        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
+                                               log_tbl['t'].std())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
@@ -455,10 +453,6 @@ class Configuration():
 
         logtxt += 'Setted angle : {}°\n\n'.format(log_dt['angle'])
 
-        logtxt += 'Weight energy for positive scans: {} eV\n'.format(
-                                                                log_dt['PWEn'])
-        logtxt += 'Weight energy for negative scans: {} eV\n\n'.format(
-                                                                log_dt['NWEn'])
         logtxt += 'Input scans\n'
         for i in range(len(log_tbl)):
             logtxt += '{} ({}), '.format(log_tbl['scn_num'].iloc[i],
@@ -528,10 +522,8 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
+        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
+                                               log_tbl['t'].std())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'
@@ -609,10 +601,8 @@ class Configuration():
         log_tbl = log_dt['log_tbl']
 
         logtxt += 'Sample temperature\n'
-        logtxt += 'TB1 : {} +/- {} K\n'.format(log_tbl['tb1'].mean(),
-                                               log_tbl['tb1'].std())
-        logtxt += 'TB2 : {} +/- {} K\n\n'.format(log_tbl['tb2'].mean(),
-                                                 log_tbl['tb2'].std())
+        logtxt += 'T : {} +/- {} K\n\n'.format(log_tbl['t'].mean(),
+                                               log_tbl['t'].std())
         logtxt += 'Magnetic field {} +/- {} T\n\n'.format(
             log_tbl['field'].abs().mean(), log_tbl['field'].abs().std())
         logtxt += 'Sample position\n'

@@ -1,3 +1,8 @@
+v 4.1.1
+-------
+- Fixed a bug in id12_cube_esrf config file.
+- Data and log files extraction has been unified for both id12_cube and id12_17T(TBT), so once data has been extracted one time form spec file can be used for both type of analysis (in previous versions an exctraction for each configuration were required).
+
 v 4.1.0
 -------
 - From v 4.1.0 it is possible to weight raw scan data durnig importing passages before average them. If scans are affected by large drift and/or fluctation of the background user can chose to re-calibrate scans applying a weighting based on a reference value given by the scan values at a choosen energy. This energy is chosen interactively through a GUI. For each scan the weigh is computed considering this reference value at the chosen energy divided by the average of all the reference values.  

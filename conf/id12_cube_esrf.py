@@ -378,17 +378,14 @@ class Configuration():
                     # tsam which is the temperature measured near the
                     # sample but it is not measured during the scans
                     # acquisition, so it is not considered here
-                    if name == 't':
-                        t = float(value)
-                    # find sample positions
-                    if name == 'sz':
+                    if name == 'sz_cube':
                         tz = float(value)
-                    if name == 'emtx':
+                    if name == 'emtx_cube':
                         tx = float(value)
-                    if name == 'srot':
+                    if name == 'srot_cube':
                         rz = float(value)
-            return {'mon_en': mon_en, 'pol': pol, 'field': field, 't': t,
-                    'rz': rz, 'tx': tx, 'tz': tz}
+            return {'mon_en': mon_en, 'pol': pol, 'field': field, 'rz': rz,
+                    'tx': tx, 'tz': tz}
         except:
             raise Exception()
 
@@ -618,9 +615,12 @@ class Configuration():
             ph_ln = 'foo'
             en_ln = 'foo'
             mg_ln = 'foo'
-            sz_ln = 'foo'
-            srot_ln = 'foo'
-            sy_ln = 'foo'
+            sz_tbt_ln = 'foo'
+            srot_tbt_ln = 'foo'
+            sy_tbt_ln = 'foo'
+            sz_cube_ln = 'foo'
+            srot_cube_ln = 'foo'
+            sy_cube_ln = 'foo'
             t_ln = 'foo'
             # loop through the file
             for line in fin:
@@ -642,16 +642,30 @@ class Configuration():
                         if 'cryo' in sline:
                             mg_idx = sline.index('cryo')
                             mg_ln = '#P' + num
-                        # sz pos line and idx
+                        # sample temperature line and idx
+                        if 'lakeA' in sline:
+                            t_idx = sline.index('lakeA')
+                            t_ln = '#P' + num
+                        # sz, srot, sy pos line and idx for 17T & TBT
+                        if 'CryoTz' in sline:
+                            sz_tbt_idx = sline.index('CryoTz')
+                            sz_tbt_ln = '#P' + num
+                        if 'CryoRot' in sline:
+                            srot_tbt_idx = sline.index('CryoRot')
+                            srot_tbt_ln = '#P' + num
+                        if 'CryoTx' in sline:
+                            sy_tbt_idx = sline.index('CryoTx')
+                            sy_tbt_ln = '#P' + num
+                        # sz, srot, sy pos line and idx for cube
                         if 'SZ' in sline:
-                            sz_idx = sline.index('SZ')
-                            sz_ln = '#P' + num
+                            sz_cube_idx = sline.index('SZ')
+                            sz_cube_ln = '#P' + num
                         if 'SROT' in sline:
-                            srot_idx = sline.index('SROT')
-                            srot_ln = '#P' + num
+                            srot_cube_idx = sline.index('SROT')
+                            srot_cube_ln = '#P' + num
                         if 'EMTx' in sline:
-                            sy_idx = sline.index('EMTx')
-                            sy_ln = '#P' + num
+                            sy_cube_idx = sline.index('EMTx')
+                            sy_cube_ln = '#P' + num
                     if sline[0] == '#S':
                         scn_num = sline[1]
                         # if first scan just open the files
@@ -703,12 +717,24 @@ class Configuration():
                     if sline[0] == mg_ln:
                         f_log.write('magnet:{}\n'.format(sline[mg_idx]))
                     # collect motors positions
-                    if sline[0] == sz_ln:
-                        f_log.write('sz:{}\n'.format(sline[sz_idx]))
-                    if sline[0] == srot_ln:
-                        f_log.write('srot:{}\n'.format(sline[srot_idx]))
-                    if sline[0] == sy_ln:
-                        f_log.write('emtx:{}\n'.format(sline[sy_idx]))
+                    if sline[0] == sz_tbt_ln:
+                        f_log.write('sz_tbt:{}\n'.format(sline[sz_tbt_idx]))
+                    if sline[0] == srot_tbt_ln:
+                        f_log.write('srot_tbt:{}\n'.format(
+                                                        sline[srot_tbt_idx]))
+                    if sline[0] == sy_tbt_ln:
+                        f_log.write('emtx_tbt:{}\n'.format(sline[sy_tbt_idx]))
+                    if sline[0] == sz_cube_ln:
+                        f_log.write('sz_cube:{}\n'.format(sline[sz_cube_idx]))
+                    if sline[0] == srot_cube_ln:
+                        f_log.write('srot_cube:{}\n'.format(
+                                                        sline[srot_cube_idx]))
+                    if sline[0] == sy_cube_ln:
+                        f_log.write('emtx_cube:{}\n'.format(
+                                                        sline[sy_cube_idx]))
+                    # collect temperature - only 17T and TBT are reliable    
+                    if sline[0] == t_ln:
+                        f_log.write('t:{}\n'.format(sline[t_idx]))
                     # L line contains data headers
                     if sline[0] == '#L':
                         # write header of datafile

@@ -23,14 +23,41 @@ Currently pyDichroX analyses data from:
 - ID-12 Beamline @ ESRF Synchrotron, Grenoble (France) - XNCD
 
 
-REQUIREMENTS
-------------
-- Python >= 3.9
-- numpy
-- scipy >= 1.9.0
-- pandas
-- matplotlib
-- easygui
+INSTALLING
+----------
+Python >= 3.9 is required.
+
+The recommended way to run pyDichroX is using a **virtual environment**.
+
+To create a virtual environment named for instance .pydichrox-venv
+
+**Unix/macOS**
+>python3 -m venv .pydichrox-venv
+
+**Windows**
+>py -m venv .pydichrox-venv
+
+Before running PydichroiX the virtual environment must be activated
+
+**Unix/macOS**
+>source .pydichrox-venv/bin/activate
+
+**Windows**
+>.pydichrox-venv\Scripts\activate
+
+If you want to switch projects or leave your virtual environment, deactivate the environment
+
+>deactivate
+
+After the virtual environment has been created in order to install the required dependecies use pyDXrequirements.txt file
+
+**Unix/macOS**
+>python3 -m pip install -r pyDXrequirements.txt
+
+**Windows**
+>py -m pip install -r pyDXrequirements.txt
+
+If you don't want to create a virtual environment you can just run pyDichroX.py providing the required dependencies that can be found in pyDXrequirements.txt file
 
 
 USAGE
